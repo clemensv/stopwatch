@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stopwatch Overlay — Always-on-top timer for recordings &amp; presentations</title>
+    <style>
+        :root {
+            --bg: #0d1117;
+            --surface: #161b22;
+            --border: #30363d;
+            --text: #e6edf3;
+            --muted: #8b949e;
+            --accent: #58a6ff;
+            --green: #3fb950;
+            --cyan: #00d4ff;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 960px;
+            margin: 0 auto;
+            padding: 0 24px;
+        }
+
+        /* Hero */
+        .hero {
+            text-align: center;
+            padding: 80px 0 48px;
+        }
+
+        .hero-icon {
+            font-size: 64px;
+            margin-bottom: 16px;
+        }
+
+        .hero h1 {
+            font-size: 48px;
+            font-weight: 800;
+            letter-spacing: -1px;
+            margin-bottom: 16px;
+            background: linear-gradient(135deg, var(--cyan), var(--accent));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .hero p {
+            font-size: 20px;
+            color: var(--muted);
+            max-width: 600px;
+            margin: 0 auto 32px;
+        }
+
+        .btn {
+            display: inline-block;
+            padding: 14px 32px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            text-decoration: none;
+            transition: transform 0.15s, box-shadow 0.15s;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #238636, #2ea043);
+            color: #fff;
+            margin-right: 12px;
+        }
+
+        .btn-secondary {
+            background: var(--surface);
+            color: var(--text);
+            border: 1px solid var(--border);
+        }
+
+        /* Screenshots */
+        .screenshots {
+            padding: 48px 0;
+        }
+
+        .screenshots h2 {
+            text-align: center;
+            font-size: 32px;
+            margin-bottom: 32px;
+        }
+
+        .screenshot-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 32px;
+            align-items: start;
+        }
+
+        .screenshot-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        .screenshot-card img {
+            width: 100%;
+            display: block;
+        }
+
+        .screenshot-card .placeholder {
+            aspect-ratio: 4/3;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            color: var(--muted);
+            font-size: 14px;
+            padding: 24px;
+            text-align: center;
+            background: linear-gradient(135deg, #1a1f29, #161b22);
+        }
+
+        .placeholder-demo {
+            font-family: 'Consolas', 'Courier New', monospace;
+            font-size: 36px;
+            font-weight: bold;
+            color: #fff;
+            background: rgba(0,0,0,0.5);
+            padding: 12px 24px;
+            border-radius: 8px;
+            margin-bottom: 12px;
+            text-shadow: 2px 2px 0 #000, -2px -2px 0 #000, 2px -2px 0 #000, -2px 2px 0 #000;
+        }
+
+        .screenshot-card figcaption {
+            padding: 16px;
+            font-size: 14px;
+            color: var(--muted);
+            border-top: 1px solid var(--border);
+        }
+
+        /* Features */
+        .features {
+            padding: 48px 0;
+        }
+
+        .features h2 {
+            text-align: center;
+            font-size: 32px;
+            margin-bottom: 32px;
+        }
+
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 24px;
+        }
+
+        .feature {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 24px;
+        }
+
+        .feature-emoji {
+            font-size: 32px;
+            margin-bottom: 12px;
+        }
+
+        .feature h3 {
+            font-size: 18px;
+            margin-bottom: 8px;
+        }
+
+        .feature p {
+            color: var(--muted);
+            font-size: 14px;
+        }
+
+        /* Install */
+        .install {
+            padding: 48px 0;
+        }
+
+        .install h2 {
+            text-align: center;
+            font-size: 32px;
+            margin-bottom: 32px;
+        }
+
+        .steps {
+            max-width: 640px;
+            margin: 0 auto;
+        }
+
+        .step {
+            display: flex;
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .step-number {
+            flex-shrink: 0;
+            width: 36px;
+            height: 36px;
+            background: var(--accent);
+            color: var(--bg);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 16px;
+        }
+
+        .step-content h3 {
+            font-size: 16px;
+            margin-bottom: 4px;
+        }
+
+        .step-content p {
+            color: var(--muted);
+            font-size: 14px;
+        }
+
+        .step-content code {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 13px;
+            color: var(--cyan);
+        }
+
+        /* Hotkeys */
+        .hotkeys {
+            padding: 48px 0;
+        }
+
+        .hotkeys h2 {
+            text-align: center;
+            font-size: 32px;
+            margin-bottom: 32px;
+        }
+
+        .hotkey-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            max-width: 640px;
+            margin: 0 auto;
+        }
+
+        .hotkey {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 16px;
+            text-align: center;
+        }
+
+        .hotkey kbd {
+            display: block;
+            font-family: 'Consolas', monospace;
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--accent);
+            margin-bottom: 8px;
+        }
+
+        .hotkey span {
+            font-size: 13px;
+            color: var(--muted);
+        }
+
+        /* Footer */
+        footer {
+            border-top: 1px solid var(--border);
+            padding: 32px 0;
+            text-align: center;
+            color: var(--muted);
+            font-size: 14px;
+        }
+
+        footer a {
+            color: var(--accent);
+            text-decoration: none;
+        }
+
+        footer a:hover {
+            text-decoration: underline;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .hero h1 { font-size: 32px; }
+            .hero p { font-size: 16px; }
+            .screenshot-grid { grid-template-columns: 1fr; }
+            .feature-grid { grid-template-columns: 1fr; }
+            .hotkey-grid { grid-template-columns: repeat(2, 1fr); }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Hero -->
+    <section class="hero">
+        <div class="container">
+            <div class="hero-icon">⏱️</div>
+            <h1>Stopwatch Overlay</h1>
+            <p>A transparent, always-on-top timer overlay for Windows. Perfect for video recordings, live streams, and presentations.</p>
+            <a href="https://github.com/clemensv/stopwatch/releases/latest" class="btn btn-primary">⬇ Download Latest</a>
+            <a href="https://github.com/clemensv/stopwatch" class="btn btn-secondary">View on GitHub</a>
+        </div>
+    </section>
+
+    <!-- Screenshots -->
+    <section class="screenshots">
+        <div class="container">
+            <h2>See It in Action</h2>
+            <div class="screenshot-grid">
+                <figure class="screenshot-card">
+                    <div class="placeholder">
+                        <div style="background:#1e1e1e;border-radius:8px;padding:24px;width:100%;max-width:360px;">
+                            <div style="text-align:center;margin-bottom:12px;font-size:18px;font-weight:bold;">⏱ Stopwatch Overlay</div>
+                            <div style="background:#2d2d30;border-radius:8px;padding:16px;text-align:center;margin-bottom:12px;">
+                                <span style="font-family:Consolas,monospace;font-size:32px;font-weight:bold;color:#00d4ff;">00:03:42.7</span>
+                            </div>
+                            <div style="display:flex;gap:8px;justify-content:center;margin-bottom:12px;">
+                                <span style="background:#c42b1c;padding:6px 16px;border-radius:4px;font-size:13px;">⏹ Stop</span>
+                                <span style="background:#2d2d30;padding:6px 16px;border-radius:4px;font-size:13px;">↺ Reset</span>
+                            </div>
+                            <div style="display:flex;gap:8px;justify-content:center;">
+                                <span style="background:#2d2d30;padding:6px 16px;border-radius:4px;font-size:13px;">🙈 Hide</span>
+                                <span style="background:#2d2d30;padding:6px 16px;border-radius:4px;font-size:13px;">🏁 Lap</span>
+                            </div>
+                        </div>
+                        <p style="margin-top:12px;">Controller Window</p>
+                    </div>
+                    <figcaption>The controller panel lets you manage the timer, switch modes, customize appearance, and save presets.</figcaption>
+                </figure>
+                <figure class="screenshot-card">
+                    <div class="placeholder">
+                        <div style="padding:60px 0;">
+                            <div class="placeholder-demo">00:03:42.7</div>
+                            <p>Overlay on your screen</p>
+                        </div>
+                    </div>
+                    <figcaption>The overlay sits on top of all windows with a semi-transparent background and outlined text for readability.</figcaption>
+                </figure>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features -->
+    <section class="features">
+        <div class="container">
+            <h2>Features</h2>
+            <div class="feature-grid">
+                <div class="feature">
+                    <div class="feature-emoji">🖥️</div>
+                    <h3>Multi-Monitor</h3>
+                    <p>Display the overlay on any screen or all screens at once.</p>
+                </div>
+                <div class="feature">
+                    <div class="feature-emoji">🎨</div>
+                    <h3>Customizable</h3>
+                    <p>Choose text color, border color, font, size, and background opacity.</p>
+                </div>
+                <div class="feature">
+                    <div class="feature-emoji">⏱️</div>
+                    <h3>Four Modes</h3>
+                    <p>Stopwatch, real-time clock, countdown timer, and frame-accurate timecode.</p>
+                </div>
+                <div class="feature">
+                    <div class="feature-emoji">⌨️</div>
+                    <h3>Global Hotkeys</h3>
+                    <p>Control everything with F9–F12 from any application.</p>
+                </div>
+                <div class="feature">
+                    <div class="feature-emoji">📌</div>
+                    <h3>Always on Top</h3>
+                    <p>Stays visible over fullscreen apps, games, and camera feeds.</p>
+                </div>
+                <div class="feature">
+                    <div class="feature-emoji">💾</div>
+                    <h3>Presets</h3>
+                    <p>Save and load appearance presets for different recording setups.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Install -->
+    <section class="install">
+        <div class="container">
+            <h2>Getting Started</h2>
+            <div class="steps">
+                <div class="step">
+                    <div class="step-number">1</div>
+                    <div class="step-content">
+                        <h3>Download</h3>
+                        <p>Grab the latest <code>StopwatchOverlay-vX.X.X.zip</code> from the <a href="https://github.com/clemensv/stopwatch/releases/latest" style="color:var(--accent)">Releases page</a>.</p>
+                    </div>
+                </div>
+                <div class="step">
+                    <div class="step-number">2</div>
+                    <div class="step-content">
+                        <h3>Extract</h3>
+                        <p>Unzip to a folder of your choice, for example <code>C:\Tools\StopwatchOverlay</code>.</p>
+                    </div>
+                </div>
+                <div class="step">
+                    <div class="step-number">3</div>
+                    <div class="step-content">
+                        <h3>Run</h3>
+                        <p>Double-click <code>StopwatchOverlay.exe</code> to launch the controller. No installation needed.</p>
+                    </div>
+                </div>
+                <div class="step">
+                    <div class="step-number">4</div>
+                    <div class="step-content">
+                        <h3>.NET Runtime</h3>
+                        <p>Windows 11 (24H2+) includes the required runtime. On older versions, install the <a href="https://dotnet.microsoft.com/download/dotnet/8.0/runtime" style="color:var(--accent)">.NET 8.0 Desktop Runtime</a>.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Hotkeys -->
+    <section class="hotkeys">
+        <div class="container">
+            <h2>Keyboard Shortcuts</h2>
+            <div class="hotkey-grid">
+                <div class="hotkey">
+                    <kbd>F9</kbd>
+                    <span>Start / Stop</span>
+                </div>
+                <div class="hotkey">
+                    <kbd>F10</kbd>
+                    <span>Reset</span>
+                </div>
+                <div class="hotkey">
+                    <kbd>F11</kbd>
+                    <span>Show / Hide</span>
+                </div>
+                <div class="hotkey">
+                    <kbd>F12</kbd>
+                    <span>Lap</span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer>
+        <div class="container">
+            <p>Stopwatch Overlay is open source under the <a href="https://github.com/clemensv/stopwatch/blob/main/LICENSE">MIT License</a>.</p>
+            <p style="margin-top:8px;">Made by <a href="https://github.com/clemensv">Clemens Vasters</a></p>
+        </div>
+    </footer>
+
+</body>
+</html>
