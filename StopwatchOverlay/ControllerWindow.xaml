@@ -2,10 +2,10 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Stopwatch Controller" 
-        Height="820" Width="560"
+        Height="920" Width="680"
         WindowStartupLocation="CenterScreen"
-        Background="#1E1E1E"
-        ResizeMode="CanMinimize"
+        ResizeMode="CanResize"
+        MinWidth="640" MinHeight="700"
         Closing="Window_Closing">
     
     <Grid Margin="15">
@@ -23,44 +23,44 @@
         </Grid.RowDefinitions>
 
         <!-- Title -->
-        <TextBlock Grid.Row="0" Text="⏱ Stopwatch Overlay" 
-                   FontSize="22" FontWeight="Bold" 
-                   Foreground="White" 
-                   HorizontalAlignment="Center" 
-                   Margin="0,0,0,5"/>
+        <StackPanel Grid.Row="0" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,5">
+            <Image Source="pack://application:,,,/stopwatch.ico" Width="28" Height="28" Margin="0,0,8,0" VerticalAlignment="Center"/>
+            <TextBlock Text="Stopwatch Overlay" 
+                       FontSize="22" FontWeight="Bold" 
+                       VerticalAlignment="Center"/>
+        </StackPanel>
 
         <!-- Mode Selection -->
         <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,10">
             <RadioButton x:Name="StopwatchModeRadio" Content="Stopwatch" 
-                         Foreground="White" IsChecked="True" GroupName="Mode"
+                         IsChecked="True" GroupName="Mode"
                          Checked="ModeRadio_Checked" Margin="0,0,15,0"/>
             <RadioButton x:Name="ClockModeRadio" Content="Clock" 
-                         Foreground="White" GroupName="Mode"
+                         GroupName="Mode"
                          Checked="ModeRadio_Checked" Margin="0,0,15,0"/>
             <RadioButton x:Name="CountdownModeRadio" Content="Countdown" 
-                         Foreground="White" GroupName="Mode"
+                         GroupName="Mode"
                          Checked="ModeRadio_Checked" Margin="0,0,15,0"/>
             <RadioButton x:Name="TimecodeModeRadio" Content="Timecode" 
-                         Foreground="White" GroupName="Mode"
+                         GroupName="Mode"
                          Checked="ModeRadio_Checked"/>
         </StackPanel>
 
         <!-- Countdown Duration (only visible in countdown mode) -->
         <StackPanel x:Name="CountdownPanel" Grid.Row="2" Orientation="Horizontal" 
                     HorizontalAlignment="Center" Margin="0,0,0,10" Visibility="Collapsed">
-            <TextBlock Text="Duration: " Foreground="#AAAAAA" VerticalAlignment="Center"/>
+            <TextBlock Text="Duration: " Foreground="{DynamicResource {x:Static SystemColors.GrayTextBrushKey}}" VerticalAlignment="Center"/>
             <TextBox x:Name="CountdownMinutes" Width="40" Text="5" 
-                     Background="#2D2D30" Foreground="White" BorderBrush="#3F3F46"
                      TextAlignment="Center" VerticalContentAlignment="Center"/>
-            <TextBlock Text=" min " Foreground="#AAAAAA" VerticalAlignment="Center"/>
+            <TextBlock Text=" min " Foreground="{DynamicResource {x:Static SystemColors.GrayTextBrushKey}}" VerticalAlignment="Center"/>
             <TextBox x:Name="CountdownSeconds" Width="40" Text="00" 
-                     Background="#2D2D30" Foreground="White" BorderBrush="#3F3F46"
                      TextAlignment="Center" VerticalContentAlignment="Center"/>
-            <TextBlock Text=" sec" Foreground="#AAAAAA" VerticalAlignment="Center"/>
+            <TextBlock Text=" sec" Foreground="{DynamicResource {x:Static SystemColors.GrayTextBrushKey}}" VerticalAlignment="Center"/>
         </StackPanel>
 
         <!-- Current Time Display -->
-        <Border Grid.Row="3" Background="#2D2D30" CornerRadius="8" Padding="15" Margin="0,0,0,15">
+        <Border Grid.Row="3" Background="{DynamicResource {x:Static SystemColors.ControlDarkBrushKey}}" 
+                CornerRadius="8" Padding="15" Margin="0,0,0,12">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto"/>
@@ -79,7 +79,7 @@
         </Border>
 
         <!-- Control Buttons -->
-        <StackPanel Grid.Row="4" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,10">
+        <StackPanel Grid.Row="4" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,8">
             <Button x:Name="StartStopButton" Content="▶ Start (Win+F5)" Width="175" 
                     Style="{StaticResource StartButton}" 
                     Click="StartStopButton_Click" Margin="0,0,8,0"/>
@@ -89,7 +89,7 @@
         </StackPanel>
 
         <!-- Overlay and Lap Buttons -->
-        <StackPanel Grid.Row="5" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,10">
+        <StackPanel Grid.Row="5" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,6">
             <Button x:Name="ToggleOverlayButton" Content="👁 Show (Win+F7)" Width="175" 
                     Style="{StaticResource ModernButton}" 
                     Click="ToggleOverlayButton_Click" Margin="0,0,8,0"/>
@@ -99,25 +99,25 @@
         </StackPanel>
 
         <!-- Options Row -->
-        <WrapPanel Grid.Row="6" HorizontalAlignment="Center" Margin="0,0,0,10">
+        <WrapPanel Grid.Row="6" HorizontalAlignment="Center" Margin="0,0,0,6">
             <CheckBox x:Name="AutoStartCheckBox" Content="Auto-start on show" 
-                      Foreground="White" Margin="0,0,15,0"/>
+                      Margin="0,0,15,0"/>
             <CheckBox x:Name="ShowRecIndicatorCheckBox" Content="REC indicator" 
-                      Foreground="White" Checked="ShowRecIndicatorCheckBox_Changed" 
+                      Checked="ShowRecIndicatorCheckBox_Changed" 
                       Unchecked="ShowRecIndicatorCheckBox_Changed" Margin="0,0,15,0"/>
             <CheckBox x:Name="ClickThroughCheckBox" Content="Click-through" 
-                      Foreground="White" Checked="ClickThroughCheckBox_Changed" 
+                      Checked="ClickThroughCheckBox_Changed" 
                       Unchecked="ClickThroughCheckBox_Changed" Margin="0,0,15,0"/>
             <CheckBox x:Name="BlinkColonCheckBox" Content="Blink colon" 
-                      Foreground="White" Margin="0,0,0,0"/>
+                      Margin="0,0,0,0"/>
         </WrapPanel>
 
         <!-- Settings Expander -->
-        <Expander Grid.Row="7" Header="Settings" Foreground="White" IsExpanded="True" Margin="0,0,0,10">
+        <Expander Grid.Row="7" Header="Settings" IsExpanded="True" Margin="0,0,0,6">
             <StackPanel>
                 <!-- Screen and Position -->
-                <GroupBox Header="Screen &amp; Position" Foreground="White" BorderBrush="#3F3F46" Margin="0,5,0,5">
-                    <Grid Margin="8">
+                <TextBlock Text="Screen &amp; Position" FontSize="13" FontWeight="SemiBold" Opacity="0.7" Margin="0,4,0,6"/>
+                <Grid Margin="4,0,4,8">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="Auto"/>
                             <ColumnDefinition Width="*"/>
@@ -125,19 +125,29 @@
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
                         </Grid.RowDefinitions>
 
-                        <TextBlock Grid.Row="0" Grid.Column="0" Text="Screen:" 
-                                   Foreground="#AAAAAA" VerticalAlignment="Center" Margin="0,0,10,5"/>
-                        <ComboBox Grid.Row="0" Grid.Column="1" x:Name="ScreenSelector" 
-                                  SelectionChanged="ScreenSelector_SelectionChanged"
-                                  Background="#2D2D30" Foreground="Black" Margin="0,0,0,5"/>
+                        <TextBlock Grid.Row="0" Grid.Column="0" Text="Theme:" 
+                                   VerticalAlignment="Center" Margin="0,0,10,5"/>
+                        <ComboBox Grid.Row="0" Grid.Column="1" x:Name="ThemeModeSelector" 
+                                  SelectionChanged="ThemeModeSelector_SelectionChanged"
+                                  Margin="0,0,0,5">
+                            <ComboBoxItem Content="Dark" IsSelected="True"/>
+                            <ComboBoxItem Content="Light"/>
+                            <ComboBoxItem Content="System"/>
+                        </ComboBox>
 
-                        <TextBlock Grid.Row="1" Grid.Column="0" Text="Position:" 
-                                   Foreground="#AAAAAA" VerticalAlignment="Center" Margin="0,0,10,0"/>
-                        <ComboBox Grid.Row="1" Grid.Column="1" x:Name="PositionSelector" 
-                                  SelectionChanged="PositionSelector_SelectionChanged"
-                                  Background="#2D2D30" Foreground="Black">
+                        <TextBlock Grid.Row="1" Grid.Column="0" Text="Screen:" 
+                                   VerticalAlignment="Center" Margin="0,0,10,5"/>
+                        <ComboBox Grid.Row="1" Grid.Column="1" x:Name="ScreenSelector" 
+                                  SelectionChanged="ScreenSelector_SelectionChanged"
+                                  Margin="0,0,0,5"/>
+
+                        <TextBlock Grid.Row="2" Grid.Column="0" Text="Position:" 
+                                   VerticalAlignment="Center" Margin="0,0,10,0"/>
+                        <ComboBox Grid.Row="2" Grid.Column="1" x:Name="PositionSelector" 
+                                  SelectionChanged="PositionSelector_SelectionChanged">
                             <ComboBoxItem Content="Top Left"/>
                             <ComboBoxItem Content="Top Center" IsSelected="True"/>
                             <ComboBoxItem Content="Top Right"/>
@@ -145,12 +155,11 @@
                             <ComboBoxItem Content="Bottom Center"/>
                             <ComboBoxItem Content="Bottom Right"/>
                         </ComboBox>
-                    </Grid>
-                </GroupBox>
+                </Grid>
 
                 <!-- Appearance -->
-                <GroupBox Header="Appearance" Foreground="White" BorderBrush="#3F3F46" Margin="0,0,0,5">
-                    <Grid Margin="8">
+                <TextBlock Text="Appearance" FontSize="13" FontWeight="SemiBold" Opacity="0.7" Margin="0,4,0,6"/>
+                <Grid Margin="4,0,4,4">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="Auto"/>
                             <ColumnDefinition Width="*"/>
@@ -165,7 +174,7 @@
                         </Grid.RowDefinitions>
 
                         <TextBlock Grid.Row="0" Grid.Column="0" Text="Text:" 
-                                   Foreground="#AAAAAA" VerticalAlignment="Center" Margin="0,0,5,5"/>
+                                   VerticalAlignment="Center" Margin="0,0,5,5"/>
                         <ComboBox Grid.Row="0" Grid.Column="1" x:Name="TextColorSelector" 
                                   SelectionChanged="AppearanceChanged" Margin="0,0,10,5">
                             <ComboBoxItem Content="White" IsSelected="True"/>
@@ -178,7 +187,7 @@
                         </ComboBox>
 
                         <TextBlock Grid.Row="0" Grid.Column="2" Text="Border:" 
-                                   Foreground="#AAAAAA" VerticalAlignment="Center" Margin="0,0,5,5"/>
+                                   VerticalAlignment="Center" Margin="0,0,5,5"/>
                         <ComboBox Grid.Row="0" Grid.Column="3" x:Name="BorderColorSelector" 
                                   SelectionChanged="AppearanceChanged" Margin="0,0,0,5">
                             <ComboBoxItem Content="Black" IsSelected="True"/>
@@ -189,7 +198,7 @@
                         </ComboBox>
 
                         <TextBlock Grid.Row="1" Grid.Column="0" Text="Font:" 
-                                   Foreground="#AAAAAA" VerticalAlignment="Center" Margin="0,0,5,5"/>
+                                   VerticalAlignment="Center" Margin="0,0,5,5"/>
                         <ComboBox Grid.Row="1" Grid.Column="1" x:Name="FontSelector" 
                                   SelectionChanged="AppearanceChanged" Margin="0,0,10,5">
                             <ComboBoxItem Content="Consolas" IsSelected="True"/>
@@ -201,7 +210,7 @@
                         </ComboBox>
 
                         <TextBlock Grid.Row="1" Grid.Column="2" Text="Format:" 
-                                   Foreground="#AAAAAA" VerticalAlignment="Center" Margin="0,0,5,5"/>
+                                   VerticalAlignment="Center" Margin="0,0,5,5"/>
                         <ComboBox Grid.Row="1" Grid.Column="3" x:Name="TimeFormatSelector" 
                                   SelectionChanged="TimeFormatSelector_SelectionChanged" Margin="0,0,0,5">
                             <ComboBoxItem Content="HH:MM:SS.t" IsSelected="True"/>
@@ -211,40 +220,39 @@
                         </ComboBox>
 
                         <TextBlock Grid.Row="2" Grid.Column="0" Text="Size:" 
-                                   Foreground="#AAAAAA" VerticalAlignment="Center" Margin="0,0,5,5"/>
+                                   VerticalAlignment="Center" Margin="0,0,5,5"/>
                         <StackPanel Grid.Row="2" Grid.Column="1" Orientation="Horizontal" Margin="0,0,10,5">
                             <Slider x:Name="TextSizeSlider" Width="100" Minimum="24" Maximum="120" Value="48"
                                     VerticalAlignment="Center" ValueChanged="AppearanceSliderChanged"/>
-                            <TextBlock x:Name="TextSizeLabel" Text="48" Foreground="White" 
+                            <TextBlock x:Name="TextSizeLabel" Text="48" 
                                        VerticalAlignment="Center" Margin="5,0,0,0" Width="25"/>
                         </StackPanel>
 
                         <TextBlock Grid.Row="2" Grid.Column="2" Text="Outline:" 
-                                   Foreground="#AAAAAA" VerticalAlignment="Center" Margin="0,0,5,5"/>
+                                   VerticalAlignment="Center" Margin="0,0,5,5"/>
                         <StackPanel Grid.Row="2" Grid.Column="3" Orientation="Horizontal" Margin="0,0,0,5">
                             <Slider x:Name="BorderWidthSlider" Width="100" Minimum="1" Maximum="5" Value="2"
                                     VerticalAlignment="Center" ValueChanged="AppearanceSliderChanged"/>
-                            <TextBlock x:Name="BorderWidthLabel" Text="2" Foreground="White" 
+                            <TextBlock x:Name="BorderWidthLabel" Text="2" 
                                        VerticalAlignment="Center" Margin="5,0,0,0" Width="25"/>
                         </StackPanel>
 
                         <TextBlock Grid.Row="3" Grid.Column="0" Text="BG:" 
-                                   Foreground="#AAAAAA" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                                   VerticalAlignment="Center" Margin="0,0,5,0"/>
                         <StackPanel Grid.Row="3" Grid.Column="1" Grid.ColumnSpan="3" Orientation="Horizontal">
                             <Slider x:Name="BackgroundOpacitySlider" Width="200" Minimum="0" Maximum="100" Value="50"
                                     VerticalAlignment="Center" ValueChanged="AppearanceSliderChanged"/>
-                            <TextBlock x:Name="BackgroundOpacityLabel" Text="50%" Foreground="White" 
+                            <TextBlock x:Name="BackgroundOpacityLabel" Text="50%" 
                                        VerticalAlignment="Center" Margin="5,0,0,0" Width="35"/>
                         </StackPanel>
-                    </Grid>
-                </GroupBox>
+                </Grid>
             </StackPanel>
         </Expander>
 
         <!-- Lap Times -->
-        <GroupBox Grid.Row="8" Header="Lap Times" Foreground="White" BorderBrush="#3F3F46">
+        <GroupBox Grid.Row="8" Header="Lap Times">
             <Grid>
-                <ListBox x:Name="LapListBox" Background="#2D2D30" Foreground="White" 
+                <ListBox x:Name="LapListBox" 
                          BorderThickness="0" MaxHeight="100"
                          ScrollViewer.VerticalScrollBarVisibility="Auto">
                     <ListBox.ItemTemplate>
@@ -254,12 +262,13 @@
                     </ListBox.ItemTemplate>
                 </ListBox>
                 <TextBlock x:Name="LapPlaceholder" Text="Press Win+F8 or click Lap to record split times" 
-                           Foreground="#666666" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                           Opacity="0.4" HorizontalAlignment="Center" VerticalAlignment="Center"/>
             </Grid>
         </GroupBox>
 
         <!-- Status Bar -->
-        <Border Grid.Row="9" Background="#2D2D30" CornerRadius="4" Padding="8" Margin="0,10,0,0">
+        <Border Grid.Row="9" CornerRadius="4" Padding="8" Margin="0,6,0,0"
+                Background="{DynamicResource {x:Static SystemColors.ControlDarkBrushKey}}">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
@@ -267,10 +276,10 @@
                 </Grid.ColumnDefinitions>
                 <StackPanel Grid.Column="0" Orientation="Horizontal">
                     <Ellipse x:Name="StatusIndicator" Width="10" Height="10" Fill="Gray" Margin="0,0,8,0"/>
-                    <TextBlock x:Name="StatusText" Text="Ready" Foreground="#AAAAAA" FontSize="12"/>
+                    <TextBlock x:Name="StatusText" Text="Ready" Opacity="0.6" FontSize="12"/>
                 </StackPanel>
                 <TextBlock Grid.Column="1" Text="Win+F5 Start/Stop  Win+F6 Reset  Win+F7 Overlay  Win+F8 Lap" 
-                           Foreground="#555555" FontSize="10"/>
+                           Opacity="0.35" FontSize="10"/>
             </Grid>
         </Border>
     </Grid>

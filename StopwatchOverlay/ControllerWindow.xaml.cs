@@ -56,6 +56,11 @@ namespace StopwatchOverlay
 
         public ControllerWindow()
         {
+            // Set dark theme before InitializeComponent so UI renders correctly from the start
+            #pragma warning disable WPF0001
+            System.Windows.Application.Current.ThemeMode = ThemeMode.Dark;
+            #pragma warning restore WPF0001
+
             InitializeComponent();
 
             _timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(50) };
@@ -70,6 +75,20 @@ namespace StopwatchOverlay
             UpdateButtonStates();
             _timer.Start();
             _blinkTimer.Start();
+        }
+
+        private void ThemeModeSelector_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (ThemeModeSelector?.SelectedItem is not ComboBoxItem selected) return;
+            var mode = selected.Content?.ToString() switch
+            {
+                "Light" => ThemeMode.Light,
+                "System" => ThemeMode.System,
+                _ => ThemeMode.Dark
+            };
+            #pragma warning disable WPF0001
+            System.Windows.Application.Current.ThemeMode = mode;
+            #pragma warning restore WPF0001
         }
 
         protected override void OnSourceInitialized(EventArgs e)
