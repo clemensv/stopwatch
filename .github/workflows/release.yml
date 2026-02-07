@@ -1,0 +1,50 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore dependencies
+        run: dotnet restore
+
+      - name: Publish
+        run: |
+          dotnet publish StopwatchOverlay/StopwatchOverlay.csproj `
+            -c Release `
+            -o publish
+
+      - name: Create ZIP
+        run: Compress-Archive -Path publish/* -DestinationPath StopwatchOverlay-${{ github.ref_name }}.zip
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: Stopwatch Overlay ${{ github.ref_name }}
+          body: |
+            ## Stopwatch Overlay ${{ github.ref_name }}
+
+            ### Download
+
+            Download `StopwatchOverlay-${{ github.ref_name }}.zip`, extract it, and run `StopwatchOverlay.exe`.
+
+            **Requires** the [.NET 8.0 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/8.0/runtime) (included in Windows 11 24H2+).
+          files: StopwatchOverlay-${{ github.ref_name }}.zip
+          draft: false
+          prerelease: false

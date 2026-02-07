@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <UseWPF>true</UseWPF>
+    <UseWindowsForms>true</UseWindowsForms>
+    <AssemblyName>StopwatchOverlay</AssemblyName>
+    <RootNamespace>StopwatchOverlay</RootNamespace>
+
+    <!-- Produce a small, framework-dependent single-file executable -->
+    <PublishSingleFile>true</PublishSingleFile>
+    <SelfContained>false</SelfContained>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <PublishTrimmed>false</PublishTrimmed>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+
+    <!-- Assembly metadata -->
+    <Version>1.0.0</Version>
+    <Authors>Clemens Vasters</Authors>
+    <Product>Stopwatch Overlay</Product>
+    <Description>A transparent, always-on-top stopwatch overlay for video recordings and presentations.</Description>
+    <Copyright>Copyright © Clemens Vasters</Copyright>
+    <RepositoryUrl>https://github.com/clemensv/stopwatch</RepositoryUrl>
+    <ApplicationIcon>stopwatch.ico</ApplicationIcon>
+  </PropertyGroup>
+
+</Project>
