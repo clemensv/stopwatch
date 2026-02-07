@@ -1,9 +1,7 @@
 using System;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
-using System.IO;
 using System.Runtime.InteropServices;
-using System.Text.Json;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -56,16 +54,9 @@ namespace StopwatchOverlay
         private int _lapCount = 0;
         private HwndSource? _hwndSource;
 
-        private readonly string _presetsFolder;
-
         public ControllerWindow()
         {
             InitializeComponent();
-
-            _presetsFolder = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-                "StopwatchOverlay", "Presets");
-            Directory.CreateDirectory(_presetsFolder);
 
             _timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(50) };
             _timer.Tick += Timer_Tick;
@@ -76,7 +67,6 @@ namespace StopwatchOverlay
             LapListBox.ItemsSource = _lapTimes;
 
             PopulateScreens();
-            LoadPresetsList();
             UpdateButtonStates();
             _timer.Start();
             _blinkTimer.Start();
@@ -575,129 +565,6 @@ namespace StopwatchOverlay
             StatusIndicator.Fill = color;
         }
 
-        #region Presets
-
-        private void LoadPresetsList()
-        {
-            PresetSelector.Items.Clear();
-            if (Directory.Exists(_presetsFolder))
-            {
-                foreach (var file in Directory.GetFiles(_presetsFolder, "*.json"))
-                {
-                    PresetSelector.Items.Add(new ComboBoxItem 
-                    { 
-                        Content = Path.GetFileNameWithoutExtension(file),
-                        Tag = file
-                    });
-                }
-            }
-        }
-
-        private void SavePreset_Click(object sender, RoutedEventArgs e)
-        {
-            var dialog = new Microsoft.Win32.SaveFileDialog
-            {
-                InitialDirectory = _presetsFolder,
-                Filter = "JSON files (*.json)|*.json",
-                DefaultExt = ".json"
-            };
-
-            if (dialog.ShowDialog() == true)
-            {
-                var preset = new PresetData
-                {
-                    TextColor = (TextColorSelector.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "White",
-                    BorderColor = (BorderColorSelector.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "Black",
-                    Font = (FontSelector.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "Consolas",
-                    FontSize = (int)TextSizeSlider.Value,
-                    BorderWidth = (int)BorderWidthSlider.Value,
-                    BackgroundOpacity = (int)BackgroundOpacitySlider.Value,
-                    Position = (PositionSelector.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "Top Center",
-                    TimeFormat = TimeFormatSelector.SelectedIndex,
-                    ScreenIndex = ScreenSelector.SelectedIndex
-                };
-
-                File.WriteAllText(dialog.FileName, JsonSerializer.Serialize(preset, new JsonSerializerOptions { WriteIndented = true }));
-                LoadPresetsList();
-                UpdateStatus("Preset saved", Brushes.LimeGreen);
-            }
-        }
-
-        private void LoadPreset_Click(object sender, RoutedEventArgs e)
-        {
-            string? filePath = null;
-            
-            if (PresetSelector.SelectedItem is ComboBoxItem item && item.Tag is string path)
-            {
-                filePath = path;
-            }
-            else
-            {
-                var dialog = new Microsoft.Win32.OpenFileDialog
-                {
-                    InitialDirectory = _presetsFolder,
-                    Filter = "JSON files (*.json)|*.json"
-                };
-
-                if (dialog.ShowDialog() == true)
-                {
-                    filePath = dialog.FileName;
-                }
-            }
-
-            if (filePath != null && File.Exists(filePath))
-            {
-                try
-                {
-                    var json = File.ReadAllText(filePath);
-                    var preset = JsonSerializer.Deserialize<PresetData>(json);
-                    if (preset != null)
-                    {
-                        ApplyPreset(preset);
-                        UpdateStatus("Preset loaded", Brushes.LimeGreen);
-                    }
-                }
-                catch (Exception ex)
-                {
-                    UpdateStatus($"Error: {ex.Message}", Brushes.Red);
-                }
-            }
-        }
-
-        private void ApplyPreset(PresetData preset)
-        {
-            SelectComboBoxItem(TextColorSelector, preset.TextColor);
-            SelectComboBoxItem(BorderColorSelector, preset.BorderColor);
-            SelectComboBoxItem(FontSelector, preset.Font);
-            SelectComboBoxItem(PositionSelector, preset.Position);
-            
-            TextSizeSlider.Value = preset.FontSize;
-            BorderWidthSlider.Value = preset.BorderWidth;
-            BackgroundOpacitySlider.Value = preset.BackgroundOpacity;
-            TimeFormatSelector.SelectedIndex = preset.TimeFormat;
-            
-            if (preset.ScreenIndex >= 0 && preset.ScreenIndex < ScreenSelector.Items.Count)
-            {
-                ScreenSelector.SelectedIndex = preset.ScreenIndex;
-            }
-
-            ApplyAllOverlaySettings();
-        }
-
-        private void SelectComboBoxItem(System.Windows.Controls.ComboBox comboBox, string value)
-        {
-            foreach (ComboBoxItem item in comboBox.Items)
-            {
-                if (item.Content?.ToString() == value)
-                {
-                    comboBox.SelectedItem = item;
-                    break;
-                }
-            }
-        }
-
-        #endregion
-
         private void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e)
         {
             // Unregister hotkeys
@@ -711,18 +578,5 @@ namespace StopwatchOverlay
             _timer.Stop();
             _blinkTimer.Stop();
         }
-    }
-
-    public class PresetData
-    {
-        public string TextColor { get; set; } = "White";
-        public string BorderColor { get; set; } = "Black";
-        public string Font { get; set; } = "Consolas";
-        public int FontSize { get; set; } = 48;
-        public int BorderWidth { get; set; } = 2;
-        public int BackgroundOpacity { get; set; } = 50;
-        public string Position { get; set; } = "Top Center";
-        public int TimeFormat { get; set; } = 0;
-        public int ScreenIndex { get; set; } = 0;
     }
 }

@@ -22,7 +22,7 @@ StopwatchOverlay/
 
 | Component | Responsibility |
 |---|---|
-| **ControllerWindow** | Main control panel — timer logic, global hotkeys, screen selection, appearance settings, presets, lap tracking |
+| **ControllerWindow** | Main control panel — timer logic, global hotkeys, screen selection, appearance settings, lap tracking |
 | **OverlayWindow** | Transparent, always-on-top display with outlined text rendering. Supports click-through mode and drag repositioning |
 | **App.xaml** | Global WPF styles (ModernButton, StartButton, StopButton) |
 
@@ -77,14 +77,6 @@ The application supports four display modes:
 | Win+F6 | Reset |
 | Win+F7 | Show / Hide overlay |
 | Win+F8 | Record lap time |
-
-## Presets
-
-User presets are stored as JSON files in:
-
-```
-%APPDATA%\StopwatchOverlay\Presets\
-```
 
 ## CI/CD
 

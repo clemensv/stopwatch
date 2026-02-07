@@ -25,8 +25,7 @@ Stopwatch Overlay places a customizable timer on top of all your windows — inc
 - 🎨 **Fully customizable** — Text color, border, font, size, background opacity
 - ⌨️ **Global hotkeys** — F9–F12 work from any application
 - 🏁 **Lap times** — Record split times while the timer runs
-- 💾 **Presets** — Save and load appearance configurations
-- 🔴 **REC indicator** — Optional blinking recording dot
+-  **REC indicator** — Optional blinking recording dot
 - 🖱️ **Click-through mode** — Overlay doesn't interfere with mouse clicks
 - 👻 **Hidden from Alt+Tab** — Keeps your taskbar clean
 
@@ -90,7 +89,6 @@ The app requires the .NET 8.0 Desktop Runtime:
 - Text outlines keep the timer readable on any background
 - You can hide the overlay while keeping the timer running
 - Use **click-through mode** so the overlay doesn't interfere with your work
-- Presets are great for switching between different recording setups
 
 ---
 

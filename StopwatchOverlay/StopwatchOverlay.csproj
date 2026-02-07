@@ -26,4 +26,8 @@
     <ApplicationIcon>stopwatch.ico</ApplicationIcon>
   </PropertyGroup>
 
+  <ItemGroup>
+    <Resource Include="stopwatch.ico" />
+  </ItemGroup>
+
 </Project>
