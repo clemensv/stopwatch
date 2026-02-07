@@ -42,3 +42,4 @@ Desktop.ini
 ## Rider
 .idea/
 *.sln.iml
+.playwright-mcp/
