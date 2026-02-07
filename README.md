@@ -58,8 +58,8 @@ The app requires the .NET 8.0 Desktop Runtime:
 ## How to Use
 
 1. Launch **StopwatchOverlay.exe** — the controller window appears
-2. Click **▶ Start** (or press **F9**) to start the timer
-3. Click **👁 Show** (or press **F11**) to display the overlay on screen
+2. Click **▶ Start** (or press **Win+F9**) to start the timer
+3. Click **👁 Show** (or press **Win+F11**) to display the overlay on screen
 4. Choose your target **screen** and **position** from the dropdowns
 5. Customize colors, font, size, and opacity in the **Settings** panel
 6. **Drag** the overlay with your mouse for pixel-perfect placement
@@ -68,10 +68,10 @@ The app requires the .NET 8.0 Desktop Runtime:
 
 | Key | Action |
 |---|---|
-| **F9** | Start / Stop |
-| **F10** | Reset |
-| **F11** | Show / Hide overlay |
-| **F12** | Record lap time |
+| **Win+F9** | Start / Stop |
+| **Win+F10** | Reset |
+| **Win+F11** | Show / Hide overlay |
+| **Win+F12** | Record lap time |
 
 ### Modes
 

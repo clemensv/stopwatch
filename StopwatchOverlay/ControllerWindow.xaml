@@ -80,20 +80,20 @@
 
         <!-- Control Buttons -->
         <StackPanel Grid.Row="4" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,10">
-            <Button x:Name="StartStopButton" Content="▶ Start (F9)" Width="130" 
+            <Button x:Name="StartStopButton" Content="▶ Start (Win+F9)" Width="155" 
                     Style="{StaticResource StartButton}" 
                     Click="StartStopButton_Click" Margin="0,0,8,0"/>
-            <Button x:Name="ResetButton" Content="↺ Reset (F10)" Width="115" 
+            <Button x:Name="ResetButton" Content="↺ Reset (Win+F10)" Width="140" 
                     Style="{StaticResource ModernButton}" 
                     Click="ResetButton_Click"/>
         </StackPanel>
 
         <!-- Overlay and Lap Buttons -->
         <StackPanel Grid.Row="5" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,10">
-            <Button x:Name="ToggleOverlayButton" Content="👁 Show (F11)" Width="130" 
+            <Button x:Name="ToggleOverlayButton" Content="👁 Show (Win+F11)" Width="155" 
                     Style="{StaticResource ModernButton}" 
                     Click="ToggleOverlayButton_Click" Margin="0,0,8,0"/>
-            <Button x:Name="LapButton" Content="🏁 Lap (F12)" Width="115" 
+            <Button x:Name="LapButton" Content="🏁 Lap (Win+F12)" Width="140" 
                     Style="{StaticResource ModernButton}" 
                     Click="LapButton_Click"/>
         </StackPanel>
@@ -280,7 +280,7 @@
                     <Ellipse x:Name="StatusIndicator" Width="10" Height="10" Fill="Gray" Margin="0,0,8,0"/>
                     <TextBlock x:Name="StatusText" Text="Ready" Foreground="#AAAAAA" FontSize="12"/>
                 </StackPanel>
-                <TextBlock Grid.Column="1" Text="F9 Start/Stop  F10 Reset  F11 Overlay  F12 Lap" 
+                <TextBlock Grid.Column="1" Text="Win+F9 Start/Stop  Win+F10 Reset  Win+F11 Overlay  Win+F12 Lap" 
                            Foreground="#555555" FontSize="10"/>
             </Grid>
         </Border>
