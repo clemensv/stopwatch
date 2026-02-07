@@ -32,10 +32,10 @@ namespace StopwatchOverlay
         private static extern bool UnregisterHotKey(IntPtr hWnd, int id);
 
         private const uint MOD_WIN = 0x0008;
-        private const uint VK_F9 = 0x78;
-        private const uint VK_F10 = 0x79;
-        private const uint VK_F11 = 0x7A;
-        private const uint VK_F12 = 0x7B;
+        private const uint VK_F5 = 0x74;
+        private const uint VK_F6 = 0x75;
+        private const uint VK_F7 = 0x76;
+        private const uint VK_F8 = 0x77;
 
         private readonly Stopwatch _stopwatch = new();
         private readonly DispatcherTimer _timer;
@@ -91,10 +91,10 @@ namespace StopwatchOverlay
             _hwndSource = HwndSource.FromHwnd(helper.Handle);
             _hwndSource?.AddHook(HwndHook);
 
-            RegisterHotKey(helper.Handle, HOTKEY_START_STOP, MOD_WIN, VK_F9);
-            RegisterHotKey(helper.Handle, HOTKEY_RESET, MOD_WIN, VK_F10);
-            RegisterHotKey(helper.Handle, HOTKEY_TOGGLE_OVERLAY, MOD_WIN, VK_F11);
-            RegisterHotKey(helper.Handle, HOTKEY_LAP, MOD_WIN, VK_F12);
+            RegisterHotKey(helper.Handle, HOTKEY_START_STOP, MOD_WIN, VK_F5);
+            RegisterHotKey(helper.Handle, HOTKEY_RESET, MOD_WIN, VK_F6);
+            RegisterHotKey(helper.Handle, HOTKEY_TOGGLE_OVERLAY, MOD_WIN, VK_F7);
+            RegisterHotKey(helper.Handle, HOTKEY_LAP, MOD_WIN, VK_F8);
         }
 
         private IntPtr HwndHook(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
@@ -265,7 +265,7 @@ namespace StopwatchOverlay
                 // Stop
                 _stopwatch.Stop();
                 _isRunning = false;
-                StartStopButton.Content = "▶ Start (Win+F9)";
+                StartStopButton.Content = "▶ Start (Win+F5)";
                 StartStopButton.Style = (Style)FindResource("StartButton");
                 UpdateButtonStates();
                 UpdateStatus("Paused", Brushes.Orange);
@@ -292,7 +292,7 @@ namespace StopwatchOverlay
                 
                 _stopwatch.Start();
                 _isRunning = true;
-                StartStopButton.Content = "⏹ Stop (Win+F9)";
+                StartStopButton.Content = "⏹ Stop (Win+F5)";
                 StartStopButton.Style = (Style)FindResource("StopButton");
                 UpdateButtonStates();
                 UpdateStatus("Running", Brushes.LimeGreen);
@@ -312,7 +312,7 @@ namespace StopwatchOverlay
         {
             _stopwatch.Reset();
             _isRunning = false;
-            StartStopButton.Content = "▶ Start (Win+F9)";
+            StartStopButton.Content = "▶ Start (Win+F5)";
             StartStopButton.Style = (Style)FindResource("StartButton");
             
             if (_currentMode == 2)
@@ -355,7 +355,7 @@ namespace StopwatchOverlay
                 // Hide overlays
                 foreach (var overlay in _overlayWindows) overlay.Close();
                 _overlayWindows.Clear();
-                ToggleOverlayButton.Content = "👁 Show (Win+F11)";
+                ToggleOverlayButton.Content = "👁 Show (Win+F7)";
                 UpdateStatus(_isRunning ? "Running (Overlay Hidden)" : "Overlay Hidden", 
                     _isRunning ? Brushes.LimeGreen : Brushes.Gray);
             }
@@ -381,7 +381,7 @@ namespace StopwatchOverlay
                     StartStopButton_Click(sender, e);
                 }
 
-                ToggleOverlayButton.Content = "🙈 Hide (Win+F11)";
+                ToggleOverlayButton.Content = "🙈 Hide (Win+F7)";
                 UpdateStatus($"Overlay visible on {_overlayWindows.Count} screen(s)", Brushes.DeepSkyBlue);
             }
         }

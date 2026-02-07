@@ -73,10 +73,10 @@ The application supports four display modes:
 
 | Key | Action |
 |---|---|
-| Win+F9 | Start / Stop |
-| Win+F10 | Reset |
-| Win+F11 | Show / Hide overlay |
-| Win+F12 | Record lap time |
+| Win+F5 | Start / Stop |
+| Win+F6 | Reset |
+| Win+F7 | Show / Hide overlay |
+| Win+F8 | Record lap time |
 
 ## Presets
 
