@@ -1,0 +1,18 @@
+<Window x:Class="StopwatchOverlay.LightRingWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Light Ring"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent"
+        Topmost="True"
+        ShowInTaskbar="False"
+        ResizeMode="NoResize">
+    
+    <!-- Border around the entire screen - interior is transparent -->
+    <Border x:Name="LightRingBorder" 
+            BorderBrush="White" 
+            BorderThickness="20"
+            Background="Transparent"
+            CornerRadius="0"/>
+</Window>

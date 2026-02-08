@@ -246,6 +246,48 @@
                                        VerticalAlignment="Center" Margin="5,0,0,0" Width="35"/>
                         </StackPanel>
                 </Grid>
+
+                <!-- Light Ring -->
+                <TextBlock Text="Light Ring (Screen Border)" FontSize="13" FontWeight="SemiBold" Opacity="0.7" Margin="0,8,0,6"/>
+                <Grid Margin="4,0,4,8">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <CheckBox Grid.Row="0" Grid.Column="0" x:Name="LightRingCheckBox" 
+                              Content="Enable" VerticalAlignment="Center" Margin="0,0,15,5"
+                              Checked="LightRingCheckBox_Changed" Unchecked="LightRingCheckBox_Changed"/>
+                    
+                    <TextBlock Grid.Row="0" Grid.Column="2" Text="Brightness:" 
+                               VerticalAlignment="Center" Margin="0,0,5,5"/>
+                    <StackPanel Grid.Row="0" Grid.Column="3" Orientation="Horizontal" Margin="0,0,0,5">
+                        <Slider x:Name="LightRingBrightnessSlider" Width="120" Minimum="10" Maximum="100" Value="100"
+                                VerticalAlignment="Center" ValueChanged="LightRingSliderChanged"/>
+                        <TextBlock x:Name="LightRingBrightnessLabel" Text="100%" 
+                                   VerticalAlignment="Center" Margin="5,0,0,0" Width="40"/>
+                    </StackPanel>
+
+                    <TextBlock Grid.Row="1" Grid.Column="0" Text="Width:" 
+                               VerticalAlignment="Center" Margin="0,0,5,0"/>
+                    <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal">
+                        <Slider x:Name="LightRingWidthSlider" Width="80" Minimum="5" Maximum="100" Value="20"
+                                VerticalAlignment="Center" ValueChanged="LightRingSliderChanged"/>
+                        <TextBlock x:Name="LightRingWidthLabel" Text="20px" 
+                                   VerticalAlignment="Center" Margin="5,0,0,0" Width="40"/>
+                    </StackPanel>
+
+                    <CheckBox Grid.Row="1" Grid.Column="2" Grid.ColumnSpan="2" x:Name="LightRingHideFromCaptureCheckBox" 
+                              Content="Hide from screen capture" VerticalAlignment="Center" Margin="10,0,0,0"
+                              ToolTip="Makes the light ring invisible to screen recorders (Windows 10 2004+)"
+                              Checked="LightRingSliderChanged" Unchecked="LightRingSliderChanged"/>
+                </Grid>
             </StackPanel>
         </Expander>
 

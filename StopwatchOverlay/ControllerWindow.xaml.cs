@@ -39,6 +39,7 @@ namespace StopwatchOverlay
         private readonly DispatcherTimer _timer;
         private readonly DispatcherTimer _blinkTimer;
         private readonly List<OverlayWindow> _overlayWindows = new();
+        private readonly List<LightRingWindow> _lightRingWindows = new();
         private bool _isRunning = false;
         private Screen? _selectedScreen;
         
@@ -529,6 +530,94 @@ namespace StopwatchOverlay
             }
         }
 
+        #region Light Ring
+
+        private void LightRingCheckBox_Changed(object sender, RoutedEventArgs e)
+        {
+            if (LightRingCheckBox?.IsChecked == true)
+            {
+                ShowLightRing();
+            }
+            else
+            {
+                HideLightRing();
+            }
+        }
+
+        private void LightRingSliderChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+        {
+            if (LightRingBrightnessLabel != null)
+                LightRingBrightnessLabel.Text = $"{(int)LightRingBrightnessSlider.Value}%";
+            if (LightRingWidthLabel != null)
+                LightRingWidthLabel.Text = $"{(int)LightRingWidthSlider.Value}px";
+            
+            UpdateLightRingSettings();
+        }
+
+        private void LightRingSliderChanged(object sender, RoutedEventArgs e)
+        {
+            // Overload for checkbox events
+            UpdateLightRingSettings();
+        }
+
+        private void ShowLightRing()
+        {
+            HideLightRing();
+
+            var selectedItem = ScreenSelector.SelectedItem as ComboBoxItem;
+            
+            if (selectedItem?.Tag == null) // "All Screens"
+            {
+                foreach (var screen in Screen.AllScreens)
+                {
+                    CreateLightRingForScreen(screen);
+                }
+            }
+            else if (selectedItem.Tag is Screen screen)
+            {
+                CreateLightRingForScreen(screen);
+            }
+        }
+
+        private void CreateLightRingForScreen(Screen screen)
+        {
+            var lightRing = new LightRingWindow();
+            var brightness = (LightRingBrightnessSlider?.Value ?? 100) / 100.0;
+            var width = (int)(LightRingWidthSlider?.Value ?? 20);
+            var hideFromCapture = LightRingHideFromCaptureCheckBox?.IsChecked == true;
+            
+            lightRing.Show();
+            lightRing.PositionOnScreen(screen);
+            lightRing.ApplySettings(brightness, width, hideFromCapture);
+            
+            _lightRingWindows.Add(lightRing);
+        }
+
+        private void HideLightRing()
+        {
+            foreach (var lightRing in _lightRingWindows)
+            {
+                lightRing.Close();
+            }
+            _lightRingWindows.Clear();
+        }
+
+        private void UpdateLightRingSettings()
+        {
+            if (_lightRingWindows.Count == 0) return;
+
+            var brightness = (LightRingBrightnessSlider?.Value ?? 100) / 100.0;
+            var width = (int)(LightRingWidthSlider?.Value ?? 20);
+            var hideFromCapture = LightRingHideFromCaptureCheckBox?.IsChecked == true;
+
+            foreach (var lightRing in _lightRingWindows)
+            {
+                lightRing.ApplySettings(brightness, width, hideFromCapture);
+            }
+        }
+
+        #endregion
+
         private void ApplyAllOverlaySettings()
         {
             foreach (var overlay in _overlayWindows)
@@ -594,6 +683,7 @@ namespace StopwatchOverlay
             UnregisterHotKey(helper.Handle, HOTKEY_LAP);
 
             foreach (var overlay in _overlayWindows) overlay.Close();
+            foreach (var lightRing in _lightRingWindows) lightRing.Close();
             _timer.Stop();
             _blinkTimer.Stop();
         }
