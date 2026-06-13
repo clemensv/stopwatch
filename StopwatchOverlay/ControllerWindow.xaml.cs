@@ -43,11 +43,13 @@ namespace StopwatchOverlay
         private bool _isRunning = false;
         private Screen? _selectedScreen;
         
-        // Mode: 0=Stopwatch, 1=Clock, 2=Countdown, 3=Timecode, 4=Clock Countdown
+        // Mode: 0=Stopwatch, 1=Clock, 2=Countdown, 3=Timecode
         private int _currentMode = 0;
         private TimeSpan _countdownDuration = TimeSpan.FromMinutes(5);
         private TimeSpan _countdownRemaining;
         private DateTime _clockTarget;
+        // Countdown sub-mode: false = fixed duration, true = count down to a wall-clock time
+        private bool _useClockTarget = false;
         private bool _colonVisible = true;
         private int _timeFormat = 0; // 0=HH:MM:SS.t, 1=HH:MM:SS, 2=MM:SS.t, 3=MM:SS
         private int _frameRate = 30;
@@ -158,17 +160,14 @@ namespace StopwatchOverlay
         {
             if (_currentMode == 2 && _isRunning) // Countdown mode
             {
-                _countdownRemaining -= TimeSpan.FromMilliseconds(50);
-                // Flash status when hitting zero
-                if (_countdownRemaining <= TimeSpan.Zero && _countdownRemaining > TimeSpan.FromMilliseconds(-100))
-                {
-                    UpdateStatus("Time's up! (counting negative)", Brushes.Red);
-                }
-            }
+                // Until-clock-time recomputes from the wall clock (drift-free); fixed
+                // duration decrements. Both write _countdownRemaining for rendering.
+                if (_useClockTarget)
+                    _countdownRemaining = _clockTarget - DateTime.Now;
+                else
+                    _countdownRemaining -= TimeSpan.FromMilliseconds(50);
 
-            if (_currentMode == 4 && _isRunning) // Clock Countdown mode
-            {
-                _countdownRemaining = _clockTarget - DateTime.Now;
+                // Flash status when hitting zero
                 if (_countdownRemaining <= TimeSpan.Zero && _countdownRemaining > TimeSpan.FromMilliseconds(-100))
                 {
                     UpdateStatus("Time's up! (counting negative)", Brushes.Red);
@@ -230,8 +229,7 @@ namespace StopwatchOverlay
                         _ => now.ToString("HH:mm:ss")
                     };
 
-                case 2: // Countdown
-                case 4: // Clock Countdown (same render — reads _countdownRemaining)
+                case 2: // Countdown (both fixed-duration and until-clock-time)
                     var remaining = _countdownRemaining;
                     bool isNegative = remaining < TimeSpan.Zero;
                     var absRemaining = isNegative ? remaining.Negate() : remaining;
@@ -265,24 +263,35 @@ namespace StopwatchOverlay
 
         private void ModeRadio_Checked(object sender, RoutedEventArgs e)
         {
-            if (CountdownPanel == null || ClockCountdownPanel == null) return;
+            if (CountdownPanel == null) return;
 
             if (StopwatchModeRadio?.IsChecked == true) _currentMode = 0;
             else if (ClockModeRadio?.IsChecked == true) _currentMode = 1;
             else if (CountdownModeRadio?.IsChecked == true) _currentMode = 2;
             else if (TimecodeModeRadio?.IsChecked == true) _currentMode = 3;
-            else if (ClockCountdownModeRadio?.IsChecked == true) _currentMode = 4;
 
             CountdownPanel.Visibility = _currentMode == 2 ? Visibility.Visible : Visibility.Collapsed;
-            ClockCountdownPanel.Visibility = _currentMode == 4 ? Visibility.Visible : Visibility.Collapsed;
 
-            if (_currentMode == 4) PrefillClockTarget();
+            // Refresh the prefilled target whenever the user enters until-clock-time countdown
+            if (_currentMode == 2 && _useClockTarget) PrefillClockTarget();
 
             UpdateButtonStates();
             UpdateTimeDisplay();
 
-            string[] modeNames = { "Stopwatch", "Clock", "Countdown", "Timecode", "Clock Countdown" };
+            string[] modeNames = { "Stopwatch", "Clock", "Countdown", "Timecode" };
             UpdateStatus($"{modeNames[_currentMode]} Mode", Brushes.DeepSkyBlue);
+        }
+
+        private void CountdownTypeRadio_Checked(object sender, RoutedEventArgs e)
+        {
+            if (CountdownDurationPanel == null || CountdownUntilPanel == null) return;
+
+            _useClockTarget = CountdownUntilRadio?.IsChecked == true;
+            CountdownDurationPanel.Visibility = _useClockTarget ? Visibility.Collapsed : Visibility.Visible;
+            CountdownUntilPanel.Visibility = _useClockTarget ? Visibility.Visible : Visibility.Collapsed;
+
+            if (_useClockTarget) PrefillClockTarget();
+            UpdateTimeDisplay();
         }
 
         private void PrefillClockTarget()
@@ -317,7 +326,22 @@ namespace StopwatchOverlay
                 // Start
                 if (_currentMode == 2) // Countdown
                 {
-                    if (!_isRunning)
+                    if (_useClockTarget)
+                    {
+                        int.TryParse(ClockTargetHours.Text, out int h);
+                        int.TryParse(ClockTargetMinutes.Text, out int m);
+                        int.TryParse(ClockTargetSeconds.Text, out int s);
+                        h = Math.Clamp(h, 0, 23);
+                        m = Math.Clamp(m, 0, 59);
+                        s = Math.Clamp(s, 0, 59);
+
+                        var now = DateTime.Now;
+                        var target = new DateTime(now.Year, now.Month, now.Day, h, m, s);
+                        if (target <= now) target = target.AddDays(1); // roll to tomorrow
+                        _clockTarget = target;
+                        _countdownRemaining = _clockTarget - now;
+                    }
+                    else
                     {
                         int.TryParse(CountdownMinutes.Text, out int mins);
                         int.TryParse(CountdownSeconds.Text, out int secs);
@@ -326,22 +350,6 @@ namespace StopwatchOverlay
                     }
                 }
 
-                if (_currentMode == 4) // Clock Countdown
-                {
-                    int.TryParse(ClockTargetHours.Text, out int h);
-                    int.TryParse(ClockTargetMinutes.Text, out int m);
-                    int.TryParse(ClockTargetSeconds.Text, out int s);
-                    h = Math.Clamp(h, 0, 23);
-                    m = Math.Clamp(m, 0, 59);
-                    s = Math.Clamp(s, 0, 59);
-
-                    var now = DateTime.Now;
-                    var target = new DateTime(now.Year, now.Month, now.Day, h, m, s);
-                    if (target <= now) target = target.AddDays(1); // roll to tomorrow
-                    _clockTarget = target;
-                    _countdownRemaining = _clockTarget - now;
-                }
-                
                 _stopwatch.Start();
                 _isRunning = true;
                 StartStopButton.Content = "⏹ Stop (Win+F5)";
@@ -369,16 +377,18 @@ namespace StopwatchOverlay
             
             if (_currentMode == 2)
             {
-                int.TryParse(CountdownMinutes.Text, out int mins);
-                int.TryParse(CountdownSeconds.Text, out int secs);
-                _countdownDuration = TimeSpan.FromMinutes(mins) + TimeSpan.FromSeconds(secs);
-                _countdownRemaining = _countdownDuration;
-            }
-
-            if (_currentMode == 4)
-            {
-                PrefillClockTarget();
-                _countdownRemaining = TimeSpan.Zero;
+                if (_useClockTarget)
+                {
+                    PrefillClockTarget();
+                    _countdownRemaining = TimeSpan.Zero;
+                }
+                else
+                {
+                    int.TryParse(CountdownMinutes.Text, out int mins);
+                    int.TryParse(CountdownSeconds.Text, out int secs);
+                    _countdownDuration = TimeSpan.FromMinutes(mins) + TimeSpan.FromSeconds(secs);
+                    _countdownRemaining = _countdownDuration;
+                }
             }
 
             _lapTimes.Clear();
