@@ -374,7 +374,13 @@ namespace StopwatchOverlay
                 _countdownDuration = TimeSpan.FromMinutes(mins) + TimeSpan.FromSeconds(secs);
                 _countdownRemaining = _countdownDuration;
             }
-            
+
+            if (_currentMode == 4)
+            {
+                PrefillClockTarget();
+                _countdownRemaining = TimeSpan.Zero;
+            }
+
             _lapTimes.Clear();
             _lapCount = 0;
             LapPlaceholder.Visibility = Visibility.Visible;
