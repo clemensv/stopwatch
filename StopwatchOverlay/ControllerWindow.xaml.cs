@@ -43,7 +43,7 @@ namespace StopwatchOverlay
         private bool _isRunning = false;
         private Screen? _selectedScreen;
         
-        // Mode: 0=Stopwatch, 1=Clock, 2=Countdown, 3=Timecode
+        // Mode: 0=Stopwatch, 1=Clock, 2=Countdown, 3=Timecode, 4=Clock Countdown
         private int _currentMode = 0;
         private TimeSpan _countdownDuration = TimeSpan.FromMinutes(5);
         private TimeSpan _countdownRemaining;
