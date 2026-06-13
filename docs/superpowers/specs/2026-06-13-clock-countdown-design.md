@@ -17,7 +17,7 @@ duration. Clock Countdown is mode 4.
 ## Goals
 
 - Count down to an absolute wall-clock time the user picks.
-- Prefill a sensible default (now + 5 minutes, seconds = 00) and let the user edit it.
+- Prefill a sensible default (now + 15 minutes, seconds = 00) and let the user edit it.
 - Reuse the existing countdown rendering, overlay, hotkey, and REC plumbing.
 - Be drift-free and correct across PC sleep.
 
@@ -38,15 +38,16 @@ New radio button `ClockCountdownModeRadio` ("Clock Countdown") joins the existin
 mode row, wired to the same `ModeRadio_Checked` handler.
 
 `ModeRadio_Checked` updated to:
+
 - Set `_currentMode = 4` when `ClockCountdownModeRadio.IsChecked == true`.
 - Show `ClockCountdownPanel` only when mode 4 (and keep `CountdownPanel` logic for mode 2).
 - Add `"Clock Countdown"` to the `modeNames` array used for the status message.
 
 ## State
 
-| Field | Type | Purpose |
-|-------|------|---------|
-| `_clockTarget` | `DateTime` | Resolved absolute target instant. Set on Start. |
+| Field                 | Type                  | Purpose                                                                    |
+| --------------------- | --------------------- | -------------------------------------------------------------------------- |
+| `_clockTarget`        | `DateTime`            | Resolved absolute target instant. Set on Start.                            |
 | `_countdownRemaining` | `TimeSpan` (existing) | Reused as the render value for mode 4, so formatting shares mode 2's code. |
 
 No new format state — Clock Countdown uses the existing `_timeFormat` (0–3).
@@ -65,7 +66,8 @@ Until:  [HH] : [MM] : [SS]
 - "Until:" label uses the same `GrayTextBrushKey` styling as the Countdown panel labels.
 
 **Prefill:** When mode 4 is selected (in `ModeRadio_Checked`), compute
-`var t = DateTime.Now.AddMinutes(5);` and set:
+`var t = DateTime.Now.AddMinutes(15);` and set:
+
 - `ClockTargetHours.Text = t.Hour` (`D2`)
 - `ClockTargetMinutes.Text = t.Minute` (`D2`)
 - `ClockTargetSeconds.Text = "00"`
@@ -125,7 +127,8 @@ ends in `return`).
 ## Reset
 
 In `ResetButton_Click`, add a mode-4 branch parallel to the existing mode-2 branch:
-- Re-prefill `ClockCountdownPanel` to `DateTime.Now.AddMinutes(5)` (HH/MM, SS = "00").
+
+- Re-prefill `ClockCountdownPanel` to `DateTime.Now.AddMinutes(15)` (HH/MM, SS = "00").
 - Clear `_countdownRemaining = TimeSpan.Zero;`
 - Stop and reset running/REC state as the shared reset code already does.
 
@@ -144,25 +147,25 @@ No changes. Hotkeys already route to the button handlers, overlays render from
 
 ## Edge Cases
 
-| Case | Behavior |
-|------|----------|
-| Target == now exactly at Start | `target <= now` true → rolls to tomorrow (~24h). Acceptable; user picked the current minute. |
-| Non-numeric field text | `int.TryParse` fails → field treated as 0, then clamped. |
-| Out-of-range (e.g. 99) | Clamped to valid range before building target. |
-| PC sleeps mid-countdown | On resume, next tick recomputes `target - now`; display jumps to correct remaining. |
-| Overnight target (e.g. 06:00 set at 23:00) | Rolls to tomorrow → counts ~7h. Intended use. |
+| Case                                       | Behavior                                                                                     |
+| ------------------------------------------ | -------------------------------------------------------------------------------------------- |
+| Target == now exactly at Start             | `target <= now` true → rolls to tomorrow (~24h). Acceptable; user picked the current minute. |
+| Non-numeric field text                     | `int.TryParse` fails → field treated as 0, then clamped.                                     |
+| Out-of-range (e.g. 99)                     | Clamped to valid range before building target.                                               |
+| PC sleeps mid-countdown                    | On resume, next tick recomputes `target - now`; display jumps to correct remaining.          |
+| Overnight target (e.g. 06:00 set at 23:00) | Rolls to tomorrow → counts ~7h. Intended use.                                                |
 
 ## Testing
 
 No automated test suite exists (per CLAUDE.md). Manual verification:
 
-1. Select Clock Countdown → panel shows now+5min, SS=00.
+1. Select Clock Countdown → panel shows now+15min, SS=00.
 2. Set target 2 min ahead, Start → counts down, reaches 00:00:00 at the wall-clock target.
 3. Let it pass zero → goes negative with `-`, "Time's up!" status flashes.
 4. Set a target earlier than now → Start → rolls to tomorrow (~large remaining).
 5. Switch formats (HH:MM:SS.t / HH:MM:SS / MM:SS.t / MM:SS) → render matches Countdown.
 6. Overlay on → shows same string as controller. REC indicator + hotkeys work.
-7. Reset → panel re-prefills to now+5min, display clears.
+7. Reset → panel re-prefills to now+15min, display clears.
 
 ## Files Touched
 
