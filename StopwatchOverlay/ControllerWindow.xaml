@@ -32,30 +32,54 @@
 
         <!-- Mode Selection -->
         <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,10">
-            <RadioButton x:Name="StopwatchModeRadio" Content="Stopwatch" 
+            <RadioButton x:Name="StopwatchModeRadio" Content="Stopwatch"
                          IsChecked="True" GroupName="Mode"
                          Checked="ModeRadio_Checked" Margin="0,0,15,0"/>
-            <RadioButton x:Name="ClockModeRadio" Content="Clock" 
+            <RadioButton x:Name="ClockModeRadio" Content="Clock"
                          GroupName="Mode"
                          Checked="ModeRadio_Checked" Margin="0,0,15,0"/>
-            <RadioButton x:Name="CountdownModeRadio" Content="Countdown" 
+            <RadioButton x:Name="CountdownModeRadio" Content="Countdown"
                          GroupName="Mode"
                          Checked="ModeRadio_Checked" Margin="0,0,15,0"/>
-            <RadioButton x:Name="TimecodeModeRadio" Content="Timecode" 
+            <RadioButton x:Name="TimecodeModeRadio" Content="Timecode"
                          GroupName="Mode"
                          Checked="ModeRadio_Checked"/>
         </StackPanel>
 
-        <!-- Countdown Duration (only visible in countdown mode) -->
-        <StackPanel x:Name="CountdownPanel" Grid.Row="2" Orientation="Horizontal" 
+        <!-- Countdown inputs (only visible in countdown mode) -->
+        <StackPanel x:Name="CountdownPanel" Grid.Row="2" Orientation="Vertical"
                     HorizontalAlignment="Center" Margin="0,0,0,10" Visibility="Collapsed">
-            <TextBlock Text="Duration: " Foreground="{DynamicResource {x:Static SystemColors.GrayTextBrushKey}}" VerticalAlignment="Center"/>
-            <TextBox x:Name="CountdownMinutes" Width="40" Text="5" 
-                     TextAlignment="Center" VerticalContentAlignment="Center"/>
-            <TextBlock Text=" min " Foreground="{DynamicResource {x:Static SystemColors.GrayTextBrushKey}}" VerticalAlignment="Center"/>
-            <TextBox x:Name="CountdownSeconds" Width="40" Text="00" 
-                     TextAlignment="Center" VerticalContentAlignment="Center"/>
-            <TextBlock Text=" sec" Foreground="{DynamicResource {x:Static SystemColors.GrayTextBrushKey}}" VerticalAlignment="Center"/>
+            <!-- Duration vs. Until-clock-time toggle -->
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,6">
+                <RadioButton x:Name="CountdownDurationRadio" Content="Duration" IsChecked="True"
+                             GroupName="CountdownType" Checked="CountdownTypeRadio_Checked" Margin="0,0,12,0"/>
+                <RadioButton x:Name="CountdownUntilRadio" Content="Until clock time"
+                             GroupName="CountdownType" Checked="CountdownTypeRadio_Checked"/>
+            </StackPanel>
+
+            <!-- Fixed-duration inputs -->
+            <StackPanel x:Name="CountdownDurationPanel" Orientation="Horizontal" HorizontalAlignment="Center">
+                <TextBlock Text="Duration: " Foreground="{DynamicResource {x:Static SystemColors.GrayTextBrushKey}}" VerticalAlignment="Center"/>
+                <TextBox x:Name="CountdownMinutes" Width="40" Text="5" Style="{StaticResource TimeInputBox}"
+                         TextAlignment="Center" VerticalContentAlignment="Center"/>
+                <TextBlock Text=" min " Foreground="{DynamicResource {x:Static SystemColors.GrayTextBrushKey}}" VerticalAlignment="Center"/>
+                <TextBox x:Name="CountdownSeconds" Width="40" Text="00" Style="{StaticResource TimeInputBox}"
+                         TextAlignment="Center" VerticalContentAlignment="Center"/>
+                <TextBlock Text=" sec" Foreground="{DynamicResource {x:Static SystemColors.GrayTextBrushKey}}" VerticalAlignment="Center"/>
+            </StackPanel>
+
+            <!-- Until-clock-time inputs -->
+            <StackPanel x:Name="CountdownUntilPanel" Orientation="Horizontal" HorizontalAlignment="Center" Visibility="Collapsed">
+                <TextBlock Text="Until: " Foreground="{DynamicResource {x:Static SystemColors.GrayTextBrushKey}}" VerticalAlignment="Center"/>
+                <TextBox x:Name="ClockTargetHours" Width="40" Text="00" Style="{StaticResource TimeInputBox}"
+                         TextAlignment="Center" VerticalContentAlignment="Center"/>
+                <TextBlock Text=" : " Foreground="{DynamicResource {x:Static SystemColors.GrayTextBrushKey}}" VerticalAlignment="Center"/>
+                <TextBox x:Name="ClockTargetMinutes" Width="40" Text="00" Style="{StaticResource TimeInputBox}"
+                         TextAlignment="Center" VerticalContentAlignment="Center"/>
+                <TextBlock Text=" : " Foreground="{DynamicResource {x:Static SystemColors.GrayTextBrushKey}}" VerticalAlignment="Center"/>
+                <TextBox x:Name="ClockTargetSeconds" Width="40" Text="00" Style="{StaticResource TimeInputBox}"
+                         TextAlignment="Center" VerticalContentAlignment="Center"/>
+            </StackPanel>
         </StackPanel>
 
         <!-- Current Time Display -->

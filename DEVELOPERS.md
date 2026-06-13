@@ -66,7 +66,7 @@ The application supports four display modes:
 
 1. **Stopwatch** — Elapsed time counter with start/stop/reset
 2. **Clock** — Real-time clock display with optional colon blink
-3. **Countdown** — Configurable countdown timer (continues into negative)
+3. **Countdown** — Countdown timer (continues into negative). A Duration / Until-clock-time toggle (`_useClockTarget`) switches between a fixed duration and counting down to a wall-clock target time (HH:MM:SS); the until-time variant resolves an absolute target on start (rolling to tomorrow if already past) and recomputes the remaining time from `DateTime.Now` each tick
 4. **Timecode** — Frame-accurate timecode display (HH:MM:SS:FF)
 
 ## Hotkeys

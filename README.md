@@ -19,7 +19,7 @@ Stopwatch Overlay places a customizable timer on top of all your windows — inc
 
 ### Features
 
-- ⏱️ **Four modes** — Stopwatch, real-time clock, countdown timer, and frame-accurate timecode
+- ⏱️ **Four modes** — Stopwatch, real-time clock, countdown timer (fixed duration or count down to a clock time), and frame-accurate timecode
 - 🖥️ **Multi-monitor** — Show the overlay on one screen or all screens at once
 - 📌 **Always on top** — Stays visible over fullscreen apps, games, and camera feeds
 - 🎨 **Fully customizable** — Text color, border, font, size, background opacity
@@ -78,7 +78,7 @@ The app requires the .NET 8.0 Desktop Runtime:
 |---|---|
 | **Stopwatch** | Elapsed time with start / stop / reset |
 | **Clock** | Real-time clock (optional blinking colon) |
-| **Countdown** | Configurable countdown, continues into negative |
+| **Countdown** | Counts down by a fixed duration, or to a wall-clock time (HH:MM:SS) via the Duration / Until-clock-time toggle; continues into negative |
 | **Timecode** | Frame-accurate display (HH:MM:SS:FF) |
 
 ---
