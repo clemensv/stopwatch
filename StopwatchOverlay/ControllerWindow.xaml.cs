@@ -315,6 +315,22 @@ namespace StopwatchOverlay
                         _countdownRemaining = _countdownDuration;
                     }
                 }
+
+                if (_currentMode == 4) // Clock Countdown
+                {
+                    int.TryParse(ClockTargetHours.Text, out int h);
+                    int.TryParse(ClockTargetMinutes.Text, out int m);
+                    int.TryParse(ClockTargetSeconds.Text, out int s);
+                    h = Math.Clamp(h, 0, 23);
+                    m = Math.Clamp(m, 0, 59);
+                    s = Math.Clamp(s, 0, 59);
+
+                    var now = DateTime.Now;
+                    var target = new DateTime(now.Year, now.Month, now.Day, h, m, s);
+                    if (target <= now) target = target.AddDays(1); // roll to tomorrow
+                    _clockTarget = target;
+                    _countdownRemaining = _clockTarget - now;
+                }
                 
                 _stopwatch.Start();
                 _isRunning = true;
