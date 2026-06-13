@@ -830,7 +830,7 @@ namespace StopwatchOverlay
                 RenderShortcutBox(action);
         }
 
-        private System.Windows.Controls.TextBox BoxFor(ShortcutAction action) => (System.Windows.Controls.TextBox)FindName(_boxNames[action]);
+        private System.Windows.Controls.TextBox? BoxFor(ShortcutAction action) => FindName(_boxNames[action]) as System.Windows.Controls.TextBox;
 
         private void RenderShortcutBox(ShortcutAction action)
         {
@@ -907,12 +907,16 @@ namespace StopwatchOverlay
 
             // 1. In-app duplicates (ignore unbound).
             var seen = new Dictionary<(uint, uint), ShortcutAction>();
+            var duplicateCombos = new HashSet<(uint, uint)>();
             foreach (var (action, s) in candidate)
             {
                 if (s.VirtualKey == 0) continue;
                 var key = (s.Modifiers, s.VirtualKey);
                 if (seen.TryGetValue(key, out var other))
+                {
                     problems.Add($"{action} and {other} share {FormatCombo(s)}.");
+                    duplicateCombos.Add(key);
+                }
                 else
                     seen[key] = action;
             }
@@ -920,7 +924,12 @@ namespace StopwatchOverlay
             // 2. OS-level rejection (combo held by another running app).
             var failures = ApplyShortcuts(candidate);
             foreach (var action in failures)
-                problems.Add($"{action} ({FormatCombo(candidate[action])}) is already in use by another app.");
+            {
+                var s = candidate[action];
+                if (duplicateCombos.Contains((s.Modifiers, s.VirtualKey)))
+                    continue; // already reported as an in-app duplicate above
+                problems.Add($"{action} ({FormatCombo(s)}) is already in use by another app.");
+            }
 
             if (problems.Count > 0)
             {
