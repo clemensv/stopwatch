@@ -47,6 +47,7 @@ namespace StopwatchOverlay
         private int _currentMode = 0;
         private TimeSpan _countdownDuration = TimeSpan.FromMinutes(5);
         private TimeSpan _countdownRemaining;
+        private DateTime _clockTarget;
         private bool _colonVisible = true;
         private int _timeFormat = 0; // 0=HH:MM:SS.t, 1=HH:MM:SS, 2=MM:SS.t, 3=MM:SS
         private int _frameRate = 30;
@@ -253,19 +254,33 @@ namespace StopwatchOverlay
 
         private void ModeRadio_Checked(object sender, RoutedEventArgs e)
         {
-            if (CountdownPanel == null) return;
+            if (CountdownPanel == null || ClockCountdownPanel == null) return;
 
             if (StopwatchModeRadio?.IsChecked == true) _currentMode = 0;
             else if (ClockModeRadio?.IsChecked == true) _currentMode = 1;
             else if (CountdownModeRadio?.IsChecked == true) _currentMode = 2;
             else if (TimecodeModeRadio?.IsChecked == true) _currentMode = 3;
+            else if (ClockCountdownModeRadio?.IsChecked == true) _currentMode = 4;
 
             CountdownPanel.Visibility = _currentMode == 2 ? Visibility.Visible : Visibility.Collapsed;
+            ClockCountdownPanel.Visibility = _currentMode == 4 ? Visibility.Visible : Visibility.Collapsed;
+
+            if (_currentMode == 4) PrefillClockTarget();
+
             UpdateButtonStates();
             UpdateTimeDisplay();
 
-            string[] modeNames = { "Stopwatch", "Clock", "Countdown", "Timecode" };
+            string[] modeNames = { "Stopwatch", "Clock", "Countdown", "Timecode", "Clock Countdown" };
             UpdateStatus($"{modeNames[_currentMode]} Mode", Brushes.DeepSkyBlue);
+        }
+
+        private void PrefillClockTarget()
+        {
+            if (ClockTargetHours == null) return;
+            var t = DateTime.Now.AddMinutes(15);
+            ClockTargetHours.Text = t.Hour.ToString("D2");
+            ClockTargetMinutes.Text = t.Minute.ToString("D2");
+            ClockTargetSeconds.Text = "00";
         }
 
         private void StartStopButton_Click(object sender, RoutedEventArgs e)
