@@ -41,7 +41,10 @@
             <RadioButton x:Name="CountdownModeRadio" Content="Countdown" 
                          GroupName="Mode"
                          Checked="ModeRadio_Checked" Margin="0,0,15,0"/>
-            <RadioButton x:Name="TimecodeModeRadio" Content="Timecode" 
+            <RadioButton x:Name="TimecodeModeRadio" Content="Timecode"
+                         GroupName="Mode"
+                         Checked="ModeRadio_Checked" Margin="0,0,15,0"/>
+            <RadioButton x:Name="ClockCountdownModeRadio" Content="Clock Countdown"
                          GroupName="Mode"
                          Checked="ModeRadio_Checked"/>
         </StackPanel>
@@ -56,6 +59,20 @@
             <TextBox x:Name="CountdownSeconds" Width="40" Text="00" 
                      TextAlignment="Center" VerticalContentAlignment="Center"/>
             <TextBlock Text=" sec" Foreground="{DynamicResource {x:Static SystemColors.GrayTextBrushKey}}" VerticalAlignment="Center"/>
+        </StackPanel>
+
+        <!-- Clock Countdown Target (only visible in clock-countdown mode) -->
+        <StackPanel x:Name="ClockCountdownPanel" Grid.Row="2" Orientation="Horizontal"
+                    HorizontalAlignment="Center" Margin="0,0,0,10" Visibility="Collapsed">
+            <TextBlock Text="Until: " Foreground="{DynamicResource {x:Static SystemColors.GrayTextBrushKey}}" VerticalAlignment="Center"/>
+            <TextBox x:Name="ClockTargetHours" Width="40" Text="00"
+                     TextAlignment="Center" VerticalContentAlignment="Center"/>
+            <TextBlock Text=" : " Foreground="{DynamicResource {x:Static SystemColors.GrayTextBrushKey}}" VerticalAlignment="Center"/>
+            <TextBox x:Name="ClockTargetMinutes" Width="40" Text="00"
+                     TextAlignment="Center" VerticalContentAlignment="Center"/>
+            <TextBlock Text=" : " Foreground="{DynamicResource {x:Static SystemColors.GrayTextBrushKey}}" VerticalAlignment="Center"/>
+            <TextBox x:Name="ClockTargetSeconds" Width="40" Text="00"
+                     TextAlignment="Center" VerticalContentAlignment="Center"/>
         </StackPanel>
 
         <!-- Current Time Display -->
