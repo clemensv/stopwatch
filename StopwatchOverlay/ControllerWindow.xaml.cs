@@ -447,6 +447,7 @@ namespace StopwatchOverlay
         private void CreateOverlayForScreen(Screen screen)
         {
             var overlay = new OverlayWindow();
+            overlay.Tag = screen; // remember which screen for repositioning
             ApplyOverlaySettings(overlay);
             PositionOverlay(overlay, screen);
             overlay.Show();
@@ -490,6 +491,19 @@ namespace StopwatchOverlay
                 foreach (var overlay in _overlayWindows) overlay.Close();
                 _overlayWindows.Clear();
                 ToggleOverlayButton_Click(sender, new RoutedEventArgs());
+            }
+        }
+
+        private void RepositionAllOverlays()
+        {
+            // Overlays use SizeToContent, so changing format/font/size changes their width.
+            // Re-run positioning (after a layout pass) to keep them anchored correctly.
+            foreach (var overlay in _overlayWindows)
+            {
+                if (overlay.Tag is Screen screen)
+                {
+                    PositionOverlay(overlay, screen);
+                }
             }
         }
 
@@ -557,6 +571,7 @@ namespace StopwatchOverlay
         {
             _timeFormat = TimeFormatSelector?.SelectedIndex ?? 0;
             UpdateTimeDisplay();
+            RepositionAllOverlays();
         }
 
         private void ShowRecIndicatorCheckBox_Changed(object sender, RoutedEventArgs e)
@@ -672,6 +687,7 @@ namespace StopwatchOverlay
             {
                 ApplyOverlaySettings(overlay);
             }
+            RepositionAllOverlays();
         }
 
         private void ApplyOverlaySettings(OverlayWindow overlay)
