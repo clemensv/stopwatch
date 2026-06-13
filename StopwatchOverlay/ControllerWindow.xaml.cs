@@ -221,6 +221,7 @@ namespace StopwatchOverlay
                     };
 
                 case 2: // Countdown
+                case 4: // Clock Countdown (same render — reads _countdownRemaining)
                     var remaining = _countdownRemaining;
                     bool isNegative = remaining < TimeSpan.Zero;
                     var absRemaining = isNegative ? remaining.Negate() : remaining;
