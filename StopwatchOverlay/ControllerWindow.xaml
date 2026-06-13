@@ -53,10 +53,10 @@
         <StackPanel x:Name="CountdownPanel" Grid.Row="2" Orientation="Horizontal" 
                     HorizontalAlignment="Center" Margin="0,0,0,10" Visibility="Collapsed">
             <TextBlock Text="Duration: " Foreground="{DynamicResource {x:Static SystemColors.GrayTextBrushKey}}" VerticalAlignment="Center"/>
-            <TextBox x:Name="CountdownMinutes" Width="40" Text="5" 
+            <TextBox x:Name="CountdownMinutes" Width="40" Text="5" Style="{StaticResource TimeInputBox}"
                      TextAlignment="Center" VerticalContentAlignment="Center"/>
             <TextBlock Text=" min " Foreground="{DynamicResource {x:Static SystemColors.GrayTextBrushKey}}" VerticalAlignment="Center"/>
-            <TextBox x:Name="CountdownSeconds" Width="40" Text="00" 
+            <TextBox x:Name="CountdownSeconds" Width="40" Text="00" Style="{StaticResource TimeInputBox}"
                      TextAlignment="Center" VerticalContentAlignment="Center"/>
             <TextBlock Text=" sec" Foreground="{DynamicResource {x:Static SystemColors.GrayTextBrushKey}}" VerticalAlignment="Center"/>
         </StackPanel>
@@ -65,13 +65,13 @@
         <StackPanel x:Name="ClockCountdownPanel" Grid.Row="2" Orientation="Horizontal"
                     HorizontalAlignment="Center" Margin="0,0,0,10" Visibility="Collapsed">
             <TextBlock Text="Until: " Foreground="{DynamicResource {x:Static SystemColors.GrayTextBrushKey}}" VerticalAlignment="Center"/>
-            <TextBox x:Name="ClockTargetHours" Width="40" Text="00"
+            <TextBox x:Name="ClockTargetHours" Width="40" Text="00" Style="{StaticResource TimeInputBox}"
                      TextAlignment="Center" VerticalContentAlignment="Center"/>
             <TextBlock Text=" : " Foreground="{DynamicResource {x:Static SystemColors.GrayTextBrushKey}}" VerticalAlignment="Center"/>
-            <TextBox x:Name="ClockTargetMinutes" Width="40" Text="00"
+            <TextBox x:Name="ClockTargetMinutes" Width="40" Text="00" Style="{StaticResource TimeInputBox}"
                      TextAlignment="Center" VerticalContentAlignment="Center"/>
             <TextBlock Text=" : " Foreground="{DynamicResource {x:Static SystemColors.GrayTextBrushKey}}" VerticalAlignment="Center"/>
-            <TextBox x:Name="ClockTargetSeconds" Width="40" Text="00"
+            <TextBox x:Name="ClockTargetSeconds" Width="40" Text="00" Style="{StaticResource TimeInputBox}"
                      TextAlignment="Center" VerticalContentAlignment="Center"/>
         </StackPanel>
 

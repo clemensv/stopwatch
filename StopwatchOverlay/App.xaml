@@ -18,5 +18,30 @@
             <Setter Property="Background" Value="#C42B1C"/>
             <Setter Property="Foreground" Value="White"/>
         </Style>
+
+        <!-- Small numeric time-entry box. Custom template: no Fluent clear button
+             (which overlaps/hides text in narrow fields), explicit caret + foreground. -->
+        <Style TargetType="TextBox" x:Key="TimeInputBox">
+            <Setter Property="Foreground" Value="{DynamicResource {x:Static SystemColors.ControlTextBrushKey}}"/>
+            <Setter Property="CaretBrush" Value="{DynamicResource {x:Static SystemColors.ControlTextBrushKey}}"/>
+            <Setter Property="Background" Value="{DynamicResource {x:Static SystemColors.ControlDarkBrushKey}}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource {x:Static SystemColors.GrayTextBrushKey}}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="2"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TextBox">
+                        <Border Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="4">
+                            <ScrollViewer x:Name="PART_ContentHost"
+                                          Margin="{TemplateBinding Padding}"
+                                          VerticalAlignment="Center"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
     </Application.Resources>
 </Application>
