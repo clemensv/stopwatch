@@ -165,6 +165,16 @@ namespace StopwatchOverlay
                     UpdateStatus("Time's up! (counting negative)", Brushes.Red);
                 }
             }
+
+            if (_currentMode == 4 && _isRunning) // Clock Countdown mode
+            {
+                _countdownRemaining = _clockTarget - DateTime.Now;
+                if (_countdownRemaining <= TimeSpan.Zero && _countdownRemaining > TimeSpan.FromMilliseconds(-100))
+                {
+                    UpdateStatus("Time's up! (counting negative)", Brushes.Red);
+                }
+            }
+
             UpdateTimeDisplay();
         }
 
