@@ -8,6 +8,10 @@
         MinWidth="640" MinHeight="700"
         Closing="Window_Closing">
     
+    <DockPanel>
+    <Menu DockPanel.Dock="Top">
+        <MenuItem Header="_Shortcuts" Click="OpenShortcuts_Click"/>
+    </Menu>
     <Grid Margin="15">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
@@ -178,6 +182,7 @@
                             <ComboBoxItem Content="Bottom Left"/>
                             <ComboBoxItem Content="Bottom Center"/>
                             <ComboBoxItem Content="Bottom Right"/>
+                            <ComboBoxItem Content="Custom"/>
                         </ComboBox>
                 </Grid>
 
@@ -344,9 +349,11 @@
                     <Ellipse x:Name="StatusIndicator" Width="10" Height="10" Fill="Gray" Margin="0,0,8,0"/>
                     <TextBlock x:Name="StatusText" Text="Ready" Opacity="0.6" FontSize="12"/>
                 </StackPanel>
-                <TextBlock Grid.Column="1" Text="Win+F5 Start/Stop  Win+F6 Reset  Win+F7 Overlay  Win+F8 Lap" 
+                <TextBlock x:Name="ShortcutHintText" Grid.Column="1"
+                           Text="Win+F5 Start/Stop  Win+F6 Reset  Win+F7 Overlay  Win+F8 Lap"
                            Opacity="0.35" FontSize="10"/>
             </Grid>
         </Border>
     </Grid>
+    </DockPanel>
 </Window>
