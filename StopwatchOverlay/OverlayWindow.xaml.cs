@@ -22,6 +22,9 @@ namespace StopwatchOverlay
 
         private bool _isClickThrough = false;
 
+        // Raised after the user finishes dragging the overlay to a new spot.
+        public event Action? PositionChangedByUser;
+
         public OverlayWindow()
         {
             InitializeComponent();
@@ -101,7 +104,8 @@ namespace StopwatchOverlay
             // Allow dragging the overlay window (only if not click-through)
             if (!_isClickThrough && e.LeftButton == MouseButtonState.Pressed)
             {
-                DragMove();
+                DragMove(); // blocks until the mouse is released
+                PositionChangedByUser?.Invoke();
             }
         }
 

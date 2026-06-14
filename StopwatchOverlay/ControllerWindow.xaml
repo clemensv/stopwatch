@@ -8,6 +8,10 @@
         MinWidth="640" MinHeight="700"
         Closing="Window_Closing">
     
+    <DockPanel>
+    <Menu DockPanel.Dock="Top">
+        <MenuItem Header="_Shortcuts" Click="OpenShortcuts_Click"/>
+    </Menu>
     <Grid Margin="15">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
@@ -178,6 +182,7 @@
                             <ComboBoxItem Content="Bottom Left"/>
                             <ComboBoxItem Content="Bottom Center"/>
                             <ComboBoxItem Content="Bottom Right"/>
+                            <ComboBoxItem Content="Custom"/>
                         </ComboBox>
                 </Grid>
 
@@ -312,48 +317,6 @@
                               ToolTip="Makes the light ring invisible to screen recorders (Windows 10 2004+)"
                               Checked="LightRingSliderChanged" Unchecked="LightRingSliderChanged"/>
                 </Grid>
-
-                <!-- Shortcuts -->
-                <TextBlock Text="Shortcuts" FontSize="13" FontWeight="SemiBold" Opacity="0.7" Margin="0,8,0,6"/>
-                <Grid Margin="4,0,4,4">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="Auto"/>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="Auto"/>
-                    </Grid.ColumnDefinitions>
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
-                    </Grid.RowDefinitions>
-
-                    <TextBlock Grid.Row="0" Grid.Column="0" Text="Start/Stop:" VerticalAlignment="Center" Margin="0,0,10,5"/>
-                    <TextBox Grid.Row="0" Grid.Column="1" x:Name="StartStopShortcutBox" IsReadOnly="True" Margin="0,0,8,5"
-                             Tag="StartStop" GotFocus="ShortcutBox_GotFocus" LostFocus="ShortcutBox_LostFocus" PreviewKeyDown="ShortcutBox_PreviewKeyDown"/>
-                    <Button Grid.Row="0" Grid.Column="2" Content="Clear" Tag="StartStop" Click="ClearShortcut_Click" Style="{StaticResource ModernButton}" Margin="0,0,0,5"/>
-
-                    <TextBlock Grid.Row="1" Grid.Column="0" Text="Reset:" VerticalAlignment="Center" Margin="0,0,10,5"/>
-                    <TextBox Grid.Row="1" Grid.Column="1" x:Name="ResetShortcutBox" IsReadOnly="True" Margin="0,0,8,5"
-                             Tag="Reset" GotFocus="ShortcutBox_GotFocus" LostFocus="ShortcutBox_LostFocus" PreviewKeyDown="ShortcutBox_PreviewKeyDown"/>
-                    <Button Grid.Row="1" Grid.Column="2" Content="Clear" Tag="Reset" Click="ClearShortcut_Click" Style="{StaticResource ModernButton}" Margin="0,0,0,5"/>
-
-                    <TextBlock Grid.Row="2" Grid.Column="0" Text="Toggle Overlay:" VerticalAlignment="Center" Margin="0,0,10,5"/>
-                    <TextBox Grid.Row="2" Grid.Column="1" x:Name="ToggleOverlayShortcutBox" IsReadOnly="True" Margin="0,0,8,5"
-                             Tag="ToggleOverlay" GotFocus="ShortcutBox_GotFocus" LostFocus="ShortcutBox_LostFocus" PreviewKeyDown="ShortcutBox_PreviewKeyDown"/>
-                    <Button Grid.Row="2" Grid.Column="2" Content="Clear" Tag="ToggleOverlay" Click="ClearShortcut_Click" Style="{StaticResource ModernButton}" Margin="0,0,0,5"/>
-
-                    <TextBlock Grid.Row="3" Grid.Column="0" Text="Lap:" VerticalAlignment="Center" Margin="0,0,10,5"/>
-                    <TextBox Grid.Row="3" Grid.Column="1" x:Name="LapShortcutBox" IsReadOnly="True" Margin="0,0,8,5"
-                             Tag="Lap" GotFocus="ShortcutBox_GotFocus" LostFocus="ShortcutBox_LostFocus" PreviewKeyDown="ShortcutBox_PreviewKeyDown"/>
-                    <Button Grid.Row="3" Grid.Column="2" Content="Clear" Tag="Lap" Click="ClearShortcut_Click" Style="{StaticResource ModernButton}" Margin="0,0,0,5"/>
-
-                    <StackPanel Grid.Row="4" Grid.Column="0" Grid.ColumnSpan="3" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,4,0,0">
-                        <Button Content="Apply Shortcuts" Click="ApplyShortcuts_Click" Style="{StaticResource ModernButton}" Margin="0,0,8,0"/>
-                        <Button Content="Reset to defaults" Click="ResetShortcuts_Click" Style="{StaticResource ModernButton}"/>
-                    </StackPanel>
-                </Grid>
             </StackPanel>
         </Expander>
 
@@ -392,4 +355,5 @@
             </Grid>
         </Border>
     </Grid>
+    </DockPanel>
 </Window>

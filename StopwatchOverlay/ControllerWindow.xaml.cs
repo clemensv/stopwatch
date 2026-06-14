@@ -25,12 +25,6 @@ namespace StopwatchOverlay
         [DllImport("user32.dll")]
         private static extern bool UnregisterHotKey(IntPtr hWnd, int id);
 
-        // Win32 modifier flags
-        private const uint MOD_ALT     = 0x0001;
-        private const uint MOD_CONTROL = 0x0002;
-        private const uint MOD_SHIFT   = 0x0004;
-        private const uint MOD_WIN     = 0x0008;
-
         private readonly Stopwatch _stopwatch = new();
         private readonly DispatcherTimer _timer;
         private readonly DispatcherTimer _blinkTimer;
@@ -55,7 +49,12 @@ namespace StopwatchOverlay
         private HwndSource? _hwndSource;
         private AppSettings _settings = new();
         private Dictionary<ShortcutAction, Shortcut> _shortcuts = new();
-        private Dictionary<ShortcutAction, Shortcut> _pendingShortcuts = new();
+
+        // Custom overlay position (absolute, device-independent) set by dragging the overlay.
+        private bool _hasCustomPosition = false;
+        private double _customLeft = 0;
+        private double _customTop = 0;
+        private bool _suppressReposition = false;
 
         public ControllerWindow()
         {
@@ -78,6 +77,7 @@ namespace StopwatchOverlay
             LapListBox.ItemsSource = _lapTimes;
 
             PopulateScreens();
+            ApplySettingsToUi();
             UpdateButtonStates();
             _timer.Start();
             _blinkTimer.Start();
@@ -108,7 +108,6 @@ namespace StopwatchOverlay
 
             ApplyShortcuts(_shortcuts);
             UpdateShortcutLabels();
-            SeedShortcutBoxes();
         }
 
         // Unregisters all 4 hotkey ids, then registers each non-unbound shortcut.
@@ -479,6 +478,7 @@ namespace StopwatchOverlay
         {
             var overlay = new OverlayWindow();
             overlay.Tag = screen; // remember which screen for repositioning
+            overlay.PositionChangedByUser += () => OnOverlayMoved(overlay);
             ApplyOverlaySettings(overlay);
             PositionOverlay(overlay, screen);
             overlay.Show();
@@ -516,6 +516,8 @@ namespace StopwatchOverlay
 
         private void PositionSelector_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
+            if (_suppressReposition) return; // selection flipped to "Custom" by a drag, overlay already placed
+
             // Reposition all overlays
             if (_overlayWindows.Count > 0)
             {
@@ -523,6 +525,18 @@ namespace StopwatchOverlay
                 _overlayWindows.Clear();
                 ToggleOverlayButton_Click(sender, new RoutedEventArgs());
             }
+        }
+
+        // The user dragged an overlay: capture its spot as the custom position and switch the selector to "Custom".
+        private void OnOverlayMoved(OverlayWindow overlay)
+        {
+            _customLeft = overlay.Left;
+            _customTop = overlay.Top;
+            _hasCustomPosition = true;
+
+            _suppressReposition = true;
+            SelectByContent(PositionSelector, "Custom");
+            _suppressReposition = false;
         }
 
         private void RepositionAllOverlays()
@@ -542,6 +556,14 @@ namespace StopwatchOverlay
         {
             var bounds = screen.Bounds;
             var position = (PositionSelector.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "Top Center";
+
+            // Custom: place at the saved absolute coordinates instead of a preset anchor.
+            if (position == "Custom" && _hasCustomPosition)
+            {
+                overlay.Left = _customLeft;
+                overlay.Top = _customTop;
+                return;
+            }
 
             overlay.UpdateLayout();
             var dpiScale = GetDpiScaleForScreen(screen);
@@ -768,26 +790,12 @@ namespace StopwatchOverlay
             StatusIndicator.Fill = color;
         }
 
-        // Renders a shortcut as "Ctrl+Shift+S", "Win+F5", etc. Empty string if unbound.
-        private static string FormatCombo(Shortcut s)
-        {
-            if (s.VirtualKey == 0) return "";
-            var parts = new List<string>();
-            if ((s.Modifiers & MOD_CONTROL) != 0) parts.Add("Ctrl");
-            if ((s.Modifiers & MOD_ALT) != 0) parts.Add("Alt");
-            if ((s.Modifiers & MOD_SHIFT) != 0) parts.Add("Shift");
-            if ((s.Modifiers & MOD_WIN) != 0) parts.Add("Win");
-            var key = KeyInterop.KeyFromVirtualKey((int)s.VirtualKey);
-            parts.Add(key.ToString());
-            return string.Join("+", parts);
-        }
-
         // " (Win+F5)" suffix for button captions; "" if the action is unbound.
         private string ComboSuffix(ShortcutAction action)
         {
             if (_shortcuts.TryGetValue(action, out var s))
             {
-                var text = FormatCombo(s);
+                var text = s.Format();
                 if (text.Length > 0) return $" ({text})";
             }
             return "";
@@ -803,101 +811,112 @@ namespace StopwatchOverlay
                 + ComboSuffix(ShortcutAction.ToggleOverlay);
             LapButton.Content = "🏁 Lap" + ComboSuffix(ShortcutAction.Lap);
 
-            string s(ShortcutAction a) => FormatCombo(_shortcuts.TryGetValue(a, out var v) ? v : new Shortcut(0, 0));
+            string s(ShortcutAction a) => (_shortcuts.TryGetValue(a, out var v) ? v : new Shortcut(0, 0)).Format();
             ShortcutHintText.Text =
                 $"{s(ShortcutAction.StartStop)} Start/Stop  {s(ShortcutAction.Reset)} Reset  " +
                 $"{s(ShortcutAction.ToggleOverlay)} Overlay  {s(ShortcutAction.Lap)} Lap";
 
-            var lapCombo = FormatCombo(_shortcuts.TryGetValue(ShortcutAction.Lap, out var lv) ? lv : new Shortcut(0, 0));
+            var lapCombo = (_shortcuts.TryGetValue(ShortcutAction.Lap, out var lv) ? lv : new Shortcut(0, 0)).Format();
             LapPlaceholder.Text = lapCombo.Length > 0
                 ? $"Press {lapCombo} or click Lap to record split times"
                 : "Click Lap to record split times";
         }
 
-        private static readonly Dictionary<ShortcutAction, string> _boxNames = new()
+        // Pushes persisted settings into the UI controls. Their change handlers fire as a
+        // side effect (labels update, theme applies); overlays don't exist yet so those calls are no-ops.
+        private void ApplySettingsToUi()
         {
-            [ShortcutAction.StartStop] = "StartStopShortcutBox",
-            [ShortcutAction.Reset] = "ResetShortcutBox",
-            [ShortcutAction.ToggleOverlay] = "ToggleOverlayShortcutBox",
-            [ShortcutAction.Lap] = "LapShortcutBox",
-        };
+            SelectByContent(ThemeModeSelector, _settings.ThemeMode);
+            SelectByContent(TextColorSelector, _settings.TextColor);
+            SelectByContent(BorderColorSelector, _settings.BorderColor);
+            SelectByContent(FontSelector, _settings.FontFamily);
+            if (_settings.TimeFormat >= 0 && _settings.TimeFormat < TimeFormatSelector.Items.Count)
+                TimeFormatSelector.SelectedIndex = _settings.TimeFormat;
 
-        // Copy committed shortcuts into pending and paint every capture box.
-        private void SeedShortcutBoxes()
-        {
-            _pendingShortcuts = new Dictionary<ShortcutAction, Shortcut>(_shortcuts);
-            foreach (var (action, _) in _boxNames)
-                RenderShortcutBox(action);
-        }
+            TextSizeSlider.Value = _settings.TextSize;
+            BorderWidthSlider.Value = _settings.BorderWidth;
+            BackgroundOpacitySlider.Value = _settings.BackgroundOpacity;
 
-        private System.Windows.Controls.TextBox? BoxFor(ShortcutAction action) => FindName(_boxNames[action]) as System.Windows.Controls.TextBox;
+            // Layout (screen before light ring, which reads the screen selection).
+            _hasCustomPosition = _settings.HasCustomPosition;
+            _customLeft = _settings.CustomLeft;
+            _customTop = _settings.CustomTop;
+            SelectByContent(PositionSelector, _settings.Position);
+            if (_settings.ScreenIndex >= 0 && _settings.ScreenIndex < ScreenSelector.Items.Count)
+                ScreenSelector.SelectedIndex = _settings.ScreenIndex;
 
-        private void RenderShortcutBox(ShortcutAction action)
-        {
-            var box = BoxFor(action);
-            if (box == null) return;
-            var combo = _pendingShortcuts.TryGetValue(action, out var s) ? FormatCombo(s) : "";
-            box.Text = combo.Length > 0 ? combo : "(none)";
-        }
+            LightRingBrightnessSlider.Value = _settings.LightRingBrightness;
+            LightRingWidthSlider.Value = _settings.LightRingWidth;
+            LightRingHideFromCaptureCheckBox.IsChecked = _settings.LightRingHideFromCapture;
 
-        private void ShortcutBox_GotFocus(object sender, RoutedEventArgs e)
-        {
-            if (sender is System.Windows.Controls.TextBox box) box.Text = "Press a key combo...";
-        }
+            AutoStartCheckBox.IsChecked = _settings.AutoStart;
+            ShowRecIndicatorCheckBox.IsChecked = _settings.ShowRecIndicator;
+            ClickThroughCheckBox.IsChecked = _settings.ClickThrough;
+            BlinkColonCheckBox.IsChecked = _settings.BlinkColon;
 
-        private void ShortcutBox_LostFocus(object sender, RoutedEventArgs e)
-        {
-            if (sender is System.Windows.Controls.TextBox box && box.Tag is string tag && Enum.TryParse<ShortcutAction>(tag, out var action))
-                RenderShortcutBox(action);
-        }
-
-        private void ShortcutBox_PreviewKeyDown(object sender, System.Windows.Input.KeyEventArgs e)
-        {
-            if (sender is not System.Windows.Controls.TextBox box || box.Tag is not string tag
-                || !Enum.TryParse<ShortcutAction>(tag, out var action))
-                return;
-
-            e.Handled = true;
-
-            // Alt combos arrive as Key.System; the real key is in SystemKey.
-            var key = e.Key == Key.System ? e.SystemKey : e.Key;
-
-            // Ignore presses that are only a modifier — wait for a real key.
-            if (key is Key.LeftCtrl or Key.RightCtrl or Key.LeftAlt or Key.RightAlt
-                or Key.LeftShift or Key.RightShift or Key.LWin or Key.RWin or Key.System or Key.None)
-                return;
-
-            uint mods = 0;
-            var m = Keyboard.Modifiers;
-            if ((m & ModifierKeys.Control) != 0) mods |= MOD_CONTROL;
-            if ((m & ModifierKeys.Alt) != 0) mods |= MOD_ALT;
-            if ((m & ModifierKeys.Shift) != 0) mods |= MOD_SHIFT;
-            if ((m & ModifierKeys.Windows) != 0) mods |= MOD_WIN;
-
-            uint vk = (uint)KeyInterop.VirtualKeyFromKey(key);
-            _pendingShortcuts[action] = new Shortcut(mods, vk);
-            box.Text = FormatCombo(_pendingShortcuts[action]);
-            Keyboard.ClearFocus(); // commit visually; user clicks Apply to save
-        }
-
-        private void ClearShortcut_Click(object sender, RoutedEventArgs e)
-        {
-            if (sender is FrameworkElement fe && fe.Tag is string tag
-                && Enum.TryParse<ShortcutAction>(tag, out var action))
+            // Last-used mode (drives _currentMode + panel visibility via the Checked handler).
+            switch (_settings.Mode)
             {
-                _pendingShortcuts[action] = new Shortcut(0, 0); // unbound
-                RenderShortcutBox(action);
+                case 1: ClockModeRadio.IsChecked = true; break;
+                case 2: CountdownModeRadio.IsChecked = true; break;
+                case 3: TimecodeModeRadio.IsChecked = true; break;
+                default: StopwatchModeRadio.IsChecked = true; break;
             }
+
+            // Light ring last, after screen selection is settled.
+            LightRingCheckBox.IsChecked = _settings.LightRingEnabled;
         }
 
-        private void ApplyShortcuts_Click(object sender, RoutedEventArgs e)
+        // Snapshots the current UI control values back into _settings (everything except shortcuts).
+        private void PopulateSettingsFromUi()
         {
-            CommitPendingShortcuts(_pendingShortcuts);
+            _settings.ThemeMode = SelectedContent(ThemeModeSelector, "Dark");
+            _settings.TextColor = SelectedContent(TextColorSelector, "White");
+            _settings.BorderColor = SelectedContent(BorderColorSelector, "Black");
+            _settings.FontFamily = SelectedContent(FontSelector, "Consolas");
+            _settings.TimeFormat = TimeFormatSelector.SelectedIndex;
+            _settings.TextSize = TextSizeSlider.Value;
+            _settings.BorderWidth = BorderWidthSlider.Value;
+            _settings.BackgroundOpacity = BackgroundOpacitySlider.Value;
+
+            _settings.Position = SelectedContent(PositionSelector, "Top Center");
+            _settings.ScreenIndex = ScreenSelector.SelectedIndex;
+            _settings.HasCustomPosition = _hasCustomPosition;
+            _settings.CustomLeft = _customLeft;
+            _settings.CustomTop = _customTop;
+
+            _settings.LightRingEnabled = LightRingCheckBox.IsChecked == true;
+            _settings.LightRingBrightness = LightRingBrightnessSlider.Value;
+            _settings.LightRingWidth = LightRingWidthSlider.Value;
+            _settings.LightRingHideFromCapture = LightRingHideFromCaptureCheckBox.IsChecked == true;
+
+            _settings.AutoStart = AutoStartCheckBox.IsChecked == true;
+            _settings.ShowRecIndicator = ShowRecIndicatorCheckBox.IsChecked == true;
+            _settings.ClickThrough = ClickThroughCheckBox.IsChecked == true;
+            _settings.BlinkColon = BlinkColonCheckBox.IsChecked == true;
+
+            _settings.Mode = _currentMode;
         }
 
-        private void ResetShortcuts_Click(object sender, RoutedEventArgs e)
+        private static void SelectByContent(System.Windows.Controls.ComboBox cb, string content)
         {
-            CommitPendingShortcuts(AppSettings.DefaultShortcuts());
+            foreach (var obj in cb.Items)
+                if (obj is ComboBoxItem item && item.Content?.ToString() == content)
+                {
+                    cb.SelectedItem = item;
+                    return;
+                }
+        }
+
+        private static string SelectedContent(System.Windows.Controls.ComboBox cb, string fallback)
+            => (cb.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? fallback;
+
+        // Opens the modal shortcut editor; commits the result if the user saves.
+        private void OpenShortcuts_Click(object sender, RoutedEventArgs e)
+        {
+            var dlg = new ShortcutsWindow(_shortcuts) { Owner = this };
+            if (dlg.ShowDialog() == true)
+                CommitPendingShortcuts(dlg.Result);
         }
 
         // Validates a candidate set, warns+confirms on conflicts, then registers, saves, and refreshes.
@@ -914,7 +933,7 @@ namespace StopwatchOverlay
                 var key = (s.Modifiers, s.VirtualKey);
                 if (seen.TryGetValue(key, out var other))
                 {
-                    problems.Add($"{action} and {other} share {FormatCombo(s)}.");
+                    problems.Add($"{action} and {other} share {s.Format()}.");
                     duplicateCombos.Add(key);
                 }
                 else
@@ -928,7 +947,7 @@ namespace StopwatchOverlay
                 var s = candidate[action];
                 if (duplicateCombos.Contains((s.Modifiers, s.VirtualKey)))
                     continue; // already reported as an in-app duplicate above
-                problems.Add($"{action} ({FormatCombo(s)}) is already in use by another app.");
+                problems.Add($"{action} ({s.Format()}) is already in use by another app.");
             }
 
             if (problems.Count > 0)
@@ -947,14 +966,18 @@ namespace StopwatchOverlay
             // Commit.
             _shortcuts = new Dictionary<ShortcutAction, Shortcut>(candidate);
             _settings.Shortcuts = new Dictionary<ShortcutAction, Shortcut>(candidate);
+            PopulateSettingsFromUi(); // keep appearance/layout current in the same file
             SettingsStore.Save(_settings);
-            SeedShortcutBoxes();
             UpdateShortcutLabels();
             UpdateStatus("Shortcuts updated", Brushes.DeepSkyBlue);
         }
 
         private void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e)
         {
+            // Persist appearance/layout/options (shortcuts are already saved on edit).
+            PopulateSettingsFromUi();
+            SettingsStore.Save(_settings);
+
             // Unregister hotkeys
             var helper = new WindowInteropHelper(this);
             foreach (ShortcutAction action in Enum.GetValues<ShortcutAction>())
