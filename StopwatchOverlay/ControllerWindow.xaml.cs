@@ -333,7 +333,17 @@ namespace StopwatchOverlay
             CountdownClassicPanel.Visibility = smart ? Visibility.Collapsed : Visibility.Visible;
             CountdownSmartPanel.Visibility = smart ? Visibility.Visible : Visibility.Collapsed;
 
-            if (smart) UpdateSmartPreview();
+            if (smart)
+            {
+                UpdateSmartPreview();
+            }
+            else
+            {
+                // Smart Start/Reset may have written _useClockTarget as a side effect of
+                // parsing; re-sync it to the visible classic radio so the classic Start/Reset
+                // paths read the correct sub-mode.
+                _useClockTarget = CountdownUntilRadio?.IsChecked == true;
+            }
         }
 
         private void SmartInputMenuItem_Click(object sender, RoutedEventArgs e)
