@@ -329,7 +329,7 @@ namespace StopwatchOverlay
             if (CountdownClassicPanel == null || CountdownSmartPanel == null) return;
 
             bool smart = _settings.UseSmartCountdownInput;
-            SmartInputMenuItem.IsChecked = smart;
+            SmartInputMenuItem.Header = smart ? "Switch to classic _input" : "Switch to smart _input";
             CountdownClassicPanel.Visibility = smart ? Visibility.Collapsed : Visibility.Visible;
             CountdownSmartPanel.Visibility = smart ? Visibility.Visible : Visibility.Collapsed;
 
@@ -348,7 +348,7 @@ namespace StopwatchOverlay
 
         private void SmartInputMenuItem_Click(object sender, RoutedEventArgs e)
         {
-            _settings.UseSmartCountdownInput = SmartInputMenuItem.IsChecked;
+            _settings.UseSmartCountdownInput = !_settings.UseSmartCountdownInput;
             ApplyCountdownInputMode();
             SettingsStore.Save(_settings);
         }

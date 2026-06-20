@@ -11,6 +11,18 @@ namespace StopwatchOverlay.Tests
         private static readonly DateTime Now = new(2026, 6, 20, 10, 0, 0);
 
         [Theory]
+        [InlineData("5am", 5)]    // no space between number and meridiem
+        [InlineData("5pm", 17)]
+        [InlineData("5 am", 5)]   // space still works
+        public void Meridiem_NoSpaceAccepted(string input, int hour)
+        {
+            var r = CountdownParser.Parse(input, Now);
+            Assert.True(r.Success);
+            Assert.NotNull(r.Target);
+            Assert.Equal(hour, r.Target!.Value.Hour);
+        }
+
+        [Theory]
         [InlineData("1", 1)]
         [InlineData("5", 5)]
         [InlineData("10", 10)]

@@ -46,7 +46,7 @@ namespace StopwatchOverlay
             if (prefix.Success) { forceClock = true; s = prefix.Groups[1].Value; }
 
             bool clockBranch = forceClock
-                || Regex.IsMatch(s, @"\b(am|pm)\b")
+                || Regex.IsMatch(s, @"(?:\b|\d)(am|pm)\b")
                 || Regex.IsMatch(s, @"\b(today|tomorrow|sunday|sun|monday|mon|tuesday|tue|wednesday|wed|thursday|thu|friday|fri|saturday|sat)\b")
                 || Regex.IsMatch(s, @"\d{1,2}/\d{1,2}")
                 || ContainsMonth(s);

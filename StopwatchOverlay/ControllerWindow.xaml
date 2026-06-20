@@ -11,8 +11,8 @@
     <DockPanel>
     <Menu DockPanel.Dock="Top">
         <MenuItem Header="_Shortcuts" Click="OpenShortcuts_Click"/>
-        <MenuItem x:Name="SmartInputMenuItem" Header="Smart _input"
-                  IsCheckable="True" Click="SmartInputMenuItem_Click"/>
+        <MenuItem x:Name="SmartInputMenuItem" Header="Switch to smart _input"
+                  Click="SmartInputMenuItem_Click"/>
     </Menu>
     <Grid Margin="15">
         <Grid.RowDefinitions>
