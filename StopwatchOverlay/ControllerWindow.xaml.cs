@@ -300,6 +300,8 @@ namespace StopwatchOverlay
 
             string[] modeNames = { "Stopwatch", "Clock", "Countdown", "Timecode" };
             UpdateStatus($"{modeNames[_currentMode]} Mode", Brushes.DeepSkyBlue);
+
+            if (_currentMode == 2) FocusCountdownInput();
         }
 
         private void CountdownTypeRadio_Checked(object sender, RoutedEventArgs e)
@@ -312,7 +314,31 @@ namespace StopwatchOverlay
 
             if (_useClockTarget) PrefillClockTarget();
             UpdateTimeDisplay();
+            FocusCountdownInput();
         }
+
+        // Focuses the active countdown input so the user can type immediately:
+        // the smart text box in smart mode, else the first classic field for the
+        // current sub-mode (until-clock-time vs fixed duration). No-op off countdown.
+        private void FocusCountdownInput()
+        {
+            if (_currentMode != 2) return;
+
+            System.Windows.Controls.Control? target =
+                _settings.UseSmartCountdownInput ? SmartInputBox
+                : _useClockTarget ? ClockTargetHours
+                : CountdownMinutes;
+            if (target == null) return;
+
+            // Defer so focus lands after layout/visibility changes are applied.
+            Dispatcher.BeginInvoke(new Action(() =>
+            {
+                target.Focus();
+                if (target is System.Windows.Controls.TextBox tb) tb.SelectAll();
+            }), System.Windows.Threading.DispatcherPriority.Input);
+        }
+
+        private void Window_Loaded(object sender, RoutedEventArgs e) => FocusCountdownInput();
 
         private void PrefillClockTarget()
         {
@@ -351,6 +377,7 @@ namespace StopwatchOverlay
             _settings.UseSmartCountdownInput = !_settings.UseSmartCountdownInput;
             ApplyCountdownInputMode();
             SettingsStore.Save(_settings);
+            FocusCountdownInput();
         }
 
         private void SmartInputBox_TextChanged(object sender, TextChangedEventArgs e)
