@@ -10,10 +10,116 @@ namespace StopwatchOverlay.Tests
         // 2026-06-20 is a Saturday, 10:00:00.
         private static readonly DateTime Now = new(2026, 6, 20, 10, 0, 0);
 
-        [Fact]
-        public void Scaffold_Compiles()
+        [Theory]
+        [InlineData("1", 1)]
+        [InlineData("5", 5)]
+        [InlineData("10", 10)]
+        public void BareNumber_IsMinutes(string input, int minutes)
         {
-            Assert.True(true);
+            var r = CountdownParser.Parse(input, Now);
+            Assert.True(r.Success);
+            Assert.Equal(TimeSpan.FromMinutes(minutes), r.Duration);
+        }
+
+        [Theory]
+        [InlineData("30 seconds", 0, 0, 30)]
+        [InlineData("30s", 0, 0, 30)]
+        [InlineData("1 second", 0, 0, 1)]
+        [InlineData("5 minutes", 0, 5, 0)]
+        [InlineData("5m", 0, 5, 0)]
+        [InlineData("1 minute", 0, 1, 0)]
+        [InlineData("7 hours", 7, 0, 0)]
+        [InlineData("7h", 7, 0, 0)]
+        [InlineData("1 hour", 1, 0, 0)]
+        public void SingleUnit_Durations(string input, int h, int m, int s)
+        {
+            var r = CountdownParser.Parse(input, Now);
+            Assert.True(r.Success);
+            Assert.Equal(new TimeSpan(h, m, s), r.Duration);
+        }
+
+        [Theory]
+        [InlineData("3 days", 3)]
+        [InlineData("3d", 3)]
+        [InlineData("25 weeks", 175)]
+        [InlineData("25w", 175)]
+        public void DayAndWeek_Durations(string input, int totalDays)
+        {
+            var r = CountdownParser.Parse(input, Now);
+            Assert.True(r.Success);
+            Assert.Equal(TimeSpan.FromDays(totalDays), r.Duration);
+        }
+
+        [Theory]
+        [InlineData("5 minutes 30 seconds", 0, 5, 30)]
+        [InlineData("5m30s", 0, 5, 30)]
+        [InlineData("7 hours 15 minutes", 7, 15, 0)]
+        [InlineData("7h15m", 7, 15, 0)]
+        [InlineData("1h30m", 1, 30, 0)]
+        public void CombinedUnit_Durations(string input, int h, int m, int s)
+        {
+            var r = CountdownParser.Parse(input, Now);
+            Assert.True(r.Success);
+            Assert.Equal(new TimeSpan(h, m, s), r.Duration);
+        }
+
+        [Theory]
+        [InlineData("5.5 minutes", 0, 5, 30)]
+        [InlineData("1.5 hours", 1, 30, 0)]
+        public void DecimalWithUnit_Durations(string input, int h, int m, int s)
+        {
+            var r = CountdownParser.Parse(input, Now);
+            Assert.True(r.Success);
+            Assert.Equal(new TimeSpan(h, m, s), r.Duration);
+        }
+
+        [Theory]
+        [InlineData("5:30", 0, 5, 30)]
+        [InlineData("7:15:00", 7, 15, 0)]
+        [InlineData("14:30", 0, 14, 30)]   // bare colon is ALWAYS a duration
+        [InlineData("5.30", 0, 5, 30)]     // dot = separator (no unit present)
+        [InlineData("7.15.00", 7, 15, 0)]
+        public void ColonAndDot_AreDurations(string input, int h, int m, int s)
+        {
+            var r = CountdownParser.Parse(input, Now);
+            Assert.True(r.Success);
+            Assert.Equal(new TimeSpan(h, m, s), r.Duration);
+        }
+
+        [Fact]
+        public void Months_ResolveToCalendarTarget()
+        {
+            var r = CountdownParser.Parse("6 months", Now);
+            Assert.True(r.Success);
+            Assert.Equal(Now.AddMonths(6), r.Target);
+        }
+
+        [Fact]
+        public void Years_ResolveToCalendarTarget()
+        {
+            var r = CountdownParser.Parse("2 years", Now);
+            Assert.True(r.Success);
+            Assert.Equal(Now.AddYears(2), r.Target);
+        }
+
+        [Fact]
+        public void HalfYear_IsSixMonths()
+        {
+            var r = CountdownParser.Parse("0.5 years", Now);
+            Assert.True(r.Success);
+            Assert.Equal(Now.AddMonths(6), r.Target);
+        }
+
+        [Theory]
+        [InlineData("")]
+        [InlineData("   ")]
+        [InlineData("potato")]
+        [InlineData("5 potatoes")]
+        public void Garbage_Fails(string input)
+        {
+            var r = CountdownParser.Parse(input, Now);
+            Assert.False(r.Success);
+            Assert.NotNull(r.Error);
         }
     }
 }
