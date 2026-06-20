@@ -143,13 +143,21 @@ namespace StopwatchOverlay.Tests
         [Theory]
         [InlineData("2:30 pm", 14, 30, 0)]
         [InlineData("2:30:15 pm", 14, 30, 15)]
-        [InlineData("12 am", 0, 0, 0)]
         [InlineData("12 pm", 12, 0, 0)]
         public void Meridiem_Times(string input, int h, int m, int s)
         {
             var r = CountdownParser.Parse(input, Now);
             Assert.True(r.Success);
             Assert.Equal(new DateTime(2026, 6, 20, h, m, s), r.Target);
+        }
+
+        [Fact]
+        public void Midnight_12am_RollsToNextDay()
+        {
+            // 12 am = midnight; already past at 10:00 -> next midnight (tomorrow).
+            var r = CountdownParser.Parse("12 am", Now);
+            Assert.True(r.Success);
+            Assert.Equal(new DateTime(2026, 6, 21, 0, 0, 0), r.Target);
         }
 
         [Fact]
