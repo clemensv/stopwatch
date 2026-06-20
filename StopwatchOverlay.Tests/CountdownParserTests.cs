@@ -230,5 +230,22 @@ namespace StopwatchOverlay.Tests
             Assert.True(r.Success);
             Assert.Equal(new DateTime(2026, 12, 25, 0, 0, 0), r.Target);
         }
+
+        [Fact]
+        public void Today_IsMidnightToday_NotNextYear()
+        {
+            var r = CountdownParser.Parse("today", Now);
+            Assert.True(r.Success);
+            Assert.Equal(new DateTime(2026, 6, 20, 0, 0, 0), r.Target);
+        }
+
+        [Fact]
+        public void Weekday_NotBumpedToNextYear()
+        {
+            // Sanity: a weekday stays the next occurrence this year, never +1 year.
+            var r = CountdownParser.Parse("monday", Now);
+            Assert.True(r.Success);
+            Assert.Equal(new DateTime(2026, 6, 22, 0, 0, 0), r.Target);
+        }
     }
 }

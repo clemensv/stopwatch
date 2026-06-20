@@ -173,8 +173,9 @@ namespace StopwatchOverlay
             // Date component from whatever text remains.
             DateTime date;
             bool hasDate = true;
+            bool absoluteDate = false;
             if (s.Length == 0) { hasDate = false; date = now.Date; }
-            else if (!TryParseDate(s, now, out date))
+            else if (!TryParseDate(s, now, out date, out absoluteDate))
                 return ParseResult.Fail($"Could not understand \"{s}\".");
 
             if (!hasTime && !hasDate)
@@ -185,7 +186,8 @@ namespace StopwatchOverlay
             // Roll a bare time-of-day forward to tomorrow if it already passed today.
             if (!hasDate && result <= now) result = result.AddDays(1);
             // An explicit calendar date in the past bumps to next year.
-            else if (hasDate && result <= now) result = result.AddYears(1);
+            // Relative dates (today/tomorrow/weekday) are never bumped.
+            else if (hasDate && absoluteDate && result <= now) result = result.AddYears(1);
 
             return ParseResult.FromTarget(result);
         }
@@ -220,9 +222,10 @@ namespace StopwatchOverlay
             return i < 0 ? -1 : i + 1;
         }
 
-        private static bool TryParseDate(string s, DateTime now, out DateTime date)
+        private static bool TryParseDate(string s, DateTime now, out DateTime date, out bool absolute)
         {
             date = now.Date;
+            absolute = false;
 
             if (s == "today") { date = now.Date; return true; }
             if (s == "tomorrow") { date = now.Date.AddDays(1); return true; }
@@ -244,6 +247,7 @@ namespace StopwatchOverlay
             {
                 int month = int.Parse(num.Groups[1].Value);
                 int day = int.Parse(num.Groups[2].Value);
+                absolute = true;
                 return TryBuildDate(now.Year, month, day, out date);
             }
 
@@ -255,7 +259,10 @@ namespace StopwatchOverlay
                 string dayTok = tokens[1];
                 if (month < 0) { month = MonthIndex(tokens[1]); dayTok = tokens[0]; }
                 if (month > 0 && int.TryParse(dayTok, out int d))
+                {
+                    absolute = true;
                     return TryBuildDate(now.Year, month, d, out date);
+                }
             }
 
             return false;
