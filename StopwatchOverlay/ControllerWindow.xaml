@@ -96,7 +96,8 @@
                         HorizontalAlignment="Center" Visibility="Collapsed">
                 <TextBox x:Name="SmartInputBox" Width="280" Style="{StaticResource TimeInputBox}"
                          VerticalContentAlignment="Center"
-                         TextChanged="SmartInputBox_TextChanged"/>
+                         TextChanged="SmartInputBox_TextChanged"
+                         KeyDown="SmartInputBox_KeyDown"/>
                 <TextBlock x:Name="SmartPreview" Margin="0,4,0,0" TextAlignment="Center"
                            Foreground="{DynamicResource {x:Static SystemColors.GrayTextBrushKey}}"
                            Text="e.g. 5m, 1h30m, 2 pm, tomorrow 9 am"/>

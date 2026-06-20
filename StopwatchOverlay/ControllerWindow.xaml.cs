@@ -356,6 +356,16 @@ namespace StopwatchOverlay
         private void SmartInputBox_TextChanged(object sender, TextChangedEventArgs e)
             => UpdateSmartPreview();
 
+        // Enter in the smart box starts the countdown (no effect while already running).
+        private void SmartInputBox_KeyDown(object sender, System.Windows.Input.KeyEventArgs e)
+        {
+            if (e.Key == System.Windows.Input.Key.Enter && !_isRunning)
+            {
+                e.Handled = true;
+                StartStopButton_Click(StartStopButton, new RoutedEventArgs());
+            }
+        }
+
         // Renders the parsed interpretation (or the error) below the smart text box.
         private void UpdateSmartPreview()
         {
