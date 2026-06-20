@@ -323,6 +323,69 @@ namespace StopwatchOverlay
             ClockTargetSeconds.Text = "00";
         }
 
+        // Switches the countdown panel between the classic spinners and the smart text box.
+        private void ApplyCountdownInputMode()
+        {
+            if (CountdownClassicPanel == null || CountdownSmartPanel == null) return;
+
+            bool smart = _settings.UseSmartCountdownInput;
+            SmartInputMenuItem.IsChecked = smart;
+            CountdownClassicPanel.Visibility = smart ? Visibility.Collapsed : Visibility.Visible;
+            CountdownSmartPanel.Visibility = smart ? Visibility.Visible : Visibility.Collapsed;
+
+            if (smart) UpdateSmartPreview();
+        }
+
+        private void SmartInputMenuItem_Click(object sender, RoutedEventArgs e)
+        {
+            _settings.UseSmartCountdownInput = SmartInputMenuItem.IsChecked;
+            ApplyCountdownInputMode();
+            SettingsStore.Save(_settings);
+        }
+
+        private void SmartInputBox_TextChanged(object sender, TextChangedEventArgs e)
+            => UpdateSmartPreview();
+
+        // Renders the parsed interpretation (or the error) below the smart text box.
+        private void UpdateSmartPreview()
+        {
+            if (SmartPreview == null || SmartInputBox == null) return;
+
+            var text = SmartInputBox.Text?.Trim() ?? "";
+            if (text.Length == 0)
+            {
+                SmartPreview.Text = "e.g. 5m, 1h30m, 2 pm, tomorrow 9 am";
+                SmartPreview.Foreground = (Brush)FindResource(SystemColors.GrayTextBrushKey);
+                return;
+            }
+
+            var now = DateTime.Now;
+            var result = CountdownParser.Parse(text, now);
+            if (!result.Success)
+            {
+                SmartPreview.Text = result.Error;
+                SmartPreview.Foreground = Brushes.OrangeRed;
+                return;
+            }
+
+            TimeSpan remaining = result.Duration ?? (result.Target!.Value - now);
+            if (remaining < TimeSpan.Zero) remaining = TimeSpan.Zero;
+
+            string span = FormatApproxSpan(remaining);
+            string target = (now + remaining).ToString("ddd HH:mm");
+            SmartPreview.Text = $"in {span}  →  {target}";
+            SmartPreview.Foreground = (Brush)FindResource(SystemColors.GrayTextBrushKey);
+        }
+
+        // Compact human duration like "1h 30m" / "2d 3h" / "45s".
+        private static string FormatApproxSpan(TimeSpan t)
+        {
+            if (t.TotalDays >= 1) return $"{(int)t.TotalDays}d {t.Hours}h";
+            if (t.TotalHours >= 1) return $"{t.Hours}h {t.Minutes}m";
+            if (t.TotalMinutes >= 1) return $"{t.Minutes}m {t.Seconds}s";
+            return $"{t.Seconds}s";
+        }
+
         private void StartStopButton_Click(object sender, RoutedEventArgs e)
         {
             if (_isRunning)
@@ -346,7 +409,31 @@ namespace StopwatchOverlay
                 // Start
                 if (_currentMode == 2) // Countdown
                 {
-                    if (_useClockTarget)
+                    if (_settings.UseSmartCountdownInput)
+                    {
+                        var now = DateTime.Now;
+                        var parsed = CountdownParser.Parse(SmartInputBox.Text, now);
+                        if (!parsed.Success)
+                        {
+                            UpdateSmartPreview();
+                            UpdateStatus(parsed.Error ?? "Invalid input", Brushes.OrangeRed);
+                            return; // abort start; nothing changes
+                        }
+
+                        if (parsed.Target.HasValue)
+                        {
+                            _useClockTarget = true;
+                            _clockTarget = parsed.Target.Value;
+                            _countdownRemaining = _clockTarget - now;
+                        }
+                        else
+                        {
+                            _useClockTarget = false;
+                            _countdownDuration = parsed.Duration!.Value;
+                            _countdownRemaining = _countdownDuration;
+                        }
+                    }
+                    else if (_useClockTarget)
                     {
                         int.TryParse(ClockTargetHours.Text, out int h);
                         int.TryParse(ClockTargetMinutes.Text, out int m);
@@ -865,6 +952,9 @@ namespace StopwatchOverlay
 
             // Light ring last, after screen selection is settled.
             LightRingCheckBox.IsChecked = _settings.LightRingEnabled;
+
+            // Countdown input mode (classic vs smart text).
+            ApplyCountdownInputMode();
         }
 
         // Snapshots the current UI control values back into _settings (everything except shortcuts).
