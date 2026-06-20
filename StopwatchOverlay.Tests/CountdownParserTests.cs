@@ -186,5 +186,49 @@ namespace StopwatchOverlay.Tests
             var r = CountdownParser.Parse(input, Now);
             Assert.False(r.Success);
         }
+
+        [Fact]
+        public void Tomorrow_IsMidnightNextDay()
+        {
+            var r = CountdownParser.Parse("tomorrow", Now);
+            Assert.True(r.Success);
+            Assert.Equal(new DateTime(2026, 6, 21, 0, 0, 0), r.Target);
+        }
+
+        [Theory]
+        [InlineData("monday", 22)]    // Now is Saturday 6/20 -> next Mon 6/22
+        [InlineData("mon", 22)]
+        [InlineData("wednesday", 24)]
+        [InlineData("wed", 24)]
+        [InlineData("saturday", 27)]  // today is Saturday -> strictly future -> +7
+        public void Weekday_NextOccurrence_AtMidnight(string input, int day)
+        {
+            var r = CountdownParser.Parse(input, Now);
+            Assert.True(r.Success);
+            Assert.Equal(new DateTime(2026, 6, day, 0, 0, 0), r.Target);
+        }
+
+        [Theory]
+        [InlineData("january 1")]
+        [InlineData("jan 1")]
+        [InlineData("1 january")]
+        [InlineData("1 jan")]
+        [InlineData("1/1")]
+        [InlineData("01/01")]
+        public void PastDateThisYear_RollsToNextYear(string input)
+        {
+            // Jan 1 already passed in 2026 -> 2027-01-01 00:00.
+            var r = CountdownParser.Parse(input, Now);
+            Assert.True(r.Success);
+            Assert.Equal(new DateTime(2027, 1, 1, 0, 0, 0), r.Target);
+        }
+
+        [Fact]
+        public void FutureDateThisYear_StaysThisYear()
+        {
+            var r = CountdownParser.Parse("dec 25", Now);
+            Assert.True(r.Success);
+            Assert.Equal(new DateTime(2026, 12, 25, 0, 0, 0), r.Target);
+        }
     }
 }

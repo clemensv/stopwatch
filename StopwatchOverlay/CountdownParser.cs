@@ -190,14 +190,84 @@ namespace StopwatchOverlay
             return ParseResult.FromTarget(result);
         }
 
-        // Stub: implemented in Task 4.
+        private static readonly string[] MonthNames =
+        {
+            "january", "february", "march", "april", "may", "june",
+            "july", "august", "september", "october", "november", "december"
+        };
+        private static readonly string[] MonthAbbr =
+        {
+            "jan", "feb", "mar", "apr", "may", "jun",
+            "jul", "aug", "sep", "oct", "nov", "dec"
+        };
+        private static readonly string[] WeekdayNames =
+        {
+            "sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"
+        };
+        private static readonly string[] WeekdayAbbr =
+        {
+            "sun", "mon", "tue", "wed", "thu", "fri", "sat"
+        };
+
+        private static bool ContainsMonth(string s) =>
+            MonthNames.Any(n => Regex.IsMatch(s, $@"\b{n}\b")) ||
+            MonthAbbr.Any(n => Regex.IsMatch(s, $@"\b{n}\b"));
+
+        private static int MonthIndex(string t)
+        {
+            int i = Array.IndexOf(MonthNames, t);
+            if (i < 0) i = Array.IndexOf(MonthAbbr, t);
+            return i < 0 ? -1 : i + 1;
+        }
+
         private static bool TryParseDate(string s, DateTime now, out DateTime date)
         {
             date = now.Date;
+
+            if (s == "today") { date = now.Date; return true; }
+            if (s == "tomorrow") { date = now.Date.AddDays(1); return true; }
+
+            // Weekday -> strictly-future occurrence.
+            int wd = Array.IndexOf(WeekdayNames, s);
+            if (wd < 0) wd = Array.IndexOf(WeekdayAbbr, s);
+            if (wd >= 0)
+            {
+                int delta = (wd - (int)now.DayOfWeek + 7) % 7;
+                if (delta == 0) delta = 7;
+                date = now.Date.AddDays(delta);
+                return true;
+            }
+
+            // Numeric M/d.
+            var num = Regex.Match(s, @"^(\d{1,2})/(\d{1,2})$");
+            if (num.Success)
+            {
+                int month = int.Parse(num.Groups[1].Value);
+                int day = int.Parse(num.Groups[2].Value);
+                return TryBuildDate(now.Year, month, day, out date);
+            }
+
+            // Month + day in either order ("jan 1" / "1 jan").
+            var tokens = s.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            if (tokens.Length == 2)
+            {
+                int month = MonthIndex(tokens[0]);
+                string dayTok = tokens[1];
+                if (month < 0) { month = MonthIndex(tokens[1]); dayTok = tokens[0]; }
+                if (month > 0 && int.TryParse(dayTok, out int d))
+                    return TryBuildDate(now.Year, month, d, out date);
+            }
+
             return false;
         }
 
-        // Stub: replaced in Task 4.
-        private static bool ContainsMonth(string s) => false;
+        private static bool TryBuildDate(int year, int month, int day, out DateTime date)
+        {
+            date = default;
+            if (month < 1 || month > 12) return false;
+            if (day < 1 || day > DateTime.DaysInMonth(year, month)) return false;
+            date = new DateTime(year, month, day);
+            return true;
+        }
     }
 }
