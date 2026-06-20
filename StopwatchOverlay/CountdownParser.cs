@@ -128,9 +128,72 @@ namespace StopwatchOverlay
             _ => Unit.None,
         };
 
-        // Stub: implemented in Task 3. Keeps the clock branch compiling.
         private static ParseResult ParseDateTime(string s, DateTime now, bool forceClock)
-            => ParseResult.Fail($"Could not understand \"{s}\".");
+        {
+            s = (" " + s + " ").Replace(" at ", " ").Replace(" on ", " ");
+            s = Regex.Replace(s, @"\s+", " ").Trim();
+
+            int hour = 0, minute = 0, second = 0;
+            bool hasTime = false;
+
+            // 12-hour with meridiem.
+            var tm = Regex.Match(s, @"\b(\d{1,2})(?::(\d{1,2}))?(?::(\d{1,2}))?\s*(am|pm)\b");
+            if (tm.Success)
+            {
+                hour = int.Parse(tm.Groups[1].Value);
+                minute = tm.Groups[2].Success ? int.Parse(tm.Groups[2].Value) : 0;
+                second = tm.Groups[3].Success ? int.Parse(tm.Groups[3].Value) : 0;
+                string mer = tm.Groups[4].Value;
+                if (mer == "pm" && hour < 12) hour += 12;
+                if (mer == "am" && hour == 12) hour = 0;
+                hasTime = true;
+                s = s.Remove(tm.Index, tm.Length).Trim();
+            }
+            else if (forceClock)
+            {
+                // 24-hour clock, only when "until/till" forced this branch.
+                var tc = Regex.Match(s, @"\b(\d{1,2})(?::(\d{1,2}))?(?::(\d{1,2}))?\b");
+                if (tc.Success)
+                {
+                    hour = int.Parse(tc.Groups[1].Value);
+                    minute = tc.Groups[2].Success ? int.Parse(tc.Groups[2].Value) : 0;
+                    second = tc.Groups[3].Success ? int.Parse(tc.Groups[3].Value) : 0;
+                    hasTime = true;
+                    s = s.Remove(tc.Index, tc.Length).Trim();
+                }
+            }
+
+            if (hour > 23 || minute > 59 || second > 59)
+                return ParseResult.Fail("Invalid time.");
+
+            s = Regex.Replace(s, @"\s+", " ").Trim();
+
+            // Date component from whatever text remains.
+            DateTime date;
+            bool hasDate = true;
+            if (s.Length == 0) { hasDate = false; date = now.Date; }
+            else if (!TryParseDate(s, now, out date))
+                return ParseResult.Fail($"Could not understand \"{s}\".");
+
+            if (!hasTime && !hasDate)
+                return ParseResult.Fail("Enter a duration or time.");
+
+            var result = date.AddHours(hour).AddMinutes(minute).AddSeconds(second);
+
+            // Roll a bare time-of-day forward to tomorrow if it already passed today.
+            if (!hasDate && result <= now) result = result.AddDays(1);
+            // An explicit calendar date in the past bumps to next year.
+            else if (hasDate && result <= now) result = result.AddYears(1);
+
+            return ParseResult.FromTarget(result);
+        }
+
+        // Stub: implemented in Task 4.
+        private static bool TryParseDate(string s, DateTime now, out DateTime date)
+        {
+            date = now.Date;
+            return false;
+        }
 
         // Stub: replaced in Task 4.
         private static bool ContainsMonth(string s) => false;

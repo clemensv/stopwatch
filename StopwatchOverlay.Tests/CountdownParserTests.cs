@@ -121,5 +121,51 @@ namespace StopwatchOverlay.Tests
             Assert.False(r.Success);
             Assert.NotNull(r.Error);
         }
+
+        [Fact]
+        public void Pm_Time_Today_WhenStillAhead()
+        {
+            // Now = 10:00 -> 2 pm today.
+            var r = CountdownParser.Parse("2 pm", Now);
+            Assert.True(r.Success);
+            Assert.Equal(new DateTime(2026, 6, 20, 14, 0, 0), r.Target);
+        }
+
+        [Fact]
+        public void Am_Time_RollsToTomorrow_WhenPast()
+        {
+            // Now = 10:00 -> 9 am already passed -> tomorrow 9 am.
+            var r = CountdownParser.Parse("9 am", Now);
+            Assert.True(r.Success);
+            Assert.Equal(new DateTime(2026, 6, 21, 9, 0, 0), r.Target);
+        }
+
+        [Theory]
+        [InlineData("2:30 pm", 14, 30, 0)]
+        [InlineData("2:30:15 pm", 14, 30, 15)]
+        [InlineData("12 am", 0, 0, 0)]
+        [InlineData("12 pm", 12, 0, 0)]
+        public void Meridiem_Times(string input, int h, int m, int s)
+        {
+            var r = CountdownParser.Parse(input, Now);
+            Assert.True(r.Success);
+            Assert.Equal(new DateTime(2026, 6, 20, h, m, s), r.Target);
+        }
+
+        [Fact]
+        public void Until_24Hour_Time()
+        {
+            var r = CountdownParser.Parse("until 14:30", Now);
+            Assert.True(r.Success);
+            Assert.Equal(new DateTime(2026, 6, 20, 14, 30, 0), r.Target);
+        }
+
+        [Fact]
+        public void Until_Past_Time_RollsToTomorrow()
+        {
+            var r = CountdownParser.Parse("till 9:00", Now);
+            Assert.True(r.Success);
+            Assert.Equal(new DateTime(2026, 6, 21, 9, 0, 0), r.Target);
+        }
     }
 }
