@@ -11,6 +11,8 @@
     <DockPanel>
     <Menu DockPanel.Dock="Top">
         <MenuItem Header="_Shortcuts" Click="OpenShortcuts_Click"/>
+        <MenuItem x:Name="SmartInputMenuItem" Header="Switch to smart _input"
+                  Click="SmartInputMenuItem_Click"/>
     </Menu>
     <Grid Margin="15">
         <Grid.RowDefinitions>
@@ -53,36 +55,52 @@
         <!-- Countdown inputs (only visible in countdown mode) -->
         <StackPanel x:Name="CountdownPanel" Grid.Row="2" Orientation="Vertical"
                     HorizontalAlignment="Center" Margin="0,0,0,10" Visibility="Collapsed">
-            <!-- Duration vs. Until-clock-time toggle -->
-            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,6">
-                <RadioButton x:Name="CountdownDurationRadio" Content="Duration" IsChecked="True"
-                             GroupName="CountdownType" Checked="CountdownTypeRadio_Checked" Margin="0,0,12,0"/>
-                <RadioButton x:Name="CountdownUntilRadio" Content="Until clock time"
-                             GroupName="CountdownType" Checked="CountdownTypeRadio_Checked"/>
+
+            <!-- Classic spinner UI -->
+            <StackPanel x:Name="CountdownClassicPanel" Orientation="Vertical" HorizontalAlignment="Center">
+                <!-- Duration vs. Until-clock-time toggle -->
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,6">
+                    <RadioButton x:Name="CountdownDurationRadio" Content="Duration" IsChecked="True"
+                                 GroupName="CountdownType" Checked="CountdownTypeRadio_Checked" Margin="0,0,12,0"/>
+                    <RadioButton x:Name="CountdownUntilRadio" Content="Until clock time"
+                                 GroupName="CountdownType" Checked="CountdownTypeRadio_Checked"/>
+                </StackPanel>
+
+                <!-- Fixed-duration inputs -->
+                <StackPanel x:Name="CountdownDurationPanel" Orientation="Horizontal" HorizontalAlignment="Center">
+                    <TextBlock Text="Duration: " Foreground="{DynamicResource {x:Static SystemColors.GrayTextBrushKey}}" VerticalAlignment="Center"/>
+                    <TextBox x:Name="CountdownMinutes" Width="40" Text="5" Style="{StaticResource TimeInputBox}"
+                             TextAlignment="Center" VerticalContentAlignment="Center"/>
+                    <TextBlock Text=" min " Foreground="{DynamicResource {x:Static SystemColors.GrayTextBrushKey}}" VerticalAlignment="Center"/>
+                    <TextBox x:Name="CountdownSeconds" Width="40" Text="00" Style="{StaticResource TimeInputBox}"
+                             TextAlignment="Center" VerticalContentAlignment="Center"/>
+                    <TextBlock Text=" sec" Foreground="{DynamicResource {x:Static SystemColors.GrayTextBrushKey}}" VerticalAlignment="Center"/>
+                </StackPanel>
+
+                <!-- Until-clock-time inputs -->
+                <StackPanel x:Name="CountdownUntilPanel" Orientation="Horizontal" HorizontalAlignment="Center" Visibility="Collapsed">
+                    <TextBlock Text="Until: " Foreground="{DynamicResource {x:Static SystemColors.GrayTextBrushKey}}" VerticalAlignment="Center"/>
+                    <TextBox x:Name="ClockTargetHours" Width="40" Text="00" Style="{StaticResource TimeInputBox}"
+                             TextAlignment="Center" VerticalContentAlignment="Center"/>
+                    <TextBlock Text=" : " Foreground="{DynamicResource {x:Static SystemColors.GrayTextBrushKey}}" VerticalAlignment="Center"/>
+                    <TextBox x:Name="ClockTargetMinutes" Width="40" Text="00" Style="{StaticResource TimeInputBox}"
+                             TextAlignment="Center" VerticalContentAlignment="Center"/>
+                    <TextBlock Text=" : " Foreground="{DynamicResource {x:Static SystemColors.GrayTextBrushKey}}" VerticalAlignment="Center"/>
+                    <TextBox x:Name="ClockTargetSeconds" Width="40" Text="00" Style="{StaticResource TimeInputBox}"
+                             TextAlignment="Center" VerticalContentAlignment="Center"/>
+                </StackPanel>
             </StackPanel>
 
-            <!-- Fixed-duration inputs -->
-            <StackPanel x:Name="CountdownDurationPanel" Orientation="Horizontal" HorizontalAlignment="Center">
-                <TextBlock Text="Duration: " Foreground="{DynamicResource {x:Static SystemColors.GrayTextBrushKey}}" VerticalAlignment="Center"/>
-                <TextBox x:Name="CountdownMinutes" Width="40" Text="5" Style="{StaticResource TimeInputBox}"
-                         TextAlignment="Center" VerticalContentAlignment="Center"/>
-                <TextBlock Text=" min " Foreground="{DynamicResource {x:Static SystemColors.GrayTextBrushKey}}" VerticalAlignment="Center"/>
-                <TextBox x:Name="CountdownSeconds" Width="40" Text="00" Style="{StaticResource TimeInputBox}"
-                         TextAlignment="Center" VerticalContentAlignment="Center"/>
-                <TextBlock Text=" sec" Foreground="{DynamicResource {x:Static SystemColors.GrayTextBrushKey}}" VerticalAlignment="Center"/>
-            </StackPanel>
-
-            <!-- Until-clock-time inputs -->
-            <StackPanel x:Name="CountdownUntilPanel" Orientation="Horizontal" HorizontalAlignment="Center" Visibility="Collapsed">
-                <TextBlock Text="Until: " Foreground="{DynamicResource {x:Static SystemColors.GrayTextBrushKey}}" VerticalAlignment="Center"/>
-                <TextBox x:Name="ClockTargetHours" Width="40" Text="00" Style="{StaticResource TimeInputBox}"
-                         TextAlignment="Center" VerticalContentAlignment="Center"/>
-                <TextBlock Text=" : " Foreground="{DynamicResource {x:Static SystemColors.GrayTextBrushKey}}" VerticalAlignment="Center"/>
-                <TextBox x:Name="ClockTargetMinutes" Width="40" Text="00" Style="{StaticResource TimeInputBox}"
-                         TextAlignment="Center" VerticalContentAlignment="Center"/>
-                <TextBlock Text=" : " Foreground="{DynamicResource {x:Static SystemColors.GrayTextBrushKey}}" VerticalAlignment="Center"/>
-                <TextBox x:Name="ClockTargetSeconds" Width="40" Text="00" Style="{StaticResource TimeInputBox}"
-                         TextAlignment="Center" VerticalContentAlignment="Center"/>
+            <!-- Smart free-text UI -->
+            <StackPanel x:Name="CountdownSmartPanel" Orientation="Vertical"
+                        HorizontalAlignment="Center" Visibility="Collapsed">
+                <TextBox x:Name="SmartInputBox" Width="280" Style="{StaticResource TimeInputBox}"
+                         VerticalContentAlignment="Center"
+                         TextChanged="SmartInputBox_TextChanged"
+                         KeyDown="SmartInputBox_KeyDown"/>
+                <TextBlock x:Name="SmartPreview" Margin="0,4,0,0" TextAlignment="Center"
+                           Foreground="{DynamicResource {x:Static SystemColors.GrayTextBrushKey}}"
+                           Text="e.g. 5m, 1h30m, 2 pm, tomorrow 9 am"/>
             </StackPanel>
         </StackPanel>
 

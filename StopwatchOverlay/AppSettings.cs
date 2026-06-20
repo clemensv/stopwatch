@@ -75,6 +75,7 @@ namespace StopwatchOverlay
         public bool ShowRecIndicator { get; set; } = false;
         public bool ClickThrough { get; set; } = false;
         public bool BlinkColon { get; set; } = false;
+        public bool UseSmartCountdownInput { get; set; } = false;
 
         // Last-used mode (0=Stopwatch, 1=Clock, 2=Countdown, 3=Timecode)
         public int Mode { get; set; } = 0;
