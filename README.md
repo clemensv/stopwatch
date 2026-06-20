@@ -78,8 +78,40 @@ The app requires the .NET 8.0 Desktop Runtime:
 |---|---|
 | **Stopwatch** | Elapsed time with start / stop / reset |
 | **Clock** | Real-time clock (optional blinking colon) |
-| **Countdown** | Counts down by a fixed duration, or to a wall-clock time (HH:MM:SS) via the Duration / Until-clock-time toggle; continues into negative |
+| **Countdown** | Counts down by a fixed duration, or to a wall-clock time (HH:MM:SS) via the Duration / Until-clock-time toggle; continues into negative. Also supports **smart text input** (see below) |
 | **Timecode** | Frame-accurate display (HH:MM:SS:FF) |
+
+### Smart countdown input
+
+In Countdown mode, use the menu (**Switch to smart input** / **Switch to classic input**) to swap the spinner boxes for a single text field that parses natural durations, times, and dates. The choice is remembered between launches, and a live preview shows the interpreted result as you type.
+
+**Durations**
+
+| Type | Examples |
+|---|---|
+| Plain number = minutes | `5` → 5 min |
+| Units (singular, plural, short) | `30 seconds`, `5m`, `7 hours`, `3d`, `25 weeks`, `6mo`, `2 years` |
+| Combined | `5 minutes 30 seconds`, `1h30m`, `7h15m` |
+| Decimal (with a unit) | `5.5 minutes` → 5m30s, `1.5 hours`, `0.5 years` → 6 months |
+| Colon / dot separator | `5:30` → 5m30s, `7:15:00`, `5.30`, `7.15.00` |
+
+**Times of day** (counts down to the next occurrence; rolls to tomorrow if already passed)
+
+| Type | Examples |
+|---|---|
+| 12-hour meridiem | `2 pm`, `2:30 pm`, `2:30:15 pm`, `5am` (no space) |
+| 24-hour (needs a clock prefix) | `until 14:30`, `till 9:00`, `c 20:30`, `wc 20h30`, `c 20h` |
+
+**Dates & weekdays** (a bare date with no time = midnight)
+
+| Type | Examples |
+|---|---|
+| Relative | `today`, `tomorrow` |
+| Weekday (next occurrence) | `monday`, `mon`, `wednesday`, `wed` |
+| Calendar date | `january 1`, `jan 1`, `1 january`, `1 jan`, `1/1`, `01/01` |
+| Date + time (either order) | `jan 1 at 2 pm`, `2 pm on january 1`, `tomorrow 9 am`, `2 pm wednesday` |
+
+> The `c` / `wc` / `until` / `till` prefixes force clock-time reading, so a bare `20:30` (a duration = 20m30s) can be entered as a 20:30 clock time via `c 20:30`.
 
 ---
 
