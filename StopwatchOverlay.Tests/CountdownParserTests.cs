@@ -247,5 +247,46 @@ namespace StopwatchOverlay.Tests
             Assert.True(r.Success);
             Assert.Equal(new DateTime(2026, 6, 22, 0, 0, 0), r.Target);
         }
+
+        [Theory]
+        [InlineData("january 1 at 2 pm")]
+        [InlineData("2 pm on january 1")]
+        [InlineData("jan 1 2 pm")]
+        public void DatePlusTime_BothOrders(string input)
+        {
+            // Jan 1 already past in 2026 -> 2027-01-01 14:00.
+            var r = CountdownParser.Parse(input, Now);
+            Assert.True(r.Success);
+            Assert.Equal(new DateTime(2027, 1, 1, 14, 0, 0), r.Target);
+        }
+
+        [Theory]
+        [InlineData("wednesday at 2 pm")]
+        [InlineData("2 pm wednesday")]
+        public void WeekdayPlusTime(string input)
+        {
+            // Next Wednesday is 6/24.
+            var r = CountdownParser.Parse(input, Now);
+            Assert.True(r.Success);
+            Assert.Equal(new DateTime(2026, 6, 24, 14, 0, 0), r.Target);
+        }
+
+        [Theory]
+        [InlineData("tomorrow at 2 pm")]
+        [InlineData("2 pm tomorrow")]
+        public void TomorrowPlusTime(string input)
+        {
+            var r = CountdownParser.Parse(input, Now);
+            Assert.True(r.Success);
+            Assert.Equal(new DateTime(2026, 6, 21, 14, 0, 0), r.Target);
+        }
+
+        [Fact]
+        public void Tomorrow_9am_Example()
+        {
+            var r = CountdownParser.Parse("tomorrow 9 am", Now);
+            Assert.True(r.Success);
+            Assert.Equal(new DateTime(2026, 6, 21, 9, 0, 0), r.Target);
+        }
     }
 }
