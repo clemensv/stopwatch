@@ -484,7 +484,32 @@ namespace StopwatchOverlay
             
             if (_currentMode == 2)
             {
-                if (_useClockTarget)
+                if (_settings.UseSmartCountdownInput)
+                {
+                    var now = DateTime.Now;
+                    var parsed = CountdownParser.Parse(SmartInputBox.Text, now);
+                    if (parsed.Success)
+                    {
+                        if (parsed.Target.HasValue)
+                        {
+                            _useClockTarget = true;
+                            _clockTarget = parsed.Target.Value;
+                            _countdownRemaining = _clockTarget - now;
+                        }
+                        else
+                        {
+                            _useClockTarget = false;
+                            _countdownDuration = parsed.Duration!.Value;
+                            _countdownRemaining = _countdownDuration;
+                        }
+                    }
+                    else
+                    {
+                        _countdownRemaining = TimeSpan.Zero;
+                    }
+                    UpdateSmartPreview();
+                }
+                else if (_useClockTarget)
                 {
                     PrefillClockTarget();
                     _countdownRemaining = TimeSpan.Zero;
