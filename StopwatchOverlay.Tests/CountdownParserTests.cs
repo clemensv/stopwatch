@@ -11,6 +11,29 @@ namespace StopwatchOverlay.Tests
         private static readonly DateTime Now = new(2026, 6, 20, 10, 0, 0);
 
         [Theory]
+        [InlineData("c 20:30")]
+        [InlineData("wc 20:30")]
+        [InlineData("c 20h30")]   // h-separated 24h time
+        [InlineData("wc 20h30")]
+        [InlineData("until 20h30")]
+        public void ClockPrefixAliases_AndHFormat(string input)
+        {
+            // 20:30 is ahead of Now (10:00) -> today.
+            var r = CountdownParser.Parse(input, Now);
+            Assert.True(r.Success);
+            Assert.Equal(new DateTime(2026, 6, 20, 20, 30, 0), r.Target);
+        }
+
+        [Fact]
+        public void ClockPrefix_HourOnly()
+        {
+            // "c 20h" -> 20:00 today.
+            var r = CountdownParser.Parse("c 20h", Now);
+            Assert.True(r.Success);
+            Assert.Equal(new DateTime(2026, 6, 20, 20, 0, 0), r.Target);
+        }
+
+        [Theory]
         [InlineData("5am", 5)]    // no space between number and meridiem
         [InlineData("5pm", 17)]
         [InlineData("5 am", 5)]   // space still works

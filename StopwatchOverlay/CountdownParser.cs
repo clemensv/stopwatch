@@ -40,9 +40,9 @@ namespace StopwatchOverlay
 
             s = Regex.Replace(s.ToLowerInvariant(), @"\s+", " ");
 
-            // "until 14:30" / "till 9:00" forces clock-time interpretation.
+            // "until 14:30" / "till 9:00" / "c 20:30" / "wc 20h30" force clock-time interpretation.
             bool forceClock = false;
-            var prefix = Regex.Match(s, @"^(?:until|till|til)\s+(.+)$");
+            var prefix = Regex.Match(s, @"^(?:until|till|til|wc|c)\s+(.+)$");
             if (prefix.Success) { forceClock = true; s = prefix.Groups[1].Value; }
 
             bool clockBranch = forceClock
@@ -132,6 +132,13 @@ namespace StopwatchOverlay
         {
             s = (" " + s + " ").Replace(" at ", " ").Replace(" on ", " ");
             s = Regex.Replace(s, @"\s+", " ").Trim();
+
+            // In forced clock mode accept "20h30"/"20h" as 24-hour times (-> "20:30"/"20:00").
+            if (forceClock)
+            {
+                s = Regex.Replace(s, @"\b(\d{1,2})h(\d{2})\b", "$1:$2");
+                s = Regex.Replace(s, @"\b(\d{1,2})h\b", "$1:00");
+            }
 
             int hour = 0, minute = 0, second = 0;
             bool hasTime = false;
