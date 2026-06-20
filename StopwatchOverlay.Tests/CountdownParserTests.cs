@@ -175,5 +175,16 @@ namespace StopwatchOverlay.Tests
             Assert.True(r.Success);
             Assert.Equal(new DateTime(2026, 6, 21, 9, 0, 0), r.Target);
         }
+
+        [Theory]
+        [InlineData("13 pm")]
+        [InlineData("0 am")]
+        [InlineData("until 25:00")]
+        [InlineData("until 9:99")]
+        public void InvalidClockTimes_Fail(string input)
+        {
+            var r = CountdownParser.Parse(input, Now);
+            Assert.False(r.Success);
+        }
     }
 }

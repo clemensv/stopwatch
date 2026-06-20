@@ -143,6 +143,8 @@ namespace StopwatchOverlay
                 hour = int.Parse(tm.Groups[1].Value);
                 minute = tm.Groups[2].Success ? int.Parse(tm.Groups[2].Value) : 0;
                 second = tm.Groups[3].Success ? int.Parse(tm.Groups[3].Value) : 0;
+                if (hour < 1 || hour > 12)
+                    return ParseResult.Fail("Invalid time.");
                 string mer = tm.Groups[4].Value;
                 if (mer == "pm" && hour < 12) hour += 12;
                 if (mer == "am" && hour == 12) hour = 0;
