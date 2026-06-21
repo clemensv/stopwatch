@@ -19,19 +19,30 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '8.0.x'
+          dotnet-version: '10.0.x'
 
       - name: Restore dependencies
         run: dotnet restore
 
-      - name: Publish
+      # Framework-dependent build: small exe, requires the .NET Desktop Runtime.
+      - name: Publish (framework-dependent)
         run: |
           dotnet publish StopwatchOverlay/StopwatchOverlay.csproj `
             -c Release `
             -o publish
 
-      - name: Create ZIP
-        run: Compress-Archive -Path publish/* -DestinationPath StopwatchOverlay-${{ github.ref_name }}.zip
+      # Portable build: self-contained single exe, bundles the runtime (no install needed).
+      - name: Publish (portable / self-contained)
+        run: |
+          dotnet publish StopwatchOverlay/StopwatchOverlay.csproj `
+            -c Release `
+            --self-contained true `
+            -o publish-portable
+
+      - name: Create ZIPs
+        run: |
+          Compress-Archive -Path publish/* -DestinationPath StopwatchOverlay-${{ github.ref_name }}.zip
+          Compress-Archive -Path publish-portable/* -DestinationPath StopwatchOverlay-${{ github.ref_name }}-portable.zip
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
@@ -40,11 +51,14 @@ jobs:
           body: |
             ## Stopwatch Overlay ${{ github.ref_name }}
 
-            ### Download
+            ### Downloads
 
-            Download `StopwatchOverlay-${{ github.ref_name }}.zip`, extract it, and run `StopwatchOverlay.exe`.
-
-            **Requires** the [.NET 8.0 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/8.0/runtime) (included in Windows 11 24H2+).
-          files: StopwatchOverlay-${{ github.ref_name }}.zip
+            - **Portable** — `StopwatchOverlay-${{ github.ref_name }}-portable.zip`
+              Extract and run `StopwatchOverlay.exe`. **No .NET install needed** (runtime bundled, larger file).
+            - **Standard** — `StopwatchOverlay-${{ github.ref_name }}.zip`
+              Smaller. **Requires** the [.NET 10.0 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/10.0/runtime) (included in recent Windows 11).
+          files: |
+            StopwatchOverlay-${{ github.ref_name }}.zip
+            StopwatchOverlay-${{ github.ref_name }}-portable.zip
           draft: false
           prerelease: false
