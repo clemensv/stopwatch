@@ -1,0 +1,408 @@
+<Window x:Class="StopwatchOverlay.ControllerWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Stopwatch Controller" 
+        Height="820" Width="780"
+        WindowStartupLocation="CenterScreen"
+        ResizeMode="CanResizeWithGrip"
+        SizeToContent="Manual"
+        MinWidth="560" MinHeight="520"
+        Loaded="Window_Loaded"
+        Closing="Window_Closing">
+    
+    <DockPanel>
+    <Menu DockPanel.Dock="Top">
+        <MenuItem Header="_Shortcuts" Click="OpenShortcuts_Click"/>
+        <MenuItem x:Name="SmartInputMenuItem" Header="Switch to smart _input"
+                  Click="SmartInputMenuItem_Click"/>
+    </Menu>
+    <ScrollViewer x:Name="ControllerScrollViewer"
+                  VerticalScrollBarVisibility="Auto"
+                  HorizontalScrollBarVisibility="Disabled"
+                  HorizontalContentAlignment="Stretch"
+                  CanContentScroll="False"
+                  PanningMode="VerticalFirst">
+    <Grid Margin="20,14,20,16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Title -->
+        <StackPanel Grid.Row="0" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,6,0,12">
+            <Image Source="pack://application:,,,/stopwatch.ico" Width="24" Height="24" Margin="0,0,10,0" VerticalAlignment="Center"/>
+            <TextBlock Text="Stopwatch Overlay" 
+                       FontSize="24" FontWeight="SemiBold" 
+                       VerticalAlignment="Center"/>
+        </StackPanel>
+
+        <!-- Mode Selection -->
+        <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,14">
+            <RadioButton x:Name="StopwatchModeRadio" Content="Stopwatch"
+                         IsChecked="True" GroupName="Mode"
+                         Checked="ModeRadio_Checked" Margin="0,0,24,0"/>
+            <RadioButton x:Name="ClockModeRadio" Content="Clock"
+                         GroupName="Mode"
+                         Checked="ModeRadio_Checked" Margin="0,0,24,0"/>
+            <RadioButton x:Name="CountdownModeRadio" Content="Countdown"
+                         GroupName="Mode"
+                         Checked="ModeRadio_Checked" Margin="0,0,24,0"/>
+            <RadioButton x:Name="TimecodeModeRadio" Content="Timecode"
+                         GroupName="Mode"
+                         Checked="ModeRadio_Checked"/>
+        </StackPanel>
+
+        <!-- Countdown inputs (only visible in countdown mode) -->
+        <StackPanel x:Name="CountdownPanel" Grid.Row="2" Orientation="Vertical"
+                    HorizontalAlignment="Center" Margin="0,0,0,10" Visibility="Collapsed">
+
+            <!-- Classic spinner UI -->
+            <StackPanel x:Name="CountdownClassicPanel" Orientation="Vertical" HorizontalAlignment="Center">
+                <!-- Duration vs. Until-clock-time toggle -->
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,6">
+                    <RadioButton x:Name="CountdownDurationRadio" Content="Duration" IsChecked="True"
+                                 GroupName="CountdownType" Checked="CountdownTypeRadio_Checked" Margin="0,0,12,0"/>
+                    <RadioButton x:Name="CountdownUntilRadio" Content="Until clock time"
+                                 GroupName="CountdownType" Checked="CountdownTypeRadio_Checked"/>
+                </StackPanel>
+
+                <!-- Fixed-duration inputs -->
+                <StackPanel x:Name="CountdownDurationPanel" Orientation="Horizontal" HorizontalAlignment="Center">
+                    <TextBlock Text="Duration: " Foreground="{DynamicResource {x:Static SystemColors.GrayTextBrushKey}}" VerticalAlignment="Center"/>
+                    <TextBox x:Name="CountdownMinutes" Width="40" Text="5" Style="{StaticResource TimeInputBox}"
+                             TextAlignment="Center" VerticalContentAlignment="Center"/>
+                    <TextBlock Text=" min " Foreground="{DynamicResource {x:Static SystemColors.GrayTextBrushKey}}" VerticalAlignment="Center"/>
+                    <TextBox x:Name="CountdownSeconds" Width="40" Text="00" Style="{StaticResource TimeInputBox}"
+                             TextAlignment="Center" VerticalContentAlignment="Center"/>
+                    <TextBlock Text=" sec" Foreground="{DynamicResource {x:Static SystemColors.GrayTextBrushKey}}" VerticalAlignment="Center"/>
+                </StackPanel>
+
+                <!-- Until-clock-time inputs -->
+                <StackPanel x:Name="CountdownUntilPanel" Orientation="Horizontal" HorizontalAlignment="Center" Visibility="Collapsed">
+                    <TextBlock Text="Until: " Foreground="{DynamicResource {x:Static SystemColors.GrayTextBrushKey}}" VerticalAlignment="Center"/>
+                    <TextBox x:Name="ClockTargetHours" Width="40" Text="00" Style="{StaticResource TimeInputBox}"
+                             TextAlignment="Center" VerticalContentAlignment="Center"/>
+                    <TextBlock Text=" : " Foreground="{DynamicResource {x:Static SystemColors.GrayTextBrushKey}}" VerticalAlignment="Center"/>
+                    <TextBox x:Name="ClockTargetMinutes" Width="40" Text="00" Style="{StaticResource TimeInputBox}"
+                             TextAlignment="Center" VerticalContentAlignment="Center"/>
+                    <TextBlock Text=" : " Foreground="{DynamicResource {x:Static SystemColors.GrayTextBrushKey}}" VerticalAlignment="Center"/>
+                    <TextBox x:Name="ClockTargetSeconds" Width="40" Text="00" Style="{StaticResource TimeInputBox}"
+                             TextAlignment="Center" VerticalContentAlignment="Center"/>
+                </StackPanel>
+            </StackPanel>
+
+            <!-- Smart free-text UI -->
+            <StackPanel x:Name="CountdownSmartPanel" Orientation="Vertical"
+                        HorizontalAlignment="Center" Visibility="Collapsed">
+                <TextBox x:Name="SmartInputBox" Width="280" Style="{StaticResource TimeInputBox}"
+                         VerticalContentAlignment="Center"
+                         TextChanged="SmartInputBox_TextChanged"
+                         KeyDown="SmartInputBox_KeyDown"/>
+                <TextBlock x:Name="SmartPreview" Margin="0,4,0,0" TextAlignment="Center"
+                           Foreground="{DynamicResource {x:Static SystemColors.GrayTextBrushKey}}"
+                           Text="e.g. 5m, 1h30m, 2 pm, tomorrow 9 am"/>
+            </StackPanel>
+        </StackPanel>
+
+        <!-- Current Time Display -->
+        <Border Grid.Row="3" Background="{StaticResource SurfaceRaisedBrush}"
+                BorderBrush="{StaticResource BorderBrush}" BorderThickness="1"
+                CornerRadius="10" Padding="20,17" Margin="0,0,0,14">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <Ellipse x:Name="RecIndicator" Grid.Column="0" Width="16" Height="16" 
+                         Fill="Red" Margin="0,0,10,0" Visibility="Collapsed"/>
+                <TextBlock x:Name="TimeDisplay" Grid.Column="1"
+                           Text="00:00:00.0" 
+                           FontSize="38" 
+                           FontFamily="Consolas"
+                           FontWeight="Bold"
+                           Foreground="{StaticResource AccentBrush}"
+                           HorizontalAlignment="Center"/>
+            </Grid>
+        </Border>
+
+        <!-- Control Buttons -->
+        <StackPanel Grid.Row="4" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,10">
+            <Button x:Name="StartStopButton" Content="Start  ·  Win+F5" Width="185"
+                    Style="{StaticResource StartButton}" 
+                    Click="StartStopButton_Click" Margin="0,0,10,0"/>
+            <Button x:Name="ResetButton" Content="Reset  ·  Win+F6" Width="185"
+                    Style="{StaticResource ModernButton}" 
+                    Click="ResetButton_Click"/>
+        </StackPanel>
+
+        <!-- Overlay and Lap Buttons -->
+        <StackPanel Grid.Row="5" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,12">
+            <Button x:Name="ToggleOverlayButton" Content="Show overlay  ·  Win+F7" Width="185"
+                    Style="{StaticResource ModernButton}" 
+                    Click="ToggleOverlayButton_Click" Margin="0,0,10,0"/>
+            <Button x:Name="LapButton" Content="Add lap  ·  Win+F8" Width="185"
+                    Style="{StaticResource ModernButton}" 
+                    Click="LapButton_Click"/>
+        </StackPanel>
+
+        <!-- Options Row -->
+        <WrapPanel Grid.Row="6" HorizontalAlignment="Center" Margin="0,0,0,12">
+            <CheckBox x:Name="AutoStartCheckBox" Content="Auto-start on show" 
+                      Margin="0,0,20,0"/>
+            <CheckBox x:Name="ShowRecIndicatorCheckBox" Content="REC indicator" 
+                      Checked="ShowRecIndicatorCheckBox_Changed" 
+                      Unchecked="ShowRecIndicatorCheckBox_Changed" Margin="0,0,20,0"/>
+            <CheckBox x:Name="ClickThroughCheckBox" Content="Click-through" 
+                      Checked="ClickThroughCheckBox_Changed" 
+                      Unchecked="ClickThroughCheckBox_Changed" Margin="0,0,20,0"/>
+            <CheckBox x:Name="BlinkColonCheckBox" Content="Blink colon" 
+                      Margin="0,0,0,0"/>
+        </WrapPanel>
+
+        <!-- Settings Expander -->
+        <Expander Grid.Row="7" IsExpanded="True" Margin="0,0,0,10"
+                  VerticalAlignment="Stretch">
+            <Expander.Header>
+                <TextBlock Text="Settings" FontWeight="SemiBold"/>
+            </Expander.Header>
+            <StackPanel Margin="2,6,8,4">
+                <!-- Screen and Position -->
+                <TextBlock Text="Screen &amp; position" Style="{StaticResource SectionHeaderText}" Margin="0,4,0,8"/>
+                <Border Style="{StaticResource SettingsCard}">
+                <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <TextBlock Grid.Row="0" Grid.Column="0" Text="Theme" 
+                                   VerticalAlignment="Center" Margin="0,0,18,10"/>
+                        <ComboBox Grid.Row="0" Grid.Column="1" x:Name="ThemeModeSelector" 
+                                  SelectionChanged="ThemeModeSelector_SelectionChanged"
+                                  Margin="0,0,0,10">
+                            <ComboBoxItem Content="Dark" IsSelected="True"/>
+                        </ComboBox>
+
+                        <TextBlock Grid.Row="1" Grid.Column="0" Text="Display" 
+                                   VerticalAlignment="Center" Margin="0,0,18,10"/>
+                        <ComboBox Grid.Row="1" Grid.Column="1" x:Name="ScreenSelector" 
+                                  SelectionChanged="ScreenSelector_SelectionChanged"
+                                  Margin="0,0,0,10"/>
+
+                        <TextBlock Grid.Row="2" Grid.Column="0" Text="Position" 
+                                   VerticalAlignment="Center" Margin="0,0,18,0"/>
+                        <ComboBox Grid.Row="2" Grid.Column="1" x:Name="PositionSelector" 
+                                  SelectionChanged="PositionSelector_SelectionChanged">
+                            <ComboBoxItem Content="Top Left"/>
+                            <ComboBoxItem Content="Top Center" IsSelected="True"/>
+                            <ComboBoxItem Content="Top Right"/>
+                            <ComboBoxItem Content="Bottom Left"/>
+                            <ComboBoxItem Content="Bottom Center"/>
+                            <ComboBoxItem Content="Bottom Right"/>
+                            <ComboBoxItem Content="Custom"/>
+                        </ComboBox>
+                </Grid>
+                </Border>
+
+                <!-- Appearance -->
+                <TextBlock Text="Appearance" Style="{StaticResource SectionHeaderText}" Margin="0,2,0,8"/>
+                <Border Style="{StaticResource SettingsCard}">
+                <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <TextBlock Grid.Row="0" Grid.Column="0" Text="Text" 
+                                   VerticalAlignment="Center" Margin="0,0,10,10"/>
+                        <ComboBox Grid.Row="0" Grid.Column="1" x:Name="TextColorSelector" 
+                                  SelectionChanged="AppearanceChanged" Margin="0,0,18,10">
+                            <ComboBoxItem Content="White" IsSelected="True"/>
+                            <ComboBoxItem Content="Yellow"/>
+                            <ComboBoxItem Content="Cyan"/>
+                            <ComboBoxItem Content="Lime"/>
+                            <ComboBoxItem Content="Orange"/>
+                            <ComboBoxItem Content="Red"/>
+                            <ComboBoxItem Content="Magenta"/>
+                        </ComboBox>
+
+                        <TextBlock Grid.Row="0" Grid.Column="2" Text="Outline" 
+                                   VerticalAlignment="Center" Margin="0,0,10,10"/>
+                        <ComboBox Grid.Row="0" Grid.Column="3" x:Name="BorderColorSelector" 
+                                  SelectionChanged="AppearanceChanged" Margin="0,0,0,10">
+                            <ComboBoxItem Content="Black" IsSelected="True"/>
+                            <ComboBoxItem Content="White"/>
+                            <ComboBoxItem Content="Dark Gray"/>
+                            <ComboBoxItem Content="Red"/>
+                            <ComboBoxItem Content="Blue"/>
+                        </ComboBox>
+
+                        <TextBlock Grid.Row="1" Grid.Column="0" Text="Font" 
+                                   VerticalAlignment="Center" Margin="0,0,10,10"/>
+                        <ComboBox Grid.Row="1" Grid.Column="1" x:Name="FontSelector" 
+                                  SelectionChanged="AppearanceChanged" Margin="0,0,18,10">
+                            <ComboBoxItem Content="Consolas" IsSelected="True"/>
+                            <ComboBoxItem Content="Segoe UI"/>
+                            <ComboBoxItem Content="Arial"/>
+                            <ComboBoxItem Content="Courier New"/>
+                            <ComboBoxItem Content="Lucida Console"/>
+                            <ComboBoxItem Content="Cascadia Mono"/>
+                        </ComboBox>
+
+                        <TextBlock Grid.Row="1" Grid.Column="2" Text="Format" 
+                                   VerticalAlignment="Center" Margin="0,0,10,10"/>
+                        <ComboBox Grid.Row="1" Grid.Column="3" x:Name="TimeFormatSelector" 
+                                  SelectionChanged="TimeFormatSelector_SelectionChanged" Margin="0,0,0,10">
+                            <ComboBoxItem Content="HH:MM:SS.t" IsSelected="True"/>
+                            <ComboBoxItem Content="HH:MM:SS"/>
+                            <ComboBoxItem Content="MM:SS.t"/>
+                            <ComboBoxItem Content="MM:SS"/>
+                            <ComboBoxItem Content="HH:MM"/>
+                        </ComboBox>
+
+                        <TextBlock Grid.Row="2" Grid.Column="0" Text="Size" 
+                                   VerticalAlignment="Center" Margin="0,0,10,10"/>
+                        <StackPanel Grid.Row="2" Grid.Column="1" Orientation="Horizontal" Margin="0,0,18,10">
+                            <Slider x:Name="TextSizeSlider" Width="100" Minimum="16" Maximum="120" Value="48"
+                                    VerticalAlignment="Center" ValueChanged="AppearanceSliderChanged"/>
+                            <TextBlock x:Name="TextSizeLabel" Text="48" 
+                                       VerticalAlignment="Center" Margin="5,0,0,0" Width="25"/>
+                        </StackPanel>
+
+                        <TextBlock Grid.Row="2" Grid.Column="2" Text="Thickness" 
+                                   VerticalAlignment="Center" Margin="0,0,10,10"/>
+                        <StackPanel Grid.Row="2" Grid.Column="3" Orientation="Horizontal" Margin="0,0,0,10">
+                            <Slider x:Name="BorderWidthSlider" Width="100" Minimum="1" Maximum="5" Value="2"
+                                    VerticalAlignment="Center" ValueChanged="AppearanceSliderChanged"/>
+                            <TextBlock x:Name="BorderWidthLabel" Text="2" 
+                                       VerticalAlignment="Center" Margin="5,0,0,0" Width="25"/>
+                        </StackPanel>
+
+                        <TextBlock Grid.Row="3" Grid.Column="0" Text="Background" 
+                                   VerticalAlignment="Center" Margin="0,0,10,0"/>
+                        <StackPanel Grid.Row="3" Grid.Column="1" Grid.ColumnSpan="3" Orientation="Horizontal">
+                            <Slider x:Name="BackgroundOpacitySlider" Width="200" Minimum="0" Maximum="100" Value="50"
+                                    VerticalAlignment="Center" ValueChanged="AppearanceSliderChanged"/>
+                            <TextBlock x:Name="BackgroundOpacityLabel" Text="50%" 
+                                       VerticalAlignment="Center" Margin="5,0,0,0" Width="35"/>
+                        </StackPanel>
+                </Grid>
+                </Border>
+
+                <!-- Light Ring -->
+                <TextBlock Text="Light ring" Style="{StaticResource SectionHeaderText}" Margin="0,2,0,8"/>
+                <Border Style="{StaticResource SettingsCard}" Margin="0">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <CheckBox Grid.Row="0" Grid.Column="0" x:Name="LightRingCheckBox" 
+                              Content="Enable" VerticalAlignment="Center" Margin="0,0,15,5"
+                              Checked="LightRingCheckBox_Changed" Unchecked="LightRingCheckBox_Changed"/>
+                    
+                    <TextBlock Grid.Row="0" Grid.Column="2" Text="Brightness:" 
+                               VerticalAlignment="Center" Margin="0,0,5,5"/>
+                    <StackPanel Grid.Row="0" Grid.Column="3" Orientation="Horizontal" Margin="0,0,0,5">
+                        <Slider x:Name="LightRingBrightnessSlider" Width="120" Minimum="10" Maximum="100" Value="100"
+                                VerticalAlignment="Center" ValueChanged="LightRingSliderChanged"/>
+                        <TextBlock x:Name="LightRingBrightnessLabel" Text="100%" 
+                                   VerticalAlignment="Center" Margin="5,0,0,0" Width="40"/>
+                    </StackPanel>
+
+                    <TextBlock Grid.Row="1" Grid.Column="0" Text="Width:" 
+                               VerticalAlignment="Center" Margin="0,0,5,0"/>
+                    <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal">
+                        <Slider x:Name="LightRingWidthSlider" Width="80" Minimum="5" Maximum="100" Value="20"
+                                VerticalAlignment="Center" ValueChanged="LightRingSliderChanged"/>
+                        <TextBlock x:Name="LightRingWidthLabel" Text="20px" 
+                                   VerticalAlignment="Center" Margin="5,0,0,0" Width="40"/>
+                    </StackPanel>
+
+                    <CheckBox Grid.Row="1" Grid.Column="2" Grid.ColumnSpan="2" x:Name="LightRingHideFromCaptureCheckBox" 
+                              Content="Hide from screen capture" VerticalAlignment="Center" Margin="10,0,0,0"
+                              ToolTip="Makes the light ring invisible to screen recorders (Windows 10 2004+)"
+                              Checked="LightRingSliderChanged" Unchecked="LightRingSliderChanged"/>
+                </Grid>
+                </Border>
+            </StackPanel>
+        </Expander>
+
+        <!-- Lap Times -->
+        <Border Grid.Row="8" MinHeight="96" MaxHeight="146"
+                Background="{StaticResource SurfaceBrush}"
+                BorderBrush="{StaticResource BorderBrush}" BorderThickness="1"
+                CornerRadius="8" Padding="12">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+                <TextBlock Grid.Row="0" Text="Lap times" FontWeight="SemiBold" Margin="0,0,0,8"/>
+                <Grid Grid.Row="1">
+                <ListBox x:Name="LapListBox" 
+                         Background="Transparent" BorderThickness="0" MaxHeight="100"
+                         ScrollViewer.VerticalScrollBarVisibility="Auto">
+                    <ListBox.ItemTemplate>
+                        <DataTemplate>
+                            <TextBlock Text="{Binding}" FontFamily="Consolas"/>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+                <TextBlock x:Name="LapPlaceholder" Text="Press Win+F8 or click Lap to record split times" 
+                           Foreground="{StaticResource SecondaryTextBrush}"
+                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                </Grid>
+            </Grid>
+        </Border>
+
+        <!-- Status Bar -->
+        <Border Grid.Row="9" CornerRadius="8" Padding="10" Margin="0,10,0,0"
+                Background="{StaticResource SurfaceRaisedBrush}"
+                BorderBrush="{StaticResource BorderBrush}" BorderThickness="1">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel Grid.Column="0" Orientation="Horizontal">
+                    <Ellipse x:Name="StatusIndicator" Width="10" Height="10" Fill="Gray" Margin="0,0,8,0"/>
+                    <TextBlock x:Name="StatusText" Text="Ready" Foreground="{StaticResource SecondaryTextBrush}" FontSize="12"/>
+                </StackPanel>
+                <TextBlock x:Name="ShortcutHintText" Grid.Column="1"
+                           Text="Win+F5 Start/Stop  Win+F6 Reset  Win+F7 Overlay  Win+F8 Lap"
+                           Foreground="{StaticResource SecondaryTextBrush}" Opacity="0.7" FontSize="10"/>
+            </Grid>
+        </Border>
+    </Grid>
+    </ScrollViewer>
+    </DockPanel>
+</Window>

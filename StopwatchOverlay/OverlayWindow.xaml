@@ -1,0 +1,86 @@
+<Window x:Class="StopwatchOverlay.OverlayWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Stopwatch Overlay"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent"
+        Topmost="True"
+        ShowInTaskbar="False"
+        ResizeMode="NoResize"
+        SizeToContent="WidthAndHeight"
+        MouseLeftButtonDown="Window_MouseLeftButtonDown">
+    
+    <Border x:Name="OverlayBorder" 
+            Background="#80000000" 
+            CornerRadius="8" 
+            Padding="15,8">
+        
+        <StackPanel Orientation="Horizontal">
+            <!-- REC Indicator -->
+            <Ellipse x:Name="RecIndicator" Width="14" Height="14" 
+                     Fill="Red" Margin="0,0,10,0" VerticalAlignment="Center"
+                     Visibility="Collapsed"/>
+            
+            <!-- Outlined text effect using multiple TextBlocks -->
+            <Grid>
+                <!-- Shadow/outline layers -->
+                <TextBlock x:Name="TimeTextShadow1" 
+                           Text="00:00:00.0"
+                           FontFamily="Consolas"
+                           FontSize="48"
+                           FontWeight="Bold"
+                           Foreground="Black"
+                           RenderTransformOrigin="0.5,0.5">
+                    <TextBlock.RenderTransform>
+                        <TranslateTransform X="2" Y="2"/>
+                    </TextBlock.RenderTransform>
+                </TextBlock>
+                
+                <TextBlock x:Name="TimeTextShadow2" 
+                           Text="00:00:00.0"
+                           FontFamily="Consolas"
+                           FontSize="48"
+                           FontWeight="Bold"
+                           Foreground="Black"
+                           RenderTransformOrigin="0.5,0.5">
+                    <TextBlock.RenderTransform>
+                        <TranslateTransform X="-2" Y="-2"/>
+                    </TextBlock.RenderTransform>
+                </TextBlock>
+                
+                <TextBlock x:Name="TimeTextShadow3" 
+                           Text="00:00:00.0"
+                           FontFamily="Consolas"
+                           FontSize="48"
+                           FontWeight="Bold"
+                           Foreground="Black"
+                           RenderTransformOrigin="0.5,0.5">
+                    <TextBlock.RenderTransform>
+                        <TranslateTransform X="2" Y="-2"/>
+                    </TextBlock.RenderTransform>
+                </TextBlock>
+                
+                <TextBlock x:Name="TimeTextShadow4" 
+                           Text="00:00:00.0"
+                           FontFamily="Consolas"
+                           FontSize="48"
+                           FontWeight="Bold"
+                           Foreground="Black"
+                           RenderTransformOrigin="0.5,0.5">
+                    <TextBlock.RenderTransform>
+                        <TranslateTransform X="-2" Y="2"/>
+                    </TextBlock.RenderTransform>
+                </TextBlock>
+                
+                <!-- Main text -->
+                <TextBlock x:Name="TimeText" 
+                           Text="00:00:00.0"
+                           FontFamily="Consolas"
+                           FontSize="48"
+                           FontWeight="Bold"
+                           Foreground="White"/>
+            </Grid>
+        </StackPanel>
+    </Border>
+</Window>
