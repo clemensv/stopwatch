@@ -2,7 +2,7 @@
 
 A transparent, always-on-top timer overlay for Windows — perfect for video recordings, live streams, and presentations.
 
-[![Download](https://img.shields.io/github/v/release/clemensv/stopwatch?label=Download&style=for-the-badge)](https://github.com/clemensv/stopwatch/releases/latest)
+[![Download](https://img.shields.io/github/v/release/hosseinhayati128/stopwatch?label=Download&style=for-the-badge)](https://github.com/hosseinhayati128/stopwatch/releases/latest)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=for-the-badge)](LICENSE)
 
 **🌐 [Project Website](https://clemensv.github.io/stopwatch/)**
@@ -35,7 +35,7 @@ Stopwatch Overlay places a customizable timer on top of all your windows — inc
 
 ## Download & Install
 
-1. **Download** the latest `StopwatchOverlay-vX.X.X.zip` from the **[Releases page](https://github.com/clemensv/stopwatch/releases/latest)**
+1. **Download** the latest Windows ZIP from the **[Releases page](https://github.com/hosseinhayati128/stopwatch/releases/latest)**
 2. **Extract** the ZIP to any folder, for example:
    ```
    C:\Tools\StopwatchOverlay\
