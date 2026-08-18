@@ -11,6 +11,10 @@ A transparent, always-on-top timer overlay for Windows — perfect for video rec
   <img src="controller-window.png" alt="Stopwatch Overlay Controller and settings" width="500">
 </p>
 
+<p align="center">
+  <img src="promo.png" alt="Stopwatch Overlay Controller and settings" width="500">
+</p>
+
 ---
 
 ## What It Does
