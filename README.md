@@ -8,7 +8,7 @@ A transparent, always-on-top timer overlay for Windows — perfect for video rec
 **🌐 [Project Website](https://clemensv.github.io/stopwatch/)**
 
 <p align="center">
-  <img src="controller-window.png" alt="Stopwatch Overlay Controller and settings" width="700">
+  <img src="controller-window.png" alt="Stopwatch Overlay Controller and settings" width="500">
 </p>
 
 ---
