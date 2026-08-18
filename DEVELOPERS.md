@@ -29,7 +29,7 @@ StopwatchOverlay/
 ### Key Design Decisions
 
 - **WPF + WinForms hybrid**: WPF for UI rendering, `System.Windows.Forms.Screen` for reliable multi-monitor enumeration.
-- **Win32 interop**: `RegisterHotKey` for system-wide hotkeys (F9–F12), `SetWindowLong` for click-through and tool-window styles.
+- **Win32 interop**: `RegisterHotKey` for system-wide hotkeys (Win+F5 through Win+F9), `SetWindowLong` for click-through and tool-window styles.
 - **Text outline rendering**: Four offset `TextBlock` layers beneath the main text create a border/outline effect that stays readable on any background.
 - **Framework-dependent deployment**: The published binary relies on the .NET Desktop Runtime that ships with Windows 11, keeping the download small (~1 MB vs ~150 MB self-contained).
 

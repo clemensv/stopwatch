@@ -23,11 +23,13 @@ Stopwatch Overlay places a customizable timer on top of all your windows — inc
 - 🖥️ **Multi-monitor** — Show the overlay on one screen or all screens at once
 - 📌 **Always on top** — Stays visible over fullscreen apps, games, and camera feeds
 - 🎨 **Fully customizable** — Text color, border, font, size, background opacity
-- ⌨️ **Global hotkeys** — F9–F12 work from any application
+- ⌨️ **Global hotkeys** — Win+F5 through Win+F9 work from any application and can be customized
+- 🔄 **Quick clock toggle** — Switch between the current mode and Clock with Win+F9 or right-click the overlay
 - 🏁 **Lap times** — Record split times while the timer runs
 -  **REC indicator** — Optional blinking recording dot
 - 🖱️ **Click-through mode** — Overlay doesn't interfere with mouse clicks
 - 👻 **Hidden from Alt+Tab** — Keeps your taskbar clean
+- 🚀 **Start with Windows** — Optionally launch the overlay automatically when you sign in
 
 ---
 

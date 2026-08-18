@@ -54,6 +54,7 @@ namespace StopwatchOverlay
         
         // Mode: 0=Stopwatch, 1=Clock, 2=Countdown, 3=Timecode
         private int _currentMode = 0;
+        private int _lastNonClockMode = 0;
         private TimeSpan _countdownDuration = TimeSpan.FromMinutes(5);
         private TimeSpan _countdownRemaining;
         private DateTime _clockTarget;
@@ -71,6 +72,7 @@ namespace StopwatchOverlay
         private NotifyIcon? _trayIcon;
         private ContextMenuStrip? _trayMenu;
         private bool _isExiting;
+        private bool _changingStartWithWindows;
 
         // Custom overlay position (absolute, device-independent) set by dragging the overlay.
         private bool _hasCustomPosition = false;
@@ -130,7 +132,7 @@ namespace StopwatchOverlay
             UpdateShortcutLabels();
         }
 
-        // Unregisters all 4 hotkey ids, then registers each non-unbound shortcut.
+        // Unregisters all hotkey ids, then registers each non-unbound shortcut.
         // Returns the actions whose RegisterHotKey failed (combo held by another app).
         private List<ShortcutAction> ApplyShortcuts(Dictionary<ShortcutAction, Shortcut> shortcuts)
         {
@@ -171,6 +173,10 @@ namespace StopwatchOverlay
                         break;
                     case ShortcutAction.Lap:
                         LapButton_Click(this, new RoutedEventArgs());
+                        handled = true;
+                        break;
+                    case ShortcutAction.ToggleClock:
+                        ToggleClockMode();
                         handled = true;
                         break;
                 }
@@ -313,6 +319,9 @@ namespace StopwatchOverlay
             else if (CountdownModeRadio?.IsChecked == true) _currentMode = 2;
             else if (TimecodeModeRadio?.IsChecked == true) _currentMode = 3;
 
+            if (_currentMode != 1)
+                _lastNonClockMode = _currentMode;
+
             CountdownPanel.Visibility = _currentMode == 2 ? Visibility.Visible : Visibility.Collapsed;
 
             // Refresh the prefilled target whenever the user enters until-clock-time countdown
@@ -325,6 +334,34 @@ namespace StopwatchOverlay
             UpdateStatus($"{modeNames[_currentMode]} Mode", Brushes.DeepSkyBlue);
 
             if (_currentMode == 2) FocusCountdownInput();
+        }
+
+        private void ToggleClockMode()
+        {
+            if (_currentMode == 1)
+            {
+                SelectMode(_lastNonClockMode);
+            }
+            else
+            {
+                _lastNonClockMode = _currentMode;
+                SelectMode(1);
+            }
+        }
+
+        private void SelectMode(int mode)
+        {
+            var radio = mode switch
+            {
+                0 => StopwatchModeRadio,
+                1 => ClockModeRadio,
+                2 => CountdownModeRadio,
+                3 => TimecodeModeRadio,
+                _ => null
+            };
+
+            if (radio != null)
+                radio.IsChecked = true;
         }
 
         private void CountdownTypeRadio_Checked(object sender, RoutedEventArgs e)
@@ -365,6 +402,17 @@ namespace StopwatchOverlay
         {
             FitControllerToWorkingArea();
 
+            // Refresh the command on every launch in case a portable build was moved.
+            // This is best-effort here; an interactive checkbox change reports errors.
+            try
+            {
+                StartupRegistration.SetEnabled(_settings.StartWithWindows);
+            }
+            catch
+            {
+                UpdateStatus("Could not update Windows startup", Brushes.OrangeRed);
+            }
+
             // The overlay is visible by default; Win+F7 can still hide/show it.
             if (_overlayWindows.Count == 0)
                 ToggleOverlayButton_Click(this, new RoutedEventArgs());
@@ -375,6 +423,35 @@ namespace StopwatchOverlay
                 System.Windows.Threading.DispatcherPriority.Loaded);
 
             FocusCountdownInput();
+        }
+
+        private void StartWithWindowsCheckBox_Changed(object sender, RoutedEventArgs e)
+        {
+            if (!IsLoaded || _changingStartWithWindows) return;
+
+            bool previousValue = _settings.StartWithWindows;
+            bool enabled = StartWithWindowsCheckBox.IsChecked == true;
+
+            try
+            {
+                StartupRegistration.SetEnabled(enabled);
+                _settings.StartWithWindows = enabled;
+                SettingsStore.Save(_settings);
+                UpdateStatus(enabled ? "Starts with Windows" : "Windows startup disabled",
+                    Brushes.DeepSkyBlue);
+            }
+            catch (Exception ex)
+            {
+                _changingStartWithWindows = true;
+                StartWithWindowsCheckBox.IsChecked = previousValue;
+                _changingStartWithWindows = false;
+
+                System.Windows.MessageBox.Show(
+                    $"Windows startup could not be updated.\n\n{ex.Message}",
+                    "Start with Windows",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning);
+            }
         }
 
         private void InitializeTrayIcon()
@@ -752,6 +829,7 @@ namespace StopwatchOverlay
             var overlay = new OverlayWindow();
             overlay.Tag = screen; // remember which screen for repositioning
             overlay.PositionChangedByUser += () => OnOverlayMoved(overlay);
+            overlay.ClockToggleRequested += ToggleClockMode;
             ApplyOverlaySettings(overlay);
             PositionOverlay(overlay, screen);
             overlay.Show();
@@ -1087,7 +1165,8 @@ namespace StopwatchOverlay
             string s(ShortcutAction a) => (_shortcuts.TryGetValue(a, out var v) ? v : new Shortcut(0, 0)).Format();
             ShortcutHintText.Text =
                 $"{s(ShortcutAction.StartStop)} Start/Stop  {s(ShortcutAction.Reset)} Reset  " +
-                $"{s(ShortcutAction.ToggleOverlay)} Overlay  {s(ShortcutAction.Lap)} Lap";
+                $"{s(ShortcutAction.ToggleOverlay)} Overlay  {s(ShortcutAction.Lap)} Lap  " +
+                $"{s(ShortcutAction.ToggleClock)} Clock";
 
             var lapCombo = (_shortcuts.TryGetValue(ShortcutAction.Lap, out var lv) ? lv : new Shortcut(0, 0)).Format();
             LapPlaceholder.Text = lapCombo.Length > 0
@@ -1126,6 +1205,7 @@ namespace StopwatchOverlay
             ShowRecIndicatorCheckBox.IsChecked = _settings.ShowRecIndicator;
             ClickThroughCheckBox.IsChecked = _settings.ClickThrough;
             BlinkColonCheckBox.IsChecked = _settings.BlinkColon;
+            StartWithWindowsCheckBox.IsChecked = _settings.StartWithWindows;
 
             // Last-used mode (drives _currentMode + panel visibility via the Checked handler).
             switch (_settings.Mode)
@@ -1170,6 +1250,7 @@ namespace StopwatchOverlay
             _settings.ShowRecIndicator = ShowRecIndicatorCheckBox.IsChecked == true;
             _settings.ClickThrough = ClickThroughCheckBox.IsChecked == true;
             _settings.BlinkColon = BlinkColonCheckBox.IsChecked == true;
+            _settings.StartWithWindows = StartWithWindowsCheckBox.IsChecked == true;
 
             _settings.Mode = _currentMode;
         }

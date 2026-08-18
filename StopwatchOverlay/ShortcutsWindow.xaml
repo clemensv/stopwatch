@@ -22,6 +22,7 @@
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
 
             <TextBlock Grid.Row="0" Grid.Column="0" Text="Start/Stop:" VerticalAlignment="Center" Margin="0,0,10,6"/>
@@ -43,6 +44,11 @@
             <TextBox Grid.Row="3" Grid.Column="1" x:Name="LapShortcutBox" IsReadOnly="True" Margin="0,0,8,6"
                      Tag="Lap" GotFocus="ShortcutBox_GotFocus" LostFocus="ShortcutBox_LostFocus" PreviewKeyDown="ShortcutBox_PreviewKeyDown"/>
             <Button Grid.Row="3" Grid.Column="2" Content="Clear" Tag="Lap" Click="ClearShortcut_Click" Style="{StaticResource ModernButton}" Margin="0,0,0,6"/>
+
+            <TextBlock Grid.Row="4" Grid.Column="0" Text="Toggle clock:" VerticalAlignment="Center" Margin="0,0,10,6"/>
+            <TextBox Grid.Row="4" Grid.Column="1" x:Name="ToggleClockShortcutBox" IsReadOnly="True" Margin="0,0,8,6"
+                     Tag="ToggleClock" GotFocus="ShortcutBox_GotFocus" LostFocus="ShortcutBox_LostFocus" PreviewKeyDown="ShortcutBox_PreviewKeyDown"/>
+            <Button Grid.Row="4" Grid.Column="2" Content="Clear" Tag="ToggleClock" Click="ClearShortcut_Click" Style="{StaticResource ModernButton}" Margin="0,0,0,6"/>
         </Grid>
 
         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,0,0">

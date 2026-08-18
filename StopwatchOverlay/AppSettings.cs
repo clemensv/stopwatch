@@ -10,7 +10,8 @@ namespace StopwatchOverlay
         StartStop = 1,
         Reset = 2,
         ToggleOverlay = 3,
-        Lap = 4
+        Lap = 4,
+        ToggleClock = 5
     }
 
     // VirtualKey == 0 means the action is unbound (no global hotkey).
@@ -42,6 +43,7 @@ namespace StopwatchOverlay
         private const uint VK_F6 = 0x75;
         private const uint VK_F7 = 0x76;
         private const uint VK_F8 = 0x77;
+        private const uint VK_F9 = 0x78;
 
         public Dictionary<ShortcutAction, Shortcut> Shortcuts { get; set; } = new();
 
@@ -76,6 +78,7 @@ namespace StopwatchOverlay
         public bool ClickThrough { get; set; } = false;
         public bool BlinkColon { get; set; } = false;
         public bool UseSmartCountdownInput { get; set; } = false;
+        public bool StartWithWindows { get; set; } = false;
 
         // Last-used mode (0=Stopwatch, 1=Clock, 2=Countdown, 3=Timecode)
         public int Mode { get; set; } = 0;
@@ -86,9 +89,10 @@ namespace StopwatchOverlay
             [ShortcutAction.Reset] = new Shortcut(Shortcut.MOD_WIN, VK_F6),
             [ShortcutAction.ToggleOverlay] = new Shortcut(Shortcut.MOD_WIN, VK_F7),
             [ShortcutAction.Lap] = new Shortcut(Shortcut.MOD_WIN, VK_F8),
+            [ShortcutAction.ToggleClock] = new Shortcut(Shortcut.MOD_WIN, VK_F9),
         };
 
-        // Fill any missing action with its default so the rest of the app can assume all 4 keys exist.
+        // Fill any missing action with its default so the rest of the app can assume all keys exist.
         public void EnsureAllActions()
         {
             foreach (var kv in DefaultShortcuts())

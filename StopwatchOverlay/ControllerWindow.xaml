@@ -353,6 +353,25 @@
                               Checked="LightRingSliderChanged" Unchecked="LightRingSliderChanged"/>
                 </Grid>
                 </Border>
+
+                <!-- Application -->
+                <TextBlock Text="Application" Style="{StaticResource SectionHeaderText}" Margin="0,2,0,8"/>
+                <Border Style="{StaticResource SettingsCard}" Margin="0">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <CheckBox Grid.Column="0" x:Name="StartWithWindowsCheckBox"
+                                  Content="Start with Windows" VerticalAlignment="Center"
+                                  Checked="StartWithWindowsCheckBox_Changed"
+                                  Unchecked="StartWithWindowsCheckBox_Changed"/>
+                        <TextBlock Grid.Column="1"
+                                   Text="Launch Stopwatch Overlay automatically when you sign in."
+                                   Foreground="{StaticResource SecondaryTextBrush}"
+                                   VerticalAlignment="Center" TextWrapping="Wrap" Margin="24,0,0,0"/>
+                    </Grid>
+                </Border>
             </StackPanel>
         </Expander>
 
@@ -398,7 +417,7 @@
                     <TextBlock x:Name="StatusText" Text="Ready" Foreground="{StaticResource SecondaryTextBrush}" FontSize="12"/>
                 </StackPanel>
                 <TextBlock x:Name="ShortcutHintText" Grid.Column="1"
-                           Text="Win+F5 Start/Stop  Win+F6 Reset  Win+F7 Overlay  Win+F8 Lap"
+                           Text="Win+F5 Start/Stop  Win+F6 Reset  Win+F7 Overlay  Win+F8 Lap  Win+F9 Clock"
                            Foreground="{StaticResource SecondaryTextBrush}" Opacity="0.7" FontSize="10"/>
             </Grid>
         </Border>

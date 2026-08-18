@@ -5,7 +5,7 @@ using System.Windows.Input;
 
 namespace StopwatchOverlay
 {
-    // Modal editor for the four global shortcuts. Edits a working copy and, on Save,
+    // Modal editor for the global shortcuts. Edits a working copy and, on Save,
     // exposes it via Result; the controller does the actual registration and persistence.
     public partial class ShortcutsWindow : Window
     {
@@ -15,6 +15,7 @@ namespace StopwatchOverlay
             [ShortcutAction.Reset] = "ResetShortcutBox",
             [ShortcutAction.ToggleOverlay] = "ToggleOverlayShortcutBox",
             [ShortcutAction.Lap] = "LapShortcutBox",
+            [ShortcutAction.ToggleClock] = "ToggleClockShortcutBox",
         };
 
         private Dictionary<ShortcutAction, Shortcut> _pending;

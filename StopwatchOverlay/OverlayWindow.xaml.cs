@@ -24,6 +24,7 @@ namespace StopwatchOverlay
 
         // Raised after the user finishes dragging the overlay to a new spot.
         public event Action? PositionChangedByUser;
+        public event Action? ClockToggleRequested;
 
         public OverlayWindow()
         {
@@ -97,6 +98,15 @@ namespace StopwatchOverlay
         public void SetRecIndicatorVisible(bool visible)
         {
             RecIndicator.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
+        }
+
+        private void Window_MouseRightButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            if (!_isClickThrough && e.RightButton == MouseButtonState.Pressed)
+            {
+                e.Handled = true;
+                ClockToggleRequested?.Invoke();
+            }
         }
 
         private void Window_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
