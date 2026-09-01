@@ -12,6 +12,17 @@
     
     <DockPanel>
     <Menu DockPanel.Dock="Top">
+        <MenuItem Header="_Timers">
+            <MenuItem x:Name="NewTimerMenuItem" Header="_New timer" Click="NewTimerMenuItem_Click"/>
+            <MenuItem x:Name="NextTimerMenuItem" Header="_Next active timer" Click="NextTimerMenuItem_Click"/>
+            <MenuItem x:Name="ToggleCombinedOverlayMenuItem" Header="_Combine overlays" Click="ToggleCombinedOverlayMenuItem_Click"/>
+            <Separator/>
+            <MenuItem x:Name="RenameTimerMenuItem" Header="Set _project" Click="RenameTimerMenuItem_Click"/>
+            <MenuItem x:Name="CloseTimerMenuItem" Header="_Close active timer" Click="CloseTimerMenuItem_Click"/>
+        </MenuItem>
+        <MenuItem x:Name="ProjectDashboardMenuItem"
+                  Header="Project _dashboard"
+                  Click="ProjectDashboardMenuItem_Click"/>
         <MenuItem Header="_Shortcuts" Click="OpenShortcuts_Click"/>
         <MenuItem x:Name="SmartInputMenuItem" Header="Switch to smart _input"
                   Click="SmartInputMenuItem_Click"/>
@@ -76,26 +87,31 @@
 
                 <!-- Fixed-duration inputs -->
                 <StackPanel x:Name="CountdownDurationPanel" Orientation="Horizontal" HorizontalAlignment="Center">
-                    <TextBlock Text="Duration: " Foreground="{DynamicResource {x:Static SystemColors.GrayTextBrushKey}}" VerticalAlignment="Center"/>
+                    <TextBlock Text="Duration: " Foreground="{DynamicResource SecondaryTextBrush}" VerticalAlignment="Center"/>
                     <TextBox x:Name="CountdownMinutes" Width="40" Text="5" Style="{StaticResource TimeInputBox}"
-                             TextAlignment="Center" VerticalContentAlignment="Center"/>
-                    <TextBlock Text=" min " Foreground="{DynamicResource {x:Static SystemColors.GrayTextBrushKey}}" VerticalAlignment="Center"/>
+                             TextAlignment="Center" VerticalContentAlignment="Center"
+                             TextChanged="TimerEditor_TextChanged"/>
+                    <TextBlock Text=" min " Foreground="{DynamicResource SecondaryTextBrush}" VerticalAlignment="Center"/>
                     <TextBox x:Name="CountdownSeconds" Width="40" Text="00" Style="{StaticResource TimeInputBox}"
-                             TextAlignment="Center" VerticalContentAlignment="Center"/>
-                    <TextBlock Text=" sec" Foreground="{DynamicResource {x:Static SystemColors.GrayTextBrushKey}}" VerticalAlignment="Center"/>
+                             TextAlignment="Center" VerticalContentAlignment="Center"
+                             TextChanged="TimerEditor_TextChanged"/>
+                    <TextBlock Text=" sec" Foreground="{DynamicResource SecondaryTextBrush}" VerticalAlignment="Center"/>
                 </StackPanel>
 
                 <!-- Until-clock-time inputs -->
                 <StackPanel x:Name="CountdownUntilPanel" Orientation="Horizontal" HorizontalAlignment="Center" Visibility="Collapsed">
-                    <TextBlock Text="Until: " Foreground="{DynamicResource {x:Static SystemColors.GrayTextBrushKey}}" VerticalAlignment="Center"/>
+                    <TextBlock Text="Until: " Foreground="{DynamicResource SecondaryTextBrush}" VerticalAlignment="Center"/>
                     <TextBox x:Name="ClockTargetHours" Width="40" Text="00" Style="{StaticResource TimeInputBox}"
-                             TextAlignment="Center" VerticalContentAlignment="Center"/>
-                    <TextBlock Text=" : " Foreground="{DynamicResource {x:Static SystemColors.GrayTextBrushKey}}" VerticalAlignment="Center"/>
+                             TextAlignment="Center" VerticalContentAlignment="Center"
+                             TextChanged="TimerEditor_TextChanged"/>
+                    <TextBlock Text=" : " Foreground="{DynamicResource SecondaryTextBrush}" VerticalAlignment="Center"/>
                     <TextBox x:Name="ClockTargetMinutes" Width="40" Text="00" Style="{StaticResource TimeInputBox}"
-                             TextAlignment="Center" VerticalContentAlignment="Center"/>
-                    <TextBlock Text=" : " Foreground="{DynamicResource {x:Static SystemColors.GrayTextBrushKey}}" VerticalAlignment="Center"/>
+                             TextAlignment="Center" VerticalContentAlignment="Center"
+                             TextChanged="TimerEditor_TextChanged"/>
+                    <TextBlock Text=" : " Foreground="{DynamicResource SecondaryTextBrush}" VerticalAlignment="Center"/>
                     <TextBox x:Name="ClockTargetSeconds" Width="40" Text="00" Style="{StaticResource TimeInputBox}"
-                             TextAlignment="Center" VerticalContentAlignment="Center"/>
+                             TextAlignment="Center" VerticalContentAlignment="Center"
+                             TextChanged="TimerEditor_TextChanged"/>
                 </StackPanel>
             </StackPanel>
 
@@ -107,28 +123,31 @@
                          TextChanged="SmartInputBox_TextChanged"
                          KeyDown="SmartInputBox_KeyDown"/>
                 <TextBlock x:Name="SmartPreview" Margin="0,4,0,0" TextAlignment="Center"
-                           Foreground="{DynamicResource {x:Static SystemColors.GrayTextBrushKey}}"
+                           Foreground="{DynamicResource SecondaryTextBrush}"
                            Text="e.g. 5m, 1h30m, 2 pm, tomorrow 9 am"/>
             </StackPanel>
         </StackPanel>
 
         <!-- Current Time Display -->
-        <Border Grid.Row="3" Background="{StaticResource SurfaceRaisedBrush}"
-                BorderBrush="{StaticResource BorderBrush}" BorderThickness="1"
-                CornerRadius="10" Padding="20,17" Margin="0,0,0,14">
+        <Border Grid.Row="3" Background="{DynamicResource SurfaceRaisedBrush}"
+                BorderBrush="{DynamicResource BorderBrush}"
+                BorderThickness="{DynamicResource ThemePanelBorderThickness}"
+                CornerRadius="{DynamicResource ThemeTimerPanelCornerRadius}"
+                Effect="{DynamicResource ThemePanelShadowEffect}"
+                Padding="20,17" Margin="0,0,0,14">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="*"/>
                 </Grid.ColumnDefinitions>
                 <Ellipse x:Name="RecIndicator" Grid.Column="0" Width="16" Height="16" 
-                         Fill="Red" Margin="0,0,10,0" Visibility="Collapsed"/>
+                         Fill="{DynamicResource RecBrush}" Margin="0,0,10,0" Visibility="Collapsed"/>
                 <TextBlock x:Name="TimeDisplay" Grid.Column="1"
                            Text="00:00:00.0" 
                            FontSize="38" 
-                           FontFamily="Consolas"
+                           FontFamily="{DynamicResource ThemeTimerFontFamily}"
                            FontWeight="Bold"
-                           Foreground="{StaticResource AccentBrush}"
+                           Foreground="{DynamicResource TimerTextBrush}"
                            HorizontalAlignment="Center"/>
             </Grid>
         </Border>
@@ -156,6 +175,7 @@
         <!-- Options Row -->
         <WrapPanel Grid.Row="6" HorizontalAlignment="Center" Margin="0,0,0,12">
             <CheckBox x:Name="AutoStartCheckBox" Content="Auto-start on show" 
+                      Checked="OptionCheckBox_Changed" Unchecked="OptionCheckBox_Changed"
                       Margin="0,0,20,0"/>
             <CheckBox x:Name="ShowRecIndicatorCheckBox" Content="REC indicator" 
                       Checked="ShowRecIndicatorCheckBox_Changed" 
@@ -164,6 +184,7 @@
                       Checked="ClickThroughCheckBox_Changed" 
                       Unchecked="ClickThroughCheckBox_Changed" Margin="0,0,20,0"/>
             <CheckBox x:Name="BlinkColonCheckBox" Content="Blink colon" 
+                      Checked="OptionCheckBox_Changed" Unchecked="OptionCheckBox_Changed"
                       Margin="0,0,0,0"/>
         </WrapPanel>
 
@@ -193,7 +214,10 @@
                         <ComboBox Grid.Row="0" Grid.Column="1" x:Name="ThemeModeSelector" 
                                   SelectionChanged="ThemeModeSelector_SelectionChanged"
                                   Margin="0,0,0,10">
-                            <ComboBoxItem Content="Dark" IsSelected="True"/>
+                            <ComboBoxItem Content="Midnight" IsSelected="True"/>
+                            <ComboBoxItem Content="Daylight"/>
+                            <ComboBoxItem Content="Pixel Deck Night"/>
+                            <ComboBoxItem Content="Pixel Deck Day"/>
                         </ComboBox>
 
                         <TextBlock Grid.Row="1" Grid.Column="0" Text="Display" 
@@ -368,7 +392,7 @@
                                   Unchecked="StartWithWindowsCheckBox_Changed"/>
                         <TextBlock Grid.Column="1"
                                    Text="Launch Stopwatch Overlay automatically when you sign in."
-                                   Foreground="{StaticResource SecondaryTextBrush}"
+                                   Foreground="{DynamicResource SecondaryTextBrush}"
                                    VerticalAlignment="Center" TextWrapping="Wrap" Margin="24,0,0,0"/>
                     </Grid>
                 </Border>
@@ -377,9 +401,11 @@
 
         <!-- Lap Times -->
         <Border Grid.Row="8" MinHeight="96" MaxHeight="146"
-                Background="{StaticResource SurfaceBrush}"
-                BorderBrush="{StaticResource BorderBrush}" BorderThickness="1"
-                CornerRadius="8" Padding="12">
+                Background="{DynamicResource SurfaceBrush}"
+                BorderBrush="{DynamicResource BorderBrush}"
+                BorderThickness="{DynamicResource ThemePanelBorderThickness}"
+                CornerRadius="{DynamicResource ThemeCardCornerRadius}"
+                Effect="{DynamicResource ThemePanelShadowEffect}" Padding="12">
             <Grid>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
@@ -392,33 +418,34 @@
                          ScrollViewer.VerticalScrollBarVisibility="Auto">
                     <ListBox.ItemTemplate>
                         <DataTemplate>
-                            <TextBlock Text="{Binding}" FontFamily="Consolas"/>
+                            <TextBlock Text="{Binding}" FontFamily="{DynamicResource ThemeMonoFontFamily}"/>
                         </DataTemplate>
                     </ListBox.ItemTemplate>
                 </ListBox>
                 <TextBlock x:Name="LapPlaceholder" Text="Press Win+F8 or click Lap to record split times" 
-                           Foreground="{StaticResource SecondaryTextBrush}"
+                           Foreground="{DynamicResource SecondaryTextBrush}"
                            HorizontalAlignment="Center" VerticalAlignment="Center"/>
                 </Grid>
             </Grid>
         </Border>
 
         <!-- Status Bar -->
-        <Border Grid.Row="9" CornerRadius="8" Padding="10" Margin="0,10,0,0"
-                Background="{StaticResource SurfaceRaisedBrush}"
-                BorderBrush="{StaticResource BorderBrush}" BorderThickness="1">
+        <Border Grid.Row="9" CornerRadius="{DynamicResource ThemeCardCornerRadius}" Padding="10" Margin="0,10,0,0"
+                Background="{DynamicResource SurfaceRaisedBrush}"
+                BorderBrush="{DynamicResource BorderBrush}"
+                BorderThickness="{DynamicResource ThemePanelBorderThickness}">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
                 <StackPanel Grid.Column="0" Orientation="Horizontal">
-                    <Ellipse x:Name="StatusIndicator" Width="10" Height="10" Fill="Gray" Margin="0,0,8,0"/>
-                    <TextBlock x:Name="StatusText" Text="Ready" Foreground="{StaticResource SecondaryTextBrush}" FontSize="12"/>
+                    <Ellipse x:Name="StatusIndicator" Width="10" Height="10" Fill="{DynamicResource MutedStatusBrush}" Margin="0,0,8,0"/>
+                    <TextBlock x:Name="StatusText" Text="Ready" Foreground="{DynamicResource SecondaryTextBrush}" FontSize="12"/>
                 </StackPanel>
                 <TextBlock x:Name="ShortcutHintText" Grid.Column="1"
                            Text="Win+F5 Start/Stop  Win+F6 Reset  Win+F7 Overlay  Win+F8 Lap  Win+F9 Clock"
-                           Foreground="{StaticResource SecondaryTextBrush}" Opacity="0.7" FontSize="10"/>
+                           Foreground="{DynamicResource SecondaryTextBrush}" Opacity="0.7" FontSize="10"/>
             </Grid>
         </Border>
     </Grid>

@@ -1,0 +1,39 @@
+{
+  "runId": "stopwatch-pixel-2026-09-01",
+  "fileKey": "hCBdWkvDv0mGnvRoxG5lwG",
+  "fileUrl": "https://www.figma.com/design/hCBdWkvDv0mGnvRoxG5lwG",
+  "phase": "fallback-complete",
+  "step": "figma-import-pending-authentication",
+  "entities": {
+    "collections": {},
+    "variables": {},
+    "styles": {},
+    "pages": {},
+    "components": {},
+    "screens": {}
+  },
+  "localArtifacts": {
+    "generator": "design/figma/generate-pixel-deck.mjs",
+    "preview": "design/figma/preview.html",
+    "foundations": "design/figma/pixel-deck-foundations.svg",
+    "components": "design/figma/pixel-deck-components.svg",
+    "settings": "design/figma/pixel-deck-settings.svg",
+    "dashboard": "design/figma/pixel-deck-dashboard.svg",
+    "floatingClock": "design/figma/pixel-deck-floating-clock.svg"
+  },
+  "mcpBlocker": "Figma Starter MCP tool-call limit reached after file creation; the in-app browser is not authenticated to Figma.",
+  "pendingValidations": [
+    "figma:import-five-svg-boards",
+    "figma:post-import-visual-check"
+  ],
+  "completedSteps": [
+    "phase0",
+    "local-foundations",
+    "local-components",
+    "local-settings",
+    "local-dashboard",
+    "local-floating-clock",
+    "xml-validation",
+    "raster-visual-qa"
+  ]
+}

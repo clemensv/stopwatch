@@ -7,81 +7,237 @@
         Background="Transparent"
         Topmost="True"
         ShowInTaskbar="False"
+        ShowActivated="False"
+        Focusable="False"
         ResizeMode="NoResize"
         SizeToContent="WidthAndHeight"
+        MouseEnter="Window_MouseEnter"
+        MouseLeave="Window_MouseLeave"
         MouseLeftButtonDown="Window_MouseLeftButtonDown"
         MouseRightButtonDown="Window_MouseRightButtonDown">
-    
-    <Border x:Name="OverlayBorder" 
-            Background="#80000000" 
-            CornerRadius="8" 
-            Padding="15,8">
-        
-        <StackPanel Orientation="Horizontal">
-            <!-- REC Indicator -->
-            <Ellipse x:Name="RecIndicator" Width="14" Height="14" 
-                     Fill="Red" Margin="0,0,10,0" VerticalAlignment="Center"
-                     Visibility="Collapsed"/>
-            
-            <!-- Outlined text effect using multiple TextBlocks -->
-            <Grid>
-                <!-- Shadow/outline layers -->
-                <TextBlock x:Name="TimeTextShadow1" 
-                           Text="00:00:00.0"
-                           FontFamily="Consolas"
-                           FontSize="48"
-                           FontWeight="Bold"
-                           Foreground="Black"
-                           RenderTransformOrigin="0.5,0.5">
-                    <TextBlock.RenderTransform>
-                        <TranslateTransform X="2" Y="2"/>
-                    </TextBlock.RenderTransform>
-                </TextBlock>
-                
-                <TextBlock x:Name="TimeTextShadow2" 
-                           Text="00:00:00.0"
-                           FontFamily="Consolas"
-                           FontSize="48"
-                           FontWeight="Bold"
-                           Foreground="Black"
-                           RenderTransformOrigin="0.5,0.5">
-                    <TextBlock.RenderTransform>
-                        <TranslateTransform X="-2" Y="-2"/>
-                    </TextBlock.RenderTransform>
-                </TextBlock>
-                
-                <TextBlock x:Name="TimeTextShadow3" 
-                           Text="00:00:00.0"
-                           FontFamily="Consolas"
-                           FontSize="48"
-                           FontWeight="Bold"
-                           Foreground="Black"
-                           RenderTransformOrigin="0.5,0.5">
-                    <TextBlock.RenderTransform>
-                        <TranslateTransform X="2" Y="-2"/>
-                    </TextBlock.RenderTransform>
-                </TextBlock>
-                
-                <TextBlock x:Name="TimeTextShadow4" 
-                           Text="00:00:00.0"
-                           FontFamily="Consolas"
-                           FontSize="48"
-                           FontWeight="Bold"
-                           Foreground="Black"
-                           RenderTransformOrigin="0.5,0.5">
-                    <TextBlock.RenderTransform>
-                        <TranslateTransform X="-2" Y="2"/>
-                    </TextBlock.RenderTransform>
-                </TextBlock>
-                
-                <!-- Main text -->
-                <TextBlock x:Name="TimeText" 
-                           Text="00:00:00.0"
-                           FontFamily="Consolas"
-                           FontSize="48"
-                           FontWeight="Bold"
-                           Foreground="White"/>
+
+    <Window.Resources>
+        <!-- Kept local so the compact overlay controls never inherit controller sizing. -->
+        <Style x:Key="OverlayActionButtonStyle" TargetType="Button">
+            <Setter Property="Width" Value="28"/>
+            <Setter Property="Height" Value="28"/>
+            <Setter Property="Margin" Value="2,0"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="Focusable" Value="False"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="ButtonSurface"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{DynamicResource BorderSoftBrush}"
+                                BorderThickness="{DynamicResource ThemeOverlayButtonBorderThickness}"
+                                CornerRadius="{DynamicResource ThemeOverlayButtonCornerRadius}">
+                            <ContentPresenter HorizontalAlignment="Center"
+                                              VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="ButtonSurface" Property="Background" Value="{DynamicResource OverlayHoverBrush}"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="ButtonSurface" Property="Background" Value="{DynamicResource OverlayPressedBrush}"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="ButtonSurface" Property="Opacity" Value="0.4"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+
+    <Grid>
+        <Grid x:Name="TimerSurface">
+            <Border x:Name="OverlayBorder"
+                    Background="{DynamicResource OverlayChromeBrush}"
+                    BorderBrush="{DynamicResource OverlayChromeBorderBrush}"
+                    BorderThickness="{DynamicResource ThemeOverlayFrameBorderThickness}"
+                    CornerRadius="{DynamicResource ThemeOverlayCornerRadius}"
+                    Padding="{DynamicResource ThemeOverlayPadding}">
+                <StackPanel>
+                    <StackPanel Orientation="Horizontal">
+                        <!-- REC Indicator -->
+                        <Ellipse x:Name="RecIndicator"
+                                 Width="14"
+                                 Height="14"
+                                 Fill="{DynamicResource RecBrush}"
+                                 Margin="0,0,10,0"
+                                 VerticalAlignment="Center"
+                                 Visibility="Collapsed"/>
+
+                        <!-- Outlined text effect using multiple TextBlocks -->
+                        <Grid x:Name="TimeTextGrid">
+                            <TextBlock x:Name="TimeTextShadow1"
+                                       Text="00:00:00.0"
+                                       FontFamily="{DynamicResource ThemeTimerFontFamily}"
+                                       FontSize="48"
+                                       FontWeight="Bold"
+                                       Foreground="Black"
+                                       RenderTransformOrigin="0.5,0.5">
+                                <TextBlock.RenderTransform>
+                                    <TranslateTransform X="2" Y="2"/>
+                                </TextBlock.RenderTransform>
+                            </TextBlock>
+
+                            <TextBlock x:Name="TimeTextShadow2"
+                                       Text="00:00:00.0"
+                                       FontFamily="{DynamicResource ThemeTimerFontFamily}"
+                                       FontSize="48"
+                                       FontWeight="Bold"
+                                       Foreground="Black"
+                                       RenderTransformOrigin="0.5,0.5">
+                                <TextBlock.RenderTransform>
+                                    <TranslateTransform X="-2" Y="-2"/>
+                                </TextBlock.RenderTransform>
+                            </TextBlock>
+
+                            <TextBlock x:Name="TimeTextShadow3"
+                                       Text="00:00:00.0"
+                                       FontFamily="{DynamicResource ThemeTimerFontFamily}"
+                                       FontSize="48"
+                                       FontWeight="Bold"
+                                       Foreground="Black"
+                                       RenderTransformOrigin="0.5,0.5">
+                                <TextBlock.RenderTransform>
+                                    <TranslateTransform X="2" Y="-2"/>
+                                </TextBlock.RenderTransform>
+                            </TextBlock>
+
+                            <TextBlock x:Name="TimeTextShadow4"
+                                       Text="00:00:00.0"
+                                       FontFamily="{DynamicResource ThemeTimerFontFamily}"
+                                       FontSize="48"
+                                       FontWeight="Bold"
+                                       Foreground="Black"
+                                       RenderTransformOrigin="0.5,0.5">
+                                <TextBlock.RenderTransform>
+                                    <TranslateTransform X="-2" Y="2"/>
+                                </TextBlock.RenderTransform>
+                            </TextBlock>
+
+                            <TextBlock x:Name="TimeText"
+                                       Text="00:00:00.0"
+                                       FontFamily="{DynamicResource ThemeTimerFontFamily}"
+                                       FontSize="48"
+                                       FontWeight="Bold"
+                                       Foreground="White"/>
+                        </Grid>
+                    </StackPanel>
+
+                    <!-- No space is consumed while a timer has no name. -->
+                    <TextBlock x:Name="TimerNameText"
+                               Visibility="Collapsed"
+                               HorizontalAlignment="Center"
+                               Margin="4,2,4,0"
+                               MaxWidth="{Binding ActualWidth, ElementName=TimeTextGrid}"
+                               TextAlignment="Center"
+                               TextTrimming="CharacterEllipsis"
+                               FontFamily="{DynamicResource AppFontFamily}"
+                               FontSize="10"
+                               FontWeight="SemiBold"
+                               Opacity="0.78"/>
+                </StackPanel>
+            </Border>
+
+            <!-- An overlay, rather than an outer border, prevents activation from
+                 changing the measured window size or its anchored position. -->
+            <Border x:Name="ActiveIndicatorBorder"
+                    BorderBrush="Transparent"
+                    BorderThickness="1.5"
+                    CornerRadius="{DynamicResource ThemeOverlayCornerRadius}"
+                    IsHitTestVisible="False"/>
+        </Grid>
+
+        <!-- Popup keeps the toolbar outside this window's measured size. Its child
+             is only as wide as the controls, avoiding a broad invisible hit target. -->
+        <Popup x:Name="ActionPopup"
+               PlacementTarget="{Binding ElementName=TimerSurface}"
+               Placement="Custom"
+               AllowsTransparency="True"
+               StaysOpen="True"
+               Focusable="False"
+               PopupAnimation="None">
+            <Grid x:Name="ActionPopupRoot"
+                  MouseEnter="ActionPopupRoot_MouseEnter"
+                  MouseLeave="ActionPopupRoot_MouseLeave">
+                <!-- Top clearance gives the slide transform room without clipping. -->
+                <Border x:Name="ActionSurface"
+                        Margin="0,8,0,0"
+                        Padding="3"
+                        Background="{DynamicResource OverlayChromeBrush}"
+                        BorderBrush="{DynamicResource OverlayChromeBorderBrush}"
+                        BorderThickness="{DynamicResource ThemePanelBorderThickness}"
+                        CornerRadius="{DynamicResource ThemeOverlayCornerRadius}"
+                        Opacity="0">
+                    <Border.RenderTransform>
+                        <TranslateTransform x:Name="ActionTranslate" Y="-8"/>
+                    </Border.RenderTransform>
+                    <StackPanel Orientation="Horizontal">
+                        <Button x:Name="CloseActionButton"
+                                Style="{StaticResource OverlayActionButtonStyle}"
+                                ToolTip="Close timer"
+                                Click="CloseActionButton_Click">
+                            <Path Width="13" Height="13"
+                                  Data="M 2,2 L 11,11 M 11,2 L 2,11"
+                                  Stretch="Fill"
+                                  Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType={x:Type Button}}}"
+                                  StrokeThickness="1.8"
+                                  StrokeStartLineCap="Round"
+                                  StrokeEndLineCap="Round"/>
+                        </Button>
+
+                        <Button x:Name="PauseResumeActionButton"
+                                Style="{StaticResource OverlayActionButtonStyle}"
+                                ToolTip="Pause timer"
+                                Click="PauseResumeActionButton_Click">
+                            <Grid Width="14" Height="14">
+                                <Grid x:Name="PauseIcon">
+                                    <Rectangle Width="3" Height="12"
+                                               HorizontalAlignment="Left"
+                                               Margin="2,1,0,1"
+                                               RadiusX="1" RadiusY="1"
+                                               Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType={x:Type Button}}}"/>
+                                    <Rectangle Width="3" Height="12"
+                                               HorizontalAlignment="Right"
+                                               Margin="0,1,2,1"
+                                               RadiusX="1" RadiusY="1"
+                                               Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType={x:Type Button}}}"/>
+                                </Grid>
+                                <Path x:Name="ResumeIcon"
+                                      Visibility="Collapsed"
+                                      Margin="2,1,1,1"
+                                      Data="M 2,1 L 12,7 L 2,13 Z"
+                                      Stretch="Fill"
+                                      Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType={x:Type Button}}}"/>
+                            </Grid>
+                        </Button>
+
+                        <Button x:Name="ResetActionButton"
+                                Style="{StaticResource OverlayActionButtonStyle}"
+                                ToolTip="Reset timer"
+                                Click="ResetActionButton_Click">
+                            <Path Width="15" Height="15"
+                                  Data="M 12.5,4.5 A 5.5,5.5 0 1 0 13,10 M 12.5,4.5 L 8.5,4.5 M 12.5,4.5 L 12.5,0.5"
+                                  Stretch="Uniform"
+                                  Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType={x:Type Button}}}"
+                                  StrokeThickness="1.7"
+                                  StrokeStartLineCap="Round"
+                                  StrokeEndLineCap="Round"
+                                  StrokeLineJoin="Round"/>
+                        </Button>
+                    </StackPanel>
+                </Border>
             </Grid>
-        </StackPanel>
-    </Border>
+        </Popup>
+    </Grid>
 </Window>

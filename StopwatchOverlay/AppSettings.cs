@@ -11,7 +11,13 @@ namespace StopwatchOverlay
         Reset = 2,
         ToggleOverlay = 3,
         Lap = 4,
-        ToggleClock = 5
+        ToggleClock = 5,
+        NewTimer = 6,
+        NextTimer = 7,
+        CloseTimer = 8,
+        RenameTimer = 9,
+        OpenDashboard = 10,
+        ToggleCombinedOverlay = 11
     }
 
     // VirtualKey == 0 means the action is unbound (no global hotkey).
@@ -39,17 +45,25 @@ namespace StopwatchOverlay
 
     public class AppSettings
     {
+        private const uint VK_F2 = 0x71;
+        private const uint VK_F3 = 0x72;
+        private const uint VK_F4 = 0x73;
         private const uint VK_F5 = 0x74;
         private const uint VK_F6 = 0x75;
         private const uint VK_F7 = 0x76;
         private const uint VK_F8 = 0x77;
         private const uint VK_F9 = 0x78;
+        private const uint VK_F10 = 0x79;
+        private const uint VK_F11 = 0x7A;
+        private const uint VK_F12 = 0x7B;
 
         public Dictionary<ShortcutAction, Shortcut> Shortcuts { get; set; } = new();
 
-        // Appearance (global, shared across modes). Stored as the ComboBox item text
-        // so the controller can match it back without an extra enum mapping.
-        public string ThemeMode { get; set; } = "Dark";
+        // Application chrome theme. Stable display names are kept in JSON for
+        // backwards compatibility with the legacy "Dark" setting.
+        public string ThemeMode { get; set; } = AppThemeCatalog.Midnight;
+
+        // Floating-overlay appearance (global, shared across timer modes).
         public string TextColor { get; set; } = "White";
         public string BorderColor { get; set; } = "Black";
         public string FontFamily { get; set; } = "Consolas";
@@ -85,11 +99,17 @@ namespace StopwatchOverlay
 
         public static Dictionary<ShortcutAction, Shortcut> DefaultShortcuts() => new()
         {
+            [ShortcutAction.NewTimer] = new Shortcut(Shortcut.MOD_WIN, VK_F2),
+            [ShortcutAction.NextTimer] = new Shortcut(Shortcut.MOD_WIN, VK_F3),
+            [ShortcutAction.CloseTimer] = new Shortcut(Shortcut.MOD_WIN, VK_F4),
             [ShortcutAction.StartStop] = new Shortcut(Shortcut.MOD_WIN, VK_F5),
             [ShortcutAction.Reset] = new Shortcut(Shortcut.MOD_WIN, VK_F6),
             [ShortcutAction.ToggleOverlay] = new Shortcut(Shortcut.MOD_WIN, VK_F7),
             [ShortcutAction.Lap] = new Shortcut(Shortcut.MOD_WIN, VK_F8),
             [ShortcutAction.ToggleClock] = new Shortcut(Shortcut.MOD_WIN, VK_F9),
+            [ShortcutAction.RenameTimer] = new Shortcut(Shortcut.MOD_WIN, VK_F10),
+            [ShortcutAction.OpenDashboard] = new Shortcut(Shortcut.MOD_WIN, VK_F11),
+            [ShortcutAction.ToggleCombinedOverlay] = new Shortcut(Shortcut.MOD_WIN, VK_F12),
         };
 
         // Fill any missing action with its default so the rest of the app can assume all keys exist.
@@ -112,17 +132,20 @@ namespace StopwatchOverlay
             "StopwatchOverlay",
             "settings.json");
 
-        public static AppSettings Load()
+        public static AppSettings Load() => Load(SettingsPath);
+
+        public static AppSettings Load(string path)
         {
             try
             {
-                if (File.Exists(SettingsPath))
+                if (File.Exists(path))
                 {
-                    var json = File.ReadAllText(SettingsPath);
+                    var json = File.ReadAllText(path);
                     var settings = JsonSerializer.Deserialize<AppSettings>(json, Options);
                     if (settings != null)
                     {
                         settings.EnsureAllActions();
+                        settings.ThemeMode = AppThemeCatalog.Normalize(settings.ThemeMode);
                         return settings;
                     }
                 }
@@ -136,20 +159,67 @@ namespace StopwatchOverlay
             return fresh;
         }
 
-        public static void Save(AppSettings settings)
+        public static bool Save(AppSettings settings) => Save(settings, SettingsPath);
+
+        public static bool Save(AppSettings settings, string path)
         {
+            string? temporaryPath = null;
+            bool saved = false;
             try
             {
-                var dir = Path.GetDirectoryName(SettingsPath);
+                settings.ThemeMode = AppThemeCatalog.Normalize(settings.ThemeMode);
+
+                var dir = Path.GetDirectoryName(path);
                 if (!string.IsNullOrEmpty(dir))
                     Directory.CreateDirectory(dir);
-                var json = JsonSerializer.Serialize(settings, Options);
-                File.WriteAllText(SettingsPath, json);
+
+                temporaryPath = path + ".tmp." + Guid.NewGuid().ToString("N");
+                byte[] json = JsonSerializer.SerializeToUtf8Bytes(settings, Options);
+                using (var stream = new FileStream(
+                    temporaryPath,
+                    FileMode.CreateNew,
+                    FileAccess.Write,
+                    FileShare.None,
+                    4096,
+                    FileOptions.WriteThrough))
+                {
+                    stream.Write(json);
+                    stream.Flush(flushToDisk: true);
+                }
+
+                if (File.Exists(path))
+                {
+                    try
+                    {
+                        File.Replace(temporaryPath, path, null, ignoreMetadataErrors: true);
+                    }
+                    catch (PlatformNotSupportedException)
+                    {
+                        File.Move(temporaryPath, path, overwrite: true);
+                    }
+                }
+                else
+                {
+                    File.Move(temporaryPath, path);
+                }
+
+                temporaryPath = null;
+                saved = true;
             }
             catch
             {
                 // Best-effort persistence; ignore write failures (e.g. locked file).
             }
+            finally
+            {
+                if (!string.IsNullOrEmpty(temporaryPath))
+                {
+                    try { File.Delete(temporaryPath); }
+                    catch { }
+                }
+            }
+
+            return saved;
         }
     }
 }

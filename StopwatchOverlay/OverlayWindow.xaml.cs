@@ -1,18 +1,21 @@
 using System;
 using System.Runtime.InteropServices;
 using System.Windows;
+using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media;
+using System.Windows.Media.Animation;
+using System.Windows.Threading;
 
 namespace StopwatchOverlay
 {
     public partial class OverlayWindow : Window
     {
-        // Win32 API for making window click-through and truly topmost
         private const int GWL_EXSTYLE = -20;
         private const int WS_EX_TRANSPARENT = 0x00000020;
         private const int WS_EX_TOOLWINDOW = 0x00000080;
+        private const int WS_EX_NOACTIVATE = 0x08000000;
 
         [DllImport("user32.dll")]
         private static extern int GetWindowLong(IntPtr hwnd, int index);
@@ -20,28 +23,67 @@ namespace StopwatchOverlay
         [DllImport("user32.dll")]
         private static extern int SetWindowLong(IntPtr hwnd, int index, int newStyle);
 
-        private bool _isClickThrough = false;
+        private readonly DispatcherTimer _hideControlsTimer;
+        private bool _isClickThrough;
+        private bool _isActive;
+        private Color _textColor = Colors.White;
+        private double _backgroundOpacity = 0.5;
 
-        // Raised after the user finishes dragging the overlay to a new spot.
         public event Action? PositionChangedByUser;
+        public event Action? ActivationRequested;
         public event Action? ClockToggleRequested;
+        public event Action? CloseRequested;
+        public event Action? PauseResumeRequested;
+        public event Action? ResetRequested;
 
         public OverlayWindow()
         {
             InitializeComponent();
-            
-            // Set default appearance
+
+            _hideControlsTimer = new DispatcherTimer
+            {
+                Interval = TimeSpan.FromMilliseconds(180)
+            };
+            _hideControlsTimer.Tick += (_, _) =>
+            {
+                _hideControlsTimer.Stop();
+                if (!IsMouseOver && !ActionPopupRoot.IsMouseOver)
+                    HideActionPopup();
+            };
+
+            ActionPopup.CustomPopupPlacementCallback = PlaceActionPopup;
             ApplySettings(Colors.White, Colors.Black, 48, 2, "Consolas", 0.5);
         }
 
         protected override void OnSourceInitialized(EventArgs e)
         {
             base.OnSourceInitialized(e);
-
-            // Make the window a tool window (doesn't show in Alt+Tab)
             var hwnd = new WindowInteropHelper(this).Handle;
             int extendedStyle = GetWindowLong(hwnd, GWL_EXSTYLE);
-            SetWindowLong(hwnd, GWL_EXSTYLE, extendedStyle | WS_EX_TOOLWINDOW);
+            SetWindowLong(hwnd, GWL_EXSTYLE,
+                extendedStyle | WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE);
+        }
+
+        protected override void OnClosed(EventArgs e)
+        {
+            _hideControlsTimer.Stop();
+            ActionPopup.IsOpen = false;
+            base.OnClosed(e);
+        }
+
+        private CustomPopupPlacement[] PlaceActionPopup(
+            Size popupSize, Size targetSize, Point offset)
+        {
+            double left = (targetSize.Width - popupSize.Width) / 2;
+            return new[]
+            {
+                new CustomPopupPlacement(
+                    new Point(left, Math.Max(0, targetSize.Height - 2)),
+                    PopupPrimaryAxis.Horizontal),
+                new CustomPopupPlacement(
+                    new Point(left, -popupSize.Height + 2),
+                    PopupPrimaryAxis.Horizontal)
+            };
         }
 
         public void UpdateTime(string timeText)
@@ -53,9 +95,49 @@ namespace StopwatchOverlay
             TimeTextShadow4.Text = timeText;
         }
 
-        public void ApplySettings(Color textColor, Color borderColor, int fontSize, int borderWidth, string fontFamily, double backgroundOpacity)
+        public void SetTimerName(string? timerName)
         {
-            // Apply font family
+            string name = timerName?.Trim() ?? string.Empty;
+            TimerNameText.Text = name;
+            TimerNameText.Visibility = name.Length == 0
+                ? Visibility.Collapsed : Visibility.Visible;
+        }
+
+        public void SetActive(bool active)
+        {
+            _isActive = active;
+            Color accent = GetThemeColor("AccentBrush", Color.FromRgb(56, 189, 248));
+            ActiveIndicatorBorder.BorderBrush = active
+                ? new SolidColorBrush(Color.FromArgb(220, accent.R, accent.G, accent.B))
+                : Brushes.Transparent;
+        }
+
+        public void SetRunning(bool running)
+        {
+            PauseIcon.Visibility = running ? Visibility.Visible : Visibility.Collapsed;
+            ResumeIcon.Visibility = running ? Visibility.Collapsed : Visibility.Visible;
+            PauseResumeActionButton.ToolTip = running ? "Pause timer" : "Resume timer";
+        }
+
+        public void SetPauseResumeEnabled(bool enabled)
+        {
+            PauseResumeActionButton.IsEnabled = enabled;
+            PauseResumeActionButton.ToolTip = enabled
+                ? (PauseIcon.Visibility == Visibility.Visible ? "Pause timer" : "Resume timer")
+                : "Clock mode cannot be paused";
+        }
+
+        public void ApplySettings(
+            Color textColor,
+            Color borderColor,
+            int fontSize,
+            int borderWidth,
+            string fontFamily,
+            double backgroundOpacity)
+        {
+            _textColor = textColor;
+            _backgroundOpacity = Math.Clamp(backgroundOpacity, 0, 1);
+
             var font = new FontFamily(fontFamily);
             TimeText.FontFamily = font;
             TimeTextShadow1.FontFamily = font;
@@ -63,79 +145,197 @@ namespace StopwatchOverlay
             TimeTextShadow3.FontFamily = font;
             TimeTextShadow4.FontFamily = font;
 
-            // Apply text color
-            TimeText.Foreground = new SolidColorBrush(textColor);
+            var textBrush = new SolidColorBrush(textColor);
+            TimeText.Foreground = textBrush;
             TimeText.FontSize = fontSize;
+            TimerNameText.Foreground = textBrush;
+            CloseActionButton.Foreground = textBrush;
+            PauseResumeActionButton.Foreground = textBrush;
+            ResetActionButton.Foreground = textBrush;
 
-            // Apply border/outline color and width
-            var borderBrush = new SolidColorBrush(borderColor);
-            TimeTextShadow1.Foreground = borderBrush;
-            TimeTextShadow2.Foreground = borderBrush;
-            TimeTextShadow3.Foreground = borderBrush;
-            TimeTextShadow4.Foreground = borderBrush;
+            var outlineBrush = new SolidColorBrush(borderColor);
+            TimeTextShadow1.Foreground = outlineBrush;
+            TimeTextShadow2.Foreground = outlineBrush;
+            TimeTextShadow3.Foreground = outlineBrush;
+            TimeTextShadow4.Foreground = outlineBrush;
 
-            TimeTextShadow1.FontSize = fontSize;
-            TimeTextShadow2.FontSize = fontSize;
-            TimeTextShadow3.FontSize = fontSize;
-            TimeTextShadow4.FontSize = fontSize;
+            foreach (var shadow in new[]
+            {
+                TimeTextShadow1, TimeTextShadow2, TimeTextShadow3, TimeTextShadow4
+            })
+                shadow.FontSize = fontSize;
 
-            // Adjust border offset based on border width
             UpdateShadowOffset(TimeTextShadow1, borderWidth, borderWidth);
             UpdateShadowOffset(TimeTextShadow2, -borderWidth, -borderWidth);
             UpdateShadowOffset(TimeTextShadow3, borderWidth, -borderWidth);
             UpdateShadowOffset(TimeTextShadow4, -borderWidth, borderWidth);
 
-            // Apply background opacity
-            byte alpha = (byte)(backgroundOpacity * 255);
-            OverlayBorder.Background = new SolidColorBrush(Color.FromArgb(alpha, 0, 0, 0));
+            byte alpha = (byte)(_backgroundOpacity * 255);
+            Color chrome = GetThemeColor("OverlayChromeBrush", Colors.Black);
+            var surface = new SolidColorBrush(
+                Color.FromArgb(alpha, chrome.R, chrome.G, chrome.B));
+            OverlayBorder.Background = surface;
+            ActionSurface.Background = surface;
+            Color chromeBorder = AppThemeManager.UsesThemedOverlayChrome
+                ? GetThemeColor("OverlayChromeBorderBrush", textColor)
+                : Color.FromArgb(alpha, textColor.R, textColor.G, textColor.B);
+            var chromeBorderBrush = new SolidColorBrush(chromeBorder);
+            OverlayBorder.BorderBrush = chromeBorderBrush;
+            ActionSurface.BorderBrush = chromeBorderBrush;
+
+            // Re-apply because appearance updates can occur after active selection.
+            SetActive(_isActive);
         }
 
-        private void UpdateShadowOffset(System.Windows.Controls.TextBlock textBlock, double x, double y)
+        private static void UpdateShadowOffset(
+            System.Windows.Controls.TextBlock textBlock, double x, double y)
         {
             textBlock.RenderTransform = new TranslateTransform(x, y);
         }
+
+        private static Color GetThemeColor(string key, Color fallback)
+            => Application.Current?.TryFindResource(key) is SolidColorBrush brush
+                ? brush.Color
+                : fallback;
 
         public void SetRecIndicatorVisible(bool visible)
         {
             RecIndicator.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
         }
 
+        private void Window_MouseEnter(object sender, MouseEventArgs e)
+        {
+            if (_isClickThrough) return;
+            _hideControlsTimer.Stop();
+            ShowActionPopup();
+        }
+
+        private void Window_MouseLeave(object sender, MouseEventArgs e)
+            => ScheduleActionPopupHide();
+
+        private void ActionPopupRoot_MouseEnter(object sender, MouseEventArgs e)
+            => _hideControlsTimer.Stop();
+
+        private void ActionPopupRoot_MouseLeave(object sender, MouseEventArgs e)
+            => ScheduleActionPopupHide();
+
+        private void ScheduleActionPopupHide()
+        {
+            _hideControlsTimer.Stop();
+            _hideControlsTimer.Start();
+        }
+
+        private void ShowActionPopup()
+        {
+            if (_isClickThrough) return;
+            ActionPopup.IsOpen = true;
+
+            var fade = new DoubleAnimation
+            {
+                From = ActionSurface.Opacity,
+                To = 1,
+                Duration = TimeSpan.FromMilliseconds(220),
+                EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseOut }
+            };
+            var slide = new DoubleAnimation
+            {
+                From = ActionTranslate.Y,
+                To = 0,
+                Duration = TimeSpan.FromMilliseconds(220),
+                EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseOut }
+            };
+            ActionSurface.BeginAnimation(OpacityProperty, fade);
+            ActionTranslate.BeginAnimation(System.Windows.Media.TranslateTransform.YProperty, slide);
+        }
+
+        private void HideActionPopup(bool immediate = false)
+        {
+            _hideControlsTimer.Stop();
+            if (!ActionPopup.IsOpen) return;
+
+            if (immediate)
+            {
+                ActionSurface.BeginAnimation(OpacityProperty, null);
+                ActionTranslate.BeginAnimation(System.Windows.Media.TranslateTransform.YProperty, null);
+                ActionSurface.Opacity = 0;
+                ActionTranslate.Y = -8;
+                ActionPopup.IsOpen = false;
+                return;
+            }
+
+            var duration = TimeSpan.FromMilliseconds(130);
+            var fade = new DoubleAnimation(ActionSurface.Opacity, 0, duration);
+            fade.Completed += (_, _) =>
+            {
+                ActionPopup.IsOpen = false;
+                ActionTranslate.Y = -8;
+            };
+            ActionSurface.BeginAnimation(OpacityProperty, fade);
+            ActionTranslate.BeginAnimation(
+                System.Windows.Media.TranslateTransform.YProperty,
+                new DoubleAnimation(ActionTranslate.Y, -5, duration));
+        }
+
         private void Window_MouseRightButtonDown(object sender, MouseButtonEventArgs e)
         {
-            if (!_isClickThrough && e.RightButton == MouseButtonState.Pressed)
-            {
-                e.Handled = true;
-                ClockToggleRequested?.Invoke();
-            }
+            if (_isClickThrough || e.RightButton != MouseButtonState.Pressed) return;
+            e.Handled = true;
+            ActivationRequested?.Invoke();
+            ClockToggleRequested?.Invoke();
         }
 
         private void Window_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
-            // Allow dragging the overlay window (only if not click-through)
-            if (!_isClickThrough && e.LeftButton == MouseButtonState.Pressed)
+            if (_isClickThrough || e.LeftButton != MouseButtonState.Pressed) return;
+            ActivationRequested?.Invoke();
+            double originalLeft = Left;
+            double originalTop = Top;
+            HideActionPopup(true);
+            try
             {
-                DragMove(); // blocks until the mouse is released
-                PositionChangedByUser?.Invoke();
+                DragMove();
+                if (Math.Abs(Left - originalLeft) > 0.5 || Math.Abs(Top - originalTop) > 0.5)
+                    PositionChangedByUser?.Invoke();
             }
+            catch (InvalidOperationException)
+            {
+                // The button may have been released before WPF entered DragMove.
+            }
+        }
+
+        private void CloseActionButton_Click(object sender, RoutedEventArgs e)
+        {
+            HideActionPopup(true);
+            ActivationRequested?.Invoke();
+            CloseRequested?.Invoke();
+        }
+
+        private void PauseResumeActionButton_Click(object sender, RoutedEventArgs e)
+        {
+            ActivationRequested?.Invoke();
+            PauseResumeRequested?.Invoke();
+        }
+
+        private void ResetActionButton_Click(object sender, RoutedEventArgs e)
+        {
+            ActivationRequested?.Invoke();
+            ResetRequested?.Invoke();
         }
 
         public void SetClickThrough(bool clickThrough)
         {
             _isClickThrough = clickThrough;
-            var hwnd = new WindowInteropHelper(this).Handle;
-            
-            if (hwnd == IntPtr.Zero) return;
-            
-            int extendedStyle = GetWindowLong(hwnd, GWL_EXSTYLE);
+            if (clickThrough) HideActionPopup(true);
 
-            if (clickThrough)
-            {
-                SetWindowLong(hwnd, GWL_EXSTYLE, extendedStyle | WS_EX_TRANSPARENT);
-            }
-            else
-            {
-                SetWindowLong(hwnd, GWL_EXSTYLE, extendedStyle & ~WS_EX_TRANSPARENT);
-            }
+            var hwnd = new WindowInteropHelper(this).Handle;
+            if (hwnd == IntPtr.Zero) return;
+
+            int extendedStyle = GetWindowLong(hwnd, GWL_EXSTYLE);
+            extendedStyle |= WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE;
+            extendedStyle = clickThrough
+                ? extendedStyle | WS_EX_TRANSPARENT
+                : extendedStyle & ~WS_EX_TRANSPARENT;
+            SetWindowLong(hwnd, GWL_EXSTYLE, extendedStyle);
         }
     }
 }

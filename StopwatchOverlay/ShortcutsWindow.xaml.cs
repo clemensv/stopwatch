@@ -11,11 +11,17 @@ namespace StopwatchOverlay
     {
         private static readonly Dictionary<ShortcutAction, string> _boxNames = new()
         {
+            [ShortcutAction.NewTimer] = "NewTimerShortcutBox",
+            [ShortcutAction.NextTimer] = "NextTimerShortcutBox",
+            [ShortcutAction.CloseTimer] = "CloseTimerShortcutBox",
             [ShortcutAction.StartStop] = "StartStopShortcutBox",
             [ShortcutAction.Reset] = "ResetShortcutBox",
             [ShortcutAction.ToggleOverlay] = "ToggleOverlayShortcutBox",
             [ShortcutAction.Lap] = "LapShortcutBox",
             [ShortcutAction.ToggleClock] = "ToggleClockShortcutBox",
+            [ShortcutAction.RenameTimer] = "RenameTimerShortcutBox",
+            [ShortcutAction.OpenDashboard] = "OpenDashboardShortcutBox",
+            [ShortcutAction.ToggleCombinedOverlay] = "ToggleCombinedOverlayShortcutBox",
         };
 
         private Dictionary<ShortcutAction, Shortcut> _pending;

@@ -1,6 +1,6 @@
 # ⏱️ Stopwatch Overlay
 
-A transparent, always-on-top timer overlay for Windows — perfect for video recordings, live streams, and presentations.
+A transparent, always-on-top timer overlay and lightweight project time tracker for Windows — useful for focused work, video recordings, live streams, and presentations.
 
 [![Download](https://img.shields.io/github/v/release/hosseinhayati128/stopwatch?label=Download&style=for-the-badge)](https://github.com/hosseinhayati128/stopwatch/releases/latest)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=for-the-badge)](LICENSE)
@@ -19,16 +19,23 @@ A transparent, always-on-top timer overlay for Windows — perfect for video rec
 
 ## What It Does
 
-Stopwatch Overlay places a customizable timer on top of all your windows — including fullscreen apps and camera feeds. Control it with global hotkeys so you never have to switch away from what you're recording.
+Stopwatch Overlay places customizable timers on top of all your windows — including fullscreen apps and camera feeds. Run several timers independently, assign them to projects, and control the selected timer with global hotkeys without leaving the application where you are working.
 
 ### Features
 
 - ⏱️ **Four modes** — Stopwatch, real-time clock, countdown timer (fixed duration or count down to a clock time), and frame-accurate timecode
+- 🧩 **Multiple independent timers** — Create several floating timers, keep them running at the same time, and select which one the controls affect
+- 🗂️ **Combined timer view** — Press Win+F12 to place all open timers in one shared floating overlay, then use Win+F3 to switch the timer it displays
+- 📚 **Project time history** — Assign a timer to an existing or new project and automatically record each work session
+- 📊 **Project dashboard** — Review totals, charts, timelines, and individual sessions, then open the records page to add or correct historical time
 - 🖥️ **Multi-monitor** — Show the overlay on one screen or all screens at once
 - 📌 **Always on top** — Stays visible over fullscreen apps, games, and camera feeds
 - 🎨 **Fully customizable** — Text color, border, font, size, background opacity
-- ⌨️ **Global hotkeys** — Win+F5 through Win+F9 work from any application and can be customized
+- ⌨️ **Global hotkeys** — Win+F2 through Win+F12 work from any application and can be customized
 - 🔄 **Quick clock toggle** — Switch between the current mode and Clock with Win+F9 or right-click the overlay
+- 🏷️ **Project labels** — Choose an existing project or create a new project name for the active timer with Win+F10
+- 🖱️ **Overlay controls** — Hover over a timer for close, pause/resume, and reset controls
+- 💾 **Automatic recovery** — Restore every timer after a restart, shutdown, or crash; running timers include the time the app was closed
 - 🏁 **Lap times** — Record split times while the timer runs
 -  **REC indicator** — Optional blinking recording dot
 - 🖱️ **Click-through mode** — Overlay doesn't interfere with mouse clicks
@@ -50,13 +57,14 @@ Stopwatch Overlay places a customizable timer on top of all your windows — inc
 
 ### .NET Runtime Requirement
 
-The app requires the .NET 8.0 Desktop Runtime:
+The standard build requires the .NET 10 Desktop Runtime. The portable,
+self-contained release includes the runtime and does not require a separate install.
 
 | Windows Version | Runtime |
 |---|---|
-| **Windows 11 24H2+** | ✅ Included — nothing to install |
-| **Windows 11 (older)** | Install the [.NET 8.0 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/8.0/runtime) |
-| **Windows 10** | Install the [.NET 8.0 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/8.0/runtime) |
+| **Windows 11** | Install the [.NET 10 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/10.0/runtime) for the standard build |
+| **Windows 10** | Install the [.NET 10 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/10.0/runtime) for the standard build |
+| **Portable release** | No separate runtime required |
 
 ---
 
@@ -64,19 +72,59 @@ The app requires the .NET 8.0 Desktop Runtime:
 
 1. Launch **StopwatchOverlay.exe** — the controller window appears
 2. Click **▶ Start** (or press **Win+F5**) to start the timer
-3. Click **👁 Show** (or press **Win+F7**) to display the overlay on screen
+3. The overlay is shown automatically; press **Win+F7** whenever you want to hide or show the active timer
 4. Choose your target **screen** and **position** from the dropdowns
 5. Customize colors, font, size, and opacity in the **Settings** panel
 6. **Drag** the overlay with your mouse for pixel-perfect placement
+
+Press **Win+F2** to create another timer. Each timer can run independently. Click an overlay or press **Win+F3** to make that timer active; the regular timer shortcuts then affect only the active timer.
+
+Press **Win+F12** to combine all open timers into one shared floating overlay. **Win+F3** keeps its normal job: it selects the next active timer and the shared overlay updates to show it. Press **Win+F12** again to restore the timers to their previous separate overlays and positions.
+
+Press **Win+F10** to assign the active timer to an existing project or add a new project name. Once that named timer is running, the app records its work time automatically.
 
 ### Keyboard Shortcuts
 
 | Key | Action |
 |---|---|
-| **Win+F5** | Start / Stop |
-| **Win+F6** | Reset |
-| **Win+F7** | Show / Hide overlay |
-| **Win+F8** | Record lap time |
+| **Win+F2** | Create a new timer and make it active |
+| **Win+F3** | Select the next active timer |
+| **Win+F4** | Close the active timer |
+| **Win+F5** | Start / stop the active timer |
+| **Win+F6** | Reset the active timer |
+| **Win+F7** | Show / hide the active timer's overlay, or the shared overlay in combined mode |
+| **Win+F8** | Record a lap for the active timer |
+| **Win+F9** | Switch the active timer between its current mode and Clock |
+| **Win+F10** | Choose, create, change, or clear the active timer's project |
+| **Win+F11** | Open the project time dashboard |
+| **Win+F12** | Combine all open timers into one shared overlay / restore separate overlays |
+
+Clicking an overlay selects its timer. Hovering over an interactive overlay reveals close, pause/resume, and reset buttons. When **click-through mode** is enabled, mouse interaction with overlays—including selection, dragging, and hover controls—is disabled; global keyboard shortcuts continue to work.
+
+### Project time tracking
+
+A timer's optional name is also its **project name**. Use **Win+F10** to select a project used before or add a new name. Starting a named timer begins a work session for that project. Pausing, stopping, closing, or clearing the project ends its current session; changing a running timer to another project ends the old session and begins the new one at the same moment.
+
+Open the dashboard with **Win+F11**. Its **Today**, **Last 7 days**, **Last 30 days**, and **All time** views include:
+
+- total tracked time, session count, project count, and currently active sessions
+- horizontal time-by-project bars and daily totals
+- a 24-hour project timeline for each local calendar day
+- individual work sessions grouped by date, including their start time, end time, and duration
+
+Use the dashboard's **Project** filter to switch every card, chart, timeline, and session list between **All projects** and one specific project.
+
+The dashboard's **Project records** card opens a dedicated records page. There you can filter the complete history by project, inspect exact local start/end times and durations, add a past work record manually, or edit any completed record. A currently running record remains visible but is locked; pause its timer first if you need to correct it. Manual changes use the same crash-safe project-history storage as automatically tracked sessions.
+
+Every timer is tracked independently, so separately running project timers can record overlapping sessions. Dashboard timer-time totals add simultaneous sessions together rather than de-duplicating them. Unnamed timers continue to work normally but do not add project history.
+
+Project history is saved locally under `%APPDATA%\StopwatchOverlay` and survives application restarts, computer shutdowns, and crashes. A named timer that is restored in its running state continues the same work session across the time the app was closed.
+
+### Automatic recovery
+
+The app restores all timer sessions when it starts again, including their running or paused state, names, laps, modes, overlay visibility and positions, combined/separate presentation, and the active timer. Timers that were running continue to account for the time while the app or PC was off; paused timers return at their exact saved time.
+
+Recovery and project-history data are stored locally under `%APPDATA%\StopwatchOverlay`. Important actions are checkpointed immediately, while pending text, slider, and checkbox edits are written atomically by a one-second save timer. The timer does not keep writing while nothing has changed. After an abrupt process or power failure, at most roughly one second of the latest UI edits may be missing.
 
 ### Modes
 
@@ -126,7 +174,8 @@ In Countdown mode, use the menu (**Switch to smart input** / **Switch to classic
 - The overlay uses a semi-transparent dark background — adjust opacity in Settings
 - Text outlines keep the timer readable on any background
 - You can hide the overlay while keeping the timer running
-- Use **click-through mode** so the overlay doesn't interfere with your work
+- Multiple timers can continue counting at the same time; "active" only means the one that receives commands
+- Use **click-through mode** so the overlay doesn't interfere with your work; use hotkeys to control it while click-through is enabled
 
 ---
 

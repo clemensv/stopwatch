@@ -1,0 +1,253 @@
+<Window x:Class="StopwatchOverlay.ProjectRecordsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Project records"
+        Width="1040"
+        Height="760"
+        MinWidth="760"
+        MinHeight="520"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="CanResizeWithGrip"
+        ShowInTaskbar="False"
+        Loaded="Window_Loaded"
+        Closed="Window_Closed">
+    <Window.Resources>
+        <Style x:Key="RecordsCard" TargetType="Border">
+            <Setter Property="Background" Value="{DynamicResource SurfaceBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
+            <Setter Property="BorderThickness" Value="{DynamicResource ThemePanelBorderThickness}"/>
+            <Setter Property="CornerRadius" Value="{DynamicResource ThemeDashboardCardCornerRadius}"/>
+            <Setter Property="Effect" Value="{DynamicResource ThemePanelShadowEffect}"/>
+            <Setter Property="Padding" Value="18"/>
+        </Style>
+
+        <Style x:Key="RecordsSummaryCard" TargetType="Border" BasedOn="{StaticResource RecordsCard}">
+            <Setter Property="Background" Value="{DynamicResource SurfaceRaisedBrush}"/>
+            <Setter Property="Padding" Value="16,13"/>
+            <Setter Property="Margin" Value="0,0,10,0"/>
+        </Style>
+
+        <Style x:Key="RecordRow" TargetType="Border">
+            <Setter Property="Background" Value="{DynamicResource SurfaceRaisedBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
+            <Setter Property="BorderThickness" Value="{DynamicResource ThemeControlBorderThickness}"/>
+            <Setter Property="CornerRadius" Value="{DynamicResource ThemeCardCornerRadius}"/>
+            <Setter Property="Padding" Value="14,12"/>
+            <Setter Property="Margin" Value="0,0,0,8"/>
+        </Style>
+
+        <Style x:Key="RecordsCaption" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Foreground" Value="{DynamicResource SecondaryTextBrush}"/>
+        </Style>
+    </Window.Resources>
+
+    <DockPanel>
+        <Border DockPanel.Dock="Top"
+                Background="{DynamicResource SurfaceBrush}"
+                BorderBrush="{DynamicResource BorderBrush}"
+                BorderThickness="0,0,0,1"
+                Padding="22,15">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <StackPanel>
+                    <TextBlock Text="Project records" FontSize="22" FontWeight="SemiBold"/>
+                    <TextBlock Text="Review and correct the time recorded for your projects"
+                               Style="{StaticResource RecordsCaption}"
+                               Margin="0,3,0,0"/>
+                </StackPanel>
+                <Button x:Name="AddRecordButton"
+                        Grid.Column="1"
+                        Content="＋ Add record"
+                        Style="{StaticResource StartButton}"
+                        Height="36"
+                        Padding="14,5"
+                        FontSize="12"
+                        VerticalAlignment="Center"
+                        Click="AddRecordButton_Click"/>
+
+                <StackPanel Grid.Row="1"
+                            Orientation="Horizontal"
+                            Margin="0,14,0,0">
+                    <TextBlock Text="Project"
+                               Style="{StaticResource RecordsCaption}"
+                               FontWeight="SemiBold"
+                               VerticalAlignment="Center"
+                               Margin="0,0,10,0"/>
+                    <ComboBox x:Name="ProjectFilterSelector"
+                              Width="260"
+                              Height="34"
+                              MinHeight="34"
+                              ToolTip="Show records for one project or all projects"
+                              SelectionChanged="ProjectFilterSelector_SelectionChanged"/>
+                </StackPanel>
+
+                <TextBlock x:Name="UpdatedText"
+                           Grid.Row="1"
+                           Grid.Column="1"
+                           Style="{StaticResource RecordsCaption}"
+                           VerticalAlignment="Center"
+                           HorizontalAlignment="Right"
+                           Margin="16,14,0,0"/>
+            </Grid>
+        </Border>
+
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+
+            <Border x:Name="PersistenceWarningPanel"
+                    Grid.Row="0"
+                    Background="{DynamicResource SurfaceRaisedBrush}"
+                    BorderBrush="{DynamicResource WarningBrush}"
+                    BorderThickness="0,0,0,1"
+                    Padding="22,10"
+                    Visibility="Collapsed">
+                <TextBlock x:Name="PersistenceWarningText"
+                           Foreground="{DynamicResource WarningBrush}"
+                           TextWrapping="Wrap"/>
+            </Border>
+
+            <UniformGrid Grid.Row="1"
+                         Rows="1"
+                         Columns="3"
+                         Margin="22,18,12,16">
+                <Border Style="{StaticResource RecordsSummaryCard}">
+                    <StackPanel>
+                        <TextBlock Text="TOTAL TIME"
+                                   Style="{StaticResource RecordsCaption}"
+                                   FontWeight="SemiBold"/>
+                        <TextBlock x:Name="TotalTimeText"
+                                   Text="0m"
+                                   FontSize="23"
+                                   FontWeight="SemiBold"
+                                   Margin="0,5,0,0"/>
+                    </StackPanel>
+                </Border>
+                <Border Style="{StaticResource RecordsSummaryCard}">
+                    <StackPanel>
+                        <TextBlock Text="RECORDS"
+                                   Style="{StaticResource RecordsCaption}"
+                                   FontWeight="SemiBold"/>
+                        <TextBlock x:Name="RecordCountText"
+                                   Text="0"
+                                   FontSize="23"
+                                   FontWeight="SemiBold"
+                                   Margin="0,5,0,0"/>
+                    </StackPanel>
+                </Border>
+                <Border Style="{StaticResource RecordsSummaryCard}">
+                    <StackPanel>
+                        <TextBlock Text="LATEST ACTIVITY"
+                                   Style="{StaticResource RecordsCaption}"
+                                   FontWeight="SemiBold"/>
+                        <TextBlock x:Name="LatestActivityText"
+                                   Text="—"
+                                   FontSize="16"
+                                   FontWeight="SemiBold"
+                                   Margin="0,7,0,0"
+                                   TextTrimming="CharacterEllipsis"/>
+                    </StackPanel>
+                </Border>
+            </UniformGrid>
+
+            <Border Grid.Row="2"
+                    Style="{StaticResource RecordsCard}"
+                    Margin="22,0,22,22"
+                    Padding="0">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <Grid Margin="18,15,18,12">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel>
+                            <TextBlock x:Name="RecordsHeadingText"
+                                       Text="All records"
+                                       FontSize="16"
+                                       FontWeight="SemiBold"/>
+                            <TextBlock Text="Times are shown in your computer's local time zone"
+                                       Style="{StaticResource RecordsCaption}"
+                                       Margin="0,3,0,0"/>
+                        </StackPanel>
+                        <StackPanel Grid.Column="1"
+                                    Orientation="Horizontal"
+                                    VerticalAlignment="Center">
+                            <Button x:Name="PreviousPageButton"
+                                    Content="‹ Previous"
+                                    Style="{StaticResource ModernButton}"
+                                    Height="32"
+                                    Padding="11,4"
+                                    FontSize="12"
+                                    Click="PreviousPageButton_Click"/>
+                            <TextBlock x:Name="PageStatusText"
+                                       Text="0 records"
+                                       Style="{StaticResource RecordsCaption}"
+                                       MinWidth="105"
+                                       TextAlignment="Center"
+                                       VerticalAlignment="Center"
+                                       Margin="8,0"/>
+                            <Button x:Name="NextPageButton"
+                                    Content="Next ›"
+                                    Style="{StaticResource ModernButton}"
+                                    Height="32"
+                                    Padding="11,4"
+                                    FontSize="12"
+                                    Click="NextPageButton_Click"/>
+                            <Button Content="Refresh"
+                                    Style="{StaticResource ModernButton}"
+                                    Height="32"
+                                    Padding="12,4"
+                                    Margin="8,0,0,0"
+                                    FontSize="12"
+                                    Click="RefreshButton_Click"/>
+                        </StackPanel>
+                    </Grid>
+
+                    <Grid Grid.Row="1">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto"
+                                      HorizontalScrollBarVisibility="Disabled"
+                                      CanContentScroll="False"
+                                      PanningMode="VerticalFirst">
+                            <StackPanel x:Name="RecordsPanel" Margin="18,0,18,14"/>
+                        </ScrollViewer>
+
+                        <StackPanel x:Name="EmptyState"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    Margin="24"
+                                    Visibility="Collapsed">
+                            <TextBlock x:Name="EmptyHeadingText"
+                                       Text="No project records yet"
+                                       FontSize="17"
+                                       FontWeight="SemiBold"
+                                       HorizontalAlignment="Center"/>
+                            <TextBlock x:Name="EmptyDetailText"
+                                       Text="Start a named timer or add a record manually."
+                                       Style="{StaticResource RecordsCaption}"
+                                       TextAlignment="Center"
+                                       TextWrapping="Wrap"
+                                       Margin="0,6,0,0"/>
+                        </StackPanel>
+                    </Grid>
+                </Grid>
+            </Border>
+        </Grid>
+    </DockPanel>
+</Window>
