@@ -24,11 +24,12 @@
     <Description>A transparent, always-on-top stopwatch overlay for video recordings and presentations.</Description>
     <Copyright>Copyright © Clemens Vasters</Copyright>
     <RepositoryUrl>https://github.com/clemensv/stopwatch</RepositoryUrl>
-    <ApplicationIcon>stopwatch.ico</ApplicationIcon>
+    <ApplicationIcon>project-logo.ico</ApplicationIcon>
   </PropertyGroup>
 
   <ItemGroup>
-    <Resource Include="stopwatch.ico" />
+    <Resource Include="project-logo.ico" />
+    <Resource Include="project-logo-24.png" />
   </ItemGroup>
 
 </Project>

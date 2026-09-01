@@ -49,7 +49,7 @@
 
         <!-- Title -->
         <StackPanel Grid.Row="0" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,6,0,12">
-            <Image Source="pack://application:,,,/stopwatch.ico" Width="24" Height="24" Margin="0,0,10,0" VerticalAlignment="Center"/>
+            <Image Source="pack://application:,,,/project-logo-24.png" Width="24" Height="24" Margin="0,0,10,0" VerticalAlignment="Center"/>
             <TextBlock Text="Stopwatch Overlay" 
                        FontSize="24" FontWeight="SemiBold" 
                        VerticalAlignment="Center"/>

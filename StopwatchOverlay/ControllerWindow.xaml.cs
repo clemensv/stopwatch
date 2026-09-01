@@ -1537,12 +1537,12 @@ namespace StopwatchOverlay
         private static System.Drawing.Icon LoadTrayIcon()
         {
             var resource = System.Windows.Application.GetResourceStream(
-                new Uri("pack://application:,,,/stopwatch.ico"));
+                new Uri("pack://application:,,,/project-logo.ico"));
             if (resource?.Stream == null)
                 return (System.Drawing.Icon)System.Drawing.SystemIcons.Application.Clone();
 
             using (resource.Stream)
-            using (var icon = new System.Drawing.Icon(resource.Stream))
+            using (var icon = new System.Drawing.Icon(resource.Stream, SystemInformation.SmallIconSize))
                 return (System.Drawing.Icon)icon.Clone();
         }
 
