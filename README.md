@@ -8,11 +8,11 @@ A transparent, always-on-top timer overlay and lightweight project time tracker 
 **🌐 [Project Website](https://clemensv.github.io/stopwatch/)**
 
 <p align="center">
-  <img src="controller-window.png" alt="Stopwatch Overlay Controller and settings" width="500">
+  <img src="promo.png" alt="Stopwatch Overlay running in Pixel Deck Night with a floating project timer" width="960">
 </p>
 
 <p align="center">
-  <img src="promo.png" alt="Stopwatch Overlay Controller and settings" width="500">
+  <em>A multi-timer desktop workspace with project tracking, global shortcuts, and persistent floating overlays.</em>
 </p>
 
 ---
@@ -23,24 +23,35 @@ Stopwatch Overlay places customizable timers on top of all your windows — incl
 
 ### Features
 
-- ⏱️ **Four modes** — Stopwatch, real-time clock, countdown timer (fixed duration or count down to a clock time), and frame-accurate timecode
-- 🧩 **Multiple independent timers** — Create several floating timers, keep them running at the same time, and select which one the controls affect
-- 🗂️ **Combined timer view** — Press Win+F12 to place all open timers in one shared floating overlay, then use Win+F3 to switch the timer it displays
-- 📚 **Project time history** — Assign a timer to an existing or new project and automatically record each work session
-- 📊 **Project dashboard** — Review totals, charts, timelines, and individual sessions, then open the records page to add or correct historical time
-- 🖥️ **Multi-monitor** — Show the overlay on one screen or all screens at once
-- 📌 **Always on top** — Stays visible over fullscreen apps, games, and camera feeds
-- 🎨 **Fully customizable** — Text color, border, font, size, background opacity
-- ⌨️ **Global hotkeys** — Win+F2 through Win+F12 work from any application and can be customized
-- 🔄 **Quick clock toggle** — Switch between the current mode and Clock with Win+F9 or right-click the overlay
-- 🏷️ **Project labels** — Choose an existing project or create a new project name for the active timer with Win+F10
-- 🖱️ **Overlay controls** — Hover over a timer for close, pause/resume, and reset controls
-- 💾 **Automatic recovery** — Restore every timer after a restart, shutdown, or crash; running timers include the time the app was closed
-- 🏁 **Lap times** — Record split times while the timer runs
--  **REC indicator** — Optional blinking recording dot
-- 🖱️ **Click-through mode** — Overlay doesn't interfere with mouse clicks
-- 👻 **Hidden from Alt+Tab** — Keeps your taskbar clean
-- 🚀 **Start with Windows** — Optionally launch the overlay automatically when you sign in
+- ⏱️ **Four timing modes** — Stopwatch, real-time clock, fixed or wall-clock countdown, and frame-accurate timecode
+- 🧩 **Independent multi-timer workspace** — Create several floating timers, run them simultaneously, name them, and choose which timer receives commands
+- 🗂️ **Combined timer view** — Merge every open timer into one compact overlay and cycle the active timer without stopping the others
+- 🏷️ **Automatic project tracking** — Assign an existing or new project to a timer and record every running work session automatically
+- 📝 **Editable project records** — Browse complete project history, add past work manually, and correct completed records without changing active sessions
+- 📊 **Project time dashboard** — Filter Today, 7 days, 30 days, or All time; compare project totals, daily activity, timelines, and detailed sessions
+- 🎨 **Four professional themes** — Midnight, Daylight, Pixel Deck Night, and Pixel Deck Day, all backed by the same consistent design tokens
+- 🖌️ **Deep overlay customization** — Choose display, position, text and outline colors, font, format, size, thickness, opacity, and optional light ring
+- 🖥️ **Multi-monitor and presentation tools** — Show timers on one or every display, keep them always on top, enable click-through, or hide overlays from screen capture
+- 🖱️ **Direct overlay controls** — Click a timer to activate it; hover for close, pause/resume, and reset controls
+- ⌨️ **Customizable global shortcuts** — Win+F2 through Win+F12 control timers, projects, the dashboard, and combined view from any application
+- 🧠 **Smart countdown input** — Enter natural durations, clock times, dates, weekdays, months, or years with a live interpretation preview
+- 💾 **Crash-safe recovery** — Restore timers, running/paused state, projects, laps, positions, and combined/separate presentation after restart, shutdown, or a crash
+- 🚀 **Desktop integration** — Start with Windows, close the controller to the notification area, and exit explicitly from the tray menu
+- 🎬 **Recording helpers** — Lap times, optional REC indicator, blinking colon, auto-show behavior, and capture protection
+
+## Interface previews
+
+### Pixel Deck controller and settings
+
+<p align="center">
+  <img src="controller-window.png" alt="Pixel Deck controller and settings interface" width="900">
+</p>
+
+### Project time dashboard
+
+<p align="center">
+  <img src="project-dashboard.png" alt="Project time dashboard with totals, charts, timeline, and session history" width="960">
+</p>
 
 ---
 
@@ -76,6 +87,8 @@ self-contained release includes the runtime and does not require a separate inst
 4. Choose your target **screen** and **position** from the dropdowns
 5. Customize colors, font, size, and opacity in the **Settings** panel
 6. **Drag** the overlay with your mouse for pixel-perfect placement
+
+Close the controller whenever you want it out of the way. The application continues running in the notification area and keeps every timer active; right-click its tray icon and choose **Exit** to close it completely.
 
 Press **Win+F2** to create another timer. Each timer can run independently. Click an overlay or press **Win+F3** to make that timer active; the regular timer shortcuts then affect only the active timer.
 
