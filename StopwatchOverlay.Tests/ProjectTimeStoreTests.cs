@@ -204,6 +204,109 @@ namespace StopwatchOverlay.Tests
         }
 
         [Fact]
+        public void DeleteClosedInterval_RemovesOnlyRequestedRecordAndKeepsProject()
+        {
+            var history = new ProjectTimeHistory();
+            ProjectWorkIntervalView first = history.AddManualInterval(
+                "Navid",
+                StartUtc,
+                StartUtc.AddMinutes(30));
+            ProjectWorkIntervalView second = history.AddManualInterval(
+                "Navid",
+                StartUtc.AddHours(1),
+                StartUtc.AddHours(2));
+
+            ProjectRecordMutationResult result =
+                history.DeleteClosedInterval(first.Id);
+
+            Assert.Equal(ProjectRecordMutationStatus.Success, result.Status);
+            Assert.Equal(first, result.Record);
+            Assert.Equal(second, Assert.Single(
+                history.CreateView(StartUtc.AddHours(3)).Intervals));
+            Assert.Equal(new[] { "Navid" }, history.ProjectNames);
+        }
+
+        [Fact]
+        public void DeleteClosedInterval_MissingOpenAndEmptyIdsHaveNoSideEffects()
+        {
+            var history = new ProjectTimeHistory();
+            Guid runningTimer = Guid.NewGuid();
+            history.StartTracking(runningTimer, "Running", StartUtc);
+            ProjectWorkIntervalView open = history.GetOpenInterval(runningTimer)!;
+            ProjectHistoryView before = history.CreateView(StartUtc.AddMinutes(5));
+
+            Assert.Throws<ArgumentException>(() =>
+                history.DeleteClosedInterval(Guid.Empty));
+            ProjectRecordMutationResult missing =
+                history.DeleteClosedInterval(Guid.NewGuid());
+            ProjectRecordMutationResult openResult =
+                history.DeleteClosedInterval(open.Id);
+
+            Assert.Equal(ProjectRecordMutationStatus.NotFound, missing.Status);
+            Assert.Null(missing.Record);
+            Assert.Equal(ProjectRecordMutationStatus.OpenInterval, openResult.Status);
+            Assert.Null(openResult.Record);
+            ProjectHistoryView after = history.CreateView(StartUtc.AddMinutes(5));
+            Assert.Equal(before.Projects, after.Projects);
+            Assert.Equal(before.Intervals, after.Intervals);
+        }
+
+        [Fact]
+        public void DeleteClosedInterval_LeavesNewerOpenIntervalForSameTimerIntact()
+        {
+            var history = new ProjectTimeHistory();
+            Guid timerId = Guid.NewGuid();
+            history.StartTracking(timerId, "First", StartUtc);
+            history.StopTracking(timerId, StartUtc.AddMinutes(30));
+            history.StartTracking(timerId, "Second", StartUtc.AddHours(1));
+            ProjectWorkIntervalView[] before = history
+                .CreateView(StartUtc.AddHours(2))
+                .Intervals
+                .ToArray();
+            ProjectWorkIntervalView closed = Assert.Single(before, record => !record.IsOpen);
+            ProjectWorkIntervalView open = Assert.Single(before, record => record.IsOpen);
+
+            ProjectRecordMutationResult result =
+                history.DeleteClosedInterval(closed.Id);
+
+            Assert.Equal(ProjectRecordMutationStatus.Success, result.Status);
+            ProjectWorkIntervalView remaining = Assert.Single(
+                history.CreateView(StartUtc.AddHours(2)).Intervals);
+            Assert.Equal(open, remaining);
+            Assert.Equal(timerId, remaining.TimerSessionId);
+        }
+
+        [Fact]
+        public void DeleteClosedInterval_RoundTripsThroughStore()
+        {
+            using var directory = new TemporaryDirectory();
+            string path = Path.Combine(directory.Path, "project-history.json");
+            var store = new ProjectTimeStore(path);
+            var history = new ProjectTimeHistory();
+            ProjectWorkIntervalView deleted = history.AddManualInterval(
+                "Delete me",
+                StartUtc,
+                StartUtc.AddMinutes(30));
+            ProjectWorkIntervalView retained = history.AddManualInterval(
+                "Keep me",
+                StartUtc.AddHours(1),
+                StartUtc.AddHours(2));
+            Assert.True(store.Save(history, StartUtc.AddHours(3)));
+
+            Assert.Equal(
+                ProjectRecordMutationStatus.Success,
+                history.DeleteClosedInterval(deleted.Id).Status);
+            Assert.True(store.Save(history, StartUtc.AddHours(4)));
+            Assert.True(store.TryLoad(out ProjectTimeHistory? restored));
+
+            ProjectHistoryView view = restored!.CreateView(StartUtc.AddHours(5));
+            Assert.Equal(retained, Assert.Single(view.Intervals));
+            Assert.DoesNotContain(view.Intervals, record => record.Id == deleted.Id);
+            Assert.Contains("Delete me", restored.ProjectNames);
+            Assert.Contains("Keep me", restored.ProjectNames);
+        }
+
+        [Fact]
         public void ManualInterval_AddAndUpdateRoundTripThroughStore()
         {
             using var directory = new TemporaryDirectory();
@@ -271,6 +374,129 @@ namespace StopwatchOverlay.Tests
             Assert.Equal(switchedUtc, intervals[1].StartUtc);
             Assert.Null(intervals[1].EndUtc);
             Assert.Equal("Website", intervals[1].ProjectName);
+        }
+
+        [Fact]
+        public void RunningProjectSwitch_SplitsHistoryAndRestartsSameTimerFromZero()
+        {
+            var history = new ProjectTimeHistory();
+            var timer = new TimerSession(7)
+            {
+                Name = "Navid",
+                IsRunning = true
+            };
+            timer.RestoreElapsed(TimeSpan.FromMinutes(25), start: true);
+            history.StartTracking(timer.Id, timer.Name, StartUtc);
+            DateTime switchedUtc = StartUtc.AddMinutes(25);
+
+            timer.Name = "Website";
+            timer.ResetForProjectSwitch();
+            history.StartTracking(timer.Id, timer.Name, switchedUtc);
+
+            ProjectWorkIntervalView[] intervals = history
+                .CreateView(switchedUtc.AddMinutes(1))
+                .Intervals
+                .ToArray();
+            Assert.Equal(2, intervals.Length);
+            Assert.Equal("Navid", intervals[0].ProjectName);
+            Assert.Equal(switchedUtc, intervals[0].EndUtc);
+            Assert.Equal("Website", intervals[1].ProjectName);
+            Assert.Equal(switchedUtc, intervals[1].StartUtc);
+            Assert.Null(intervals[1].EndUtc);
+            Assert.Equal(7, timer.Number);
+            Assert.True(timer.IsRunning);
+            Assert.True(timer.Stopwatch.IsRunning);
+            Assert.Equal(TimeSpan.Zero, timer.ElapsedOffset);
+        }
+
+        [Fact]
+        public void PausedProjectSwitch_ResetsWithoutOpeningReplacementUntilResume()
+        {
+            var history = new ProjectTimeHistory();
+            var timer = new TimerSession(3)
+            {
+                Name = "Before",
+                IsRunning = true
+            };
+            timer.RestoreElapsed(TimeSpan.FromMinutes(10), start: true);
+            history.StartTracking(timer.Id, timer.Name, StartUtc);
+            DateTime pausedUtc = StartUtc.AddMinutes(10);
+            timer.Stopwatch.Stop();
+            timer.IsRunning = false;
+            history.StopTracking(timer.Id, pausedUtc);
+
+            timer.Name = "After";
+            timer.ResetForProjectSwitch();
+            Assert.False(history.StopTracking(timer.Id, pausedUtc));
+
+            Assert.Equal(TimeSpan.Zero, timer.Elapsed);
+            Assert.False(timer.IsRunning);
+            ProjectWorkIntervalView before = Assert.Single(
+                history.CreateView(pausedUtc).Intervals);
+            Assert.Equal("Before", before.ProjectName);
+            Assert.Equal(pausedUtc, before.EndUtc);
+
+            DateTime resumedUtc = pausedUtc.AddMinutes(5);
+            timer.RestoreElapsed(TimeSpan.Zero, start: true);
+            timer.IsRunning = true;
+            history.StartTracking(timer.Id, timer.Name, resumedUtc);
+            ProjectWorkIntervalView after = Assert.Single(
+                history.CreateView(resumedUtc).Intervals,
+                interval => interval.ProjectName == "After");
+            Assert.Equal(resumedUtc, after.StartUtc);
+            Assert.True(after.IsOpen);
+        }
+
+        [Fact]
+        public void RunningProjectClear_ClosesHistoryAndRestartsAsUnnamed()
+        {
+            var history = new ProjectTimeHistory();
+            var timer = new TimerSession(4)
+            {
+                Name = "Tracked",
+                IsRunning = true
+            };
+            timer.RestoreElapsed(TimeSpan.FromMinutes(8), start: true);
+            history.StartTracking(timer.Id, timer.Name, StartUtc);
+            DateTime clearedUtc = StartUtc.AddMinutes(8);
+
+            timer.Name = "";
+            timer.ResetForProjectSwitch();
+            Assert.True(history.StopTracking(timer.Id, clearedUtc));
+
+            ProjectWorkIntervalView record = Assert.Single(
+                history.CreateView(clearedUtc.AddMinutes(1)).Intervals);
+            Assert.Equal("Tracked", record.ProjectName);
+            Assert.Equal(clearedUtc, record.EndUtc);
+            Assert.Null(history.GetOpenInterval(timer.Id));
+            Assert.True(timer.IsRunning);
+            Assert.True(timer.Stopwatch.IsRunning);
+            Assert.Equal(TimeSpan.Zero, timer.ElapsedOffset);
+        }
+
+        [Fact]
+        public void RunningUnnamedAssignment_StartsNamedHistoryFromResetBoundary()
+        {
+            var history = new ProjectTimeHistory();
+            var timer = new TimerSession(5)
+            {
+                IsRunning = true
+            };
+            timer.RestoreElapsed(TimeSpan.FromMinutes(6), start: true);
+            DateTime assignedUtc = StartUtc.AddMinutes(6);
+
+            timer.Name = "Assigned";
+            timer.ResetForProjectSwitch();
+            history.StartTracking(timer.Id, timer.Name, assignedUtc);
+
+            ProjectWorkIntervalView record = Assert.Single(
+                history.CreateView(assignedUtc.AddMinutes(1)).Intervals);
+            Assert.Equal("Assigned", record.ProjectName);
+            Assert.Equal(assignedUtc, record.StartUtc);
+            Assert.True(record.IsOpen);
+            Assert.True(timer.IsRunning);
+            Assert.True(timer.Stopwatch.IsRunning);
+            Assert.Equal(TimeSpan.Zero, timer.ElapsedOffset);
         }
 
         [Fact]

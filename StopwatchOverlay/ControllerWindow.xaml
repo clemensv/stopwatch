@@ -47,13 +47,31 @@
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <!-- Title -->
-        <StackPanel Grid.Row="0" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,6,0,12">
-            <Image Source="pack://application:,,,/project-logo-24.png" Width="24" Height="24" Margin="0,0,10,0" VerticalAlignment="Center"/>
-            <TextBlock Text="Stopwatch Overlay" 
-                       FontSize="24" FontWeight="SemiBold" 
-                       VerticalAlignment="Center"/>
-        </StackPanel>
+        <!-- Title and the primary timer-session action -->
+        <Grid Grid.Row="0" Margin="0,6,0,12">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+            <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Center">
+                <Image Source="pack://application:,,,/project-logo-24.png" Width="24" Height="24" Margin="0,0,10,0" VerticalAlignment="Center"/>
+                <TextBlock Text="Stopwatch Overlay"
+                           FontSize="24" FontWeight="SemiBold"
+                           VerticalAlignment="Center"/>
+            </StackPanel>
+            <Button x:Name="NewTimerButton"
+                    Grid.Column="2"
+                    Content="+ New timer"
+                    Style="{StaticResource ModernButton}"
+                    Padding="12,5"
+                    FontSize="12"
+                    HorizontalAlignment="Right"
+                    VerticalAlignment="Center"
+                    AutomationProperties.Name="Create a new timer"
+                    AutomationProperties.HelpText="Choose a project, then create the timer"
+                    Click="NewTimerMenuItem_Click"/>
+        </Grid>
 
         <!-- Mode Selection -->
         <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,14">

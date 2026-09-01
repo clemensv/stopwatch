@@ -81,7 +81,7 @@ self-contained release includes the runtime and does not require a separate inst
 
 ## How to Use
 
-1. Launch **StopwatchOverlay.exe** — the controller window appears
+1. Launch **StopwatchOverlay.exe** — choose a project for the first timer or leave it unnamed
 2. Click **▶ Start** (or press **Win+F5**) to start the timer
 3. The overlay is shown automatically; press **Win+F7** whenever you want to hide or show the active timer
 4. Choose your target **screen** and **position** from the dropdowns
@@ -90,7 +90,7 @@ self-contained release includes the runtime and does not require a separate inst
 
 Close the controller whenever you want it out of the way. The application continues running in the notification area and keeps every timer active; right-click its tray icon and choose **Exit** to close it completely.
 
-Press **Win+F2** to create another timer. Each timer can run independently. Click an overlay or press **Win+F3** to make that timer active; the regular timer shortcuts then affect only the active timer.
+Press **Win+F2** or click **+ New timer** in the controller to create another timer. The project chooser opens first: select an existing project, use the small **+** button to add one, or leave **Select a project** unchanged to create an unnamed timer. Cancel leaves your existing timers unchanged. Each timer can run independently. Click an overlay or press **Win+F3** to make that timer active; the regular timer shortcuts then affect only the active timer.
 
 Press **Win+F12** to combine all open timers into one shared floating overlay. **Win+F3** keeps its normal job: it selects the next active timer and the shared overlay updates to show it. Press **Win+F12** again to restore the timers to their previous separate overlays and positions.
 
@@ -116,7 +116,7 @@ Clicking an overlay selects its timer. Hovering over an interactive overlay reve
 
 ### Project time tracking
 
-A timer's optional name is also its **project name**. Use **Win+F10** to select a project used before or add a new name. Starting a named timer begins a work session for that project. Pausing, stopping, closing, or clearing the project ends its current session; changing a running timer to another project ends the old session and begins the new one at the same moment.
+A timer's name is also its **project name**. New timers may begin unnamed, which keeps their time out of reports. Use **Win+F10** to assign, change, or clear the active timer's project. Starting a named timer begins a work session for that project. Pausing, stopping, closing, or clearing the project ends its current session. Changing a non-zero timer to another project saves the old project segment, resets the timer for the new project, and preserves whether it was running or paused. Changing a reset/zero timer only changes its assignment, so it begins from scratch when started.
 
 Open the dashboard with **Win+F11**. Its **Today**, **Last 7 days**, **Last 30 days**, and **All time** views include:
 
@@ -127,7 +127,7 @@ Open the dashboard with **Win+F11**. Its **Today**, **Last 7 days**, **Last 30 d
 
 Use the dashboard's **Project** filter to switch every card, chart, timeline, and session list between **All projects** and one specific project.
 
-The dashboard's **Project records** card opens a dedicated records page. There you can filter the complete history by project, inspect exact local start/end times and durations, add a past work record manually, or edit any completed record. A currently running record remains visible but is locked; pause its timer first if you need to correct it. Manual changes use the same crash-safe project-history storage as automatically tracked sessions.
+The dashboard's **Project records** card opens a dedicated records page. There you can filter the complete history by project, inspect exact local start/end times and durations, add a past work record manually, edit any completed record, or permanently delete a saved record after reviewing a confirmation. A currently running record remains visible but is locked; pause its timer first if you need to correct or delete it. Manual changes use the same crash-safe project-history storage as automatically tracked sessions.
 
 Every timer is tracked independently, so separately running project timers can record overlapping sessions. Dashboard timer-time totals add simultaneous sessions together rather than de-duplicating them. Unnamed timers continue to work normally but do not add project history.
 

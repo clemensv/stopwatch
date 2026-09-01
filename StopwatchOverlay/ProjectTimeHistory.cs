@@ -228,6 +228,41 @@ namespace StopwatchOverlay
         }
 
         /// <summary>
+        /// Permanently removes one closed record. Live/open records remain owned by
+        /// timer reconciliation and cannot be deleted from the records editor.
+        /// The project registry is intentionally retained for future timers and
+        /// manual entries, even when its final record is removed.
+        /// </summary>
+        public ProjectRecordMutationResult DeleteClosedInterval(Guid id)
+        {
+            if (id == Guid.Empty)
+                throw new ArgumentException("A record id must be non-empty.", nameof(id));
+
+            lock (_gate)
+            {
+                int index = _intervals.FindIndex(interval => interval.Id == id);
+                if (index < 0)
+                {
+                    return new ProjectRecordMutationResult(
+                        ProjectRecordMutationStatus.NotFound);
+                }
+
+                WorkIntervalEntry existing = _intervals[index];
+                if (!existing.EndUtc.HasValue)
+                {
+                    return new ProjectRecordMutationResult(
+                        ProjectRecordMutationStatus.OpenInterval);
+                }
+
+                ProjectWorkIntervalView deleted = ToView(existing);
+                _intervals.RemoveAt(index);
+                return new ProjectRecordMutationResult(
+                    ProjectRecordMutationStatus.Success,
+                    deleted);
+            }
+        }
+
+        /// <summary>
         /// Starts tracking a project for a timer. Repeating the same project is
         /// idempotent. Switching projects closes the previous interval and opens
         /// the replacement at the exact same timestamp.

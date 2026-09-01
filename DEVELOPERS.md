@@ -36,9 +36,10 @@ StopwatchOverlay/
 | **TimerWorkspaceStore** | Captures and restores the versioned timer workspace and writes crash-safe atomic checkpoints under `%APPDATA%\StopwatchOverlay` |
 | **ProjectTimeStore** | Owns named-project work intervals, UTC persistence, crash-safe primary/backup files, startup reconciliation, and date-range aggregation |
 | **ProjectDashboardWindow** | Read-only visualization window with an all-project/single-project filter, Today, Last 7 days, Last 30 days, and All time summaries, charts, daily timelines, and session details |
-| **ProjectRecordsWindow** | Detailed project-history page. It renders immutable history views, keeps active records read-only, and delegates add/edit requests back to the controller |
+| **ProjectRecordsWindow** | Detailed project-history page. It renders immutable history views, keeps active records read-only, and delegates add/edit/delete requests back to the controller |
 | **ProjectRecordEditorWindow** | Modal local-time form for creating or correcting closed records; validates project names, positive duration, future endpoints, and invalid daylight-saving wall times before returning UTC values |
-| **TimerNameWindow** | Compact dialog used by Win+F10 to select an existing project, add a project name, or clear the active timer's project |
+| **ProjectRecordDeleteWindow** | Themed, owner-bound confirmation that identifies a closed record before permanent deletion |
+| **TimerNameWindow** | Compact dialog used before new-timer creation and by Win+F10 to select or add a project; edit mode can also clear the active timer's project |
 | **OverlayWindow** | Transparent, always-on-top display with outlined text rendering, active-state indication, drag selection, and animated hover controls. Supports click-through mode |
 | **App.xaml** | Global WPF styles (ModernButton, StartButton, StopButton) |
 
@@ -46,6 +47,8 @@ StopwatchOverlay/
 
 - **WPF + WinForms hybrid**: WPF for UI rendering, `System.Windows.Forms.Screen` for reliable multi-monitor enumeration.
 - **Logical timers vs. windows**: A `TimerSession` is one independent timer. Separate `OverlayWindow` instances are screen-specific views of a session, while combined mode uses one shared logical view (replicated per selected screen) that dynamically displays the active session.
+- **Chooser-first timer creation**: Every user-created timer opens the project chooser before `TimerSessionManager.Create()`. The neutral placeholder creates an unnamed timer, the adjacent `+` action adds a project, and Cancel consumes no timer number or state. Restored timers are never reprompted.
+- **Project-switch boundary**: Win+F10 uses one UTC transition instant. A non-zero timer closes the old project record, resets elapsed/lap/countdown session state, and starts the new project while preserving running/paused state. A zero timer only changes assignment; same canonical project selections never reset or split history.
 - **Single active command target**: Several sessions may run simultaneously, but `TimerSessionManager.Active` is the only session affected by Win+F5 through Win+F10. Win+F3 cycles sessions in creation order in both separate and combined views. Clicking a separate overlay activates its owning session; the shared overlay already represents the active session.
 - **Presentation-only combining**: Win+F12 changes only how timers are displayed. It never changes their running state or project intervals. Individual overlay visibility and positions remain intact so separating restores the prior layout; the shared overlay has independent visibility and per-screen coordinates.
 - **Persistent workspace state**: All sessions are checkpointed, including running/paused state, elapsed or remaining time, names, laps, modes, overlay visibility and positions, session order, active selection, and combined-overlay presentation. Global appearance and shortcut preferences continue to use `AppSettings`.

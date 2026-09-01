@@ -82,12 +82,28 @@ namespace StopwatchOverlay
         public ResumableStopwatch Stopwatch { get; } = new();
         public TimeSpan Elapsed => Stopwatch.Elapsed;
         public TimeSpan ElapsedOffset => Stopwatch.ElapsedOffset;
+        public bool HasAccumulatedTime => Elapsed > TimeSpan.Zero;
         public bool IsRunning { get; set; }
 
         public void RestoreElapsed(TimeSpan elapsed, bool start)
             => Stopwatch.Restore(elapsed, start);
 
         public void ResetElapsed() => Stopwatch.Reset();
+
+        /// <summary>
+        /// Starts the same timer identity from zero for a new project while
+        /// preserving whether it was running or paused. Mode-specific countdown
+        /// values are prepared by the controller before this reset.
+        /// </summary>
+        public void ResetForProjectSwitch()
+        {
+            Stopwatch.Restore(TimeSpan.Zero, IsRunning);
+            LapTimes.Clear();
+            LapCount = 0;
+            CountdownInitialized = false;
+            LastCountdownUpdateUtc = default;
+            RecBlinkVisible = false;
+        }
 
         // 0=Stopwatch, 1=Clock, 2=Countdown, 3=Timecode
         public int Mode { get; set; }

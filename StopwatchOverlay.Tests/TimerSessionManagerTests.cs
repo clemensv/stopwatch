@@ -1,3 +1,4 @@
+using System;
 using Xunit;
 
 namespace StopwatchOverlay.Tests
@@ -125,6 +126,54 @@ namespace StopwatchOverlay.Tests
             Assert.Equal(System.TimeSpan.Zero, second.CountdownRemaining);
             Assert.Equal(string.Empty, second.Name);
             Assert.Empty(second.LapTimes);
+        }
+
+        [Fact]
+        public void ResetForProjectSwitch_ResetsPausedRuntimeAndClearsSessionDetails()
+        {
+            var timer = new TimerSession(1)
+            {
+                Name = "New project",
+                IsRunning = false,
+                CountdownInitialized = true,
+                LastCountdownUpdateUtc = DateTime.UtcNow,
+                LapCount = 1,
+                RecBlinkVisible = true
+            };
+            timer.RestoreElapsed(TimeSpan.FromMinutes(12), start: false);
+            timer.LapTimes.Add("Lap 1: 00:12:00");
+
+            Assert.True(timer.HasAccumulatedTime);
+
+            timer.ResetForProjectSwitch();
+
+            Assert.Equal(TimeSpan.Zero, timer.Elapsed);
+            Assert.False(timer.HasAccumulatedTime);
+            Assert.False(timer.IsRunning);
+            Assert.False(timer.Stopwatch.IsRunning);
+            Assert.Equal("New project", timer.Name);
+            Assert.Empty(timer.LapTimes);
+            Assert.Equal(0, timer.LapCount);
+            Assert.False(timer.CountdownInitialized);
+            Assert.Equal(default, timer.LastCountdownUpdateUtc);
+            Assert.False(timer.RecBlinkVisible);
+        }
+
+        [Fact]
+        public void ResetForProjectSwitch_RestartsUnderlyingClockWhenTimerIsRunning()
+        {
+            var timer = new TimerSession(1)
+            {
+                Name = "New project",
+                IsRunning = true
+            };
+            timer.RestoreElapsed(TimeSpan.FromMinutes(12), start: true);
+
+            timer.ResetForProjectSwitch();
+
+            Assert.True(timer.IsRunning);
+            Assert.True(timer.Stopwatch.IsRunning);
+            Assert.Equal(TimeSpan.Zero, timer.ElapsedOffset);
         }
     }
 }

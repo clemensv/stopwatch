@@ -81,6 +81,7 @@ namespace StopwatchOverlay
         private bool _combinedHasCustomPosition;
         private bool _restoringTimerUi;
         private bool _workspaceWasRestored;
+        private bool _freshWorkspaceTimerDefaultsPending;
         private bool _workspaceRecoveredFromBackup;
         private bool _workspacePersistenceDisabled;
         private bool _workspaceLoadUnavailable;
@@ -152,6 +153,7 @@ namespace StopwatchOverlay
             DateTime startupUtc = DateTime.UtcNow;
             _workspaceWasRestored = _workspaceStore.TryLoad(
                 _timerManager, startupUtc, startupUtc.ToLocalTime());
+            _freshWorkspaceTimerDefaultsPending = !_workspaceWasRestored;
             _workspaceRecoveredFromBackup = _workspaceWasRestored
                 && _workspaceStore.LastLoadUsedBackup;
             _skipProjectHistoryReconciliation = _workspaceWasRestored
@@ -172,9 +174,6 @@ namespace StopwatchOverlay
             _workspacePersistenceDisabled = !_workspaceWasRestored
                 && _workspaceStore.LastReadStatus is TimerWorkspaceReadStatus.UnsupportedVersion
                     or TimerWorkspaceReadStatus.Unavailable;
-            if (!_workspaceWasRestored)
-                CreateTimerModel();
-
             InitializeProjectHistory(startupUtc);
 
             _timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(50) };
@@ -592,15 +591,25 @@ namespace StopwatchOverlay
 
         private TimerSession CreateTimerModel()
         {
+            bool applyFreshWorkspaceDefaults = _freshWorkspaceTimerDefaultsPending;
             var timer = _timerManager.Create();
-            timer.Mode = 0;
-            timer.LastNonClockMode = 0;
+            timer.Mode = applyFreshWorkspaceDefaults ? _emptyTimer.Mode : 0;
+            timer.LastNonClockMode = applyFreshWorkspaceDefaults
+                ? _emptyTimer.LastNonClockMode
+                : 0;
             timer.CountdownRemaining = TimeSpan.FromMinutes(5);
             timer.CascadeIndex = timer.Number - 1;
             string selectedPosition = PositionSelector == null
                 ? "Top Center" : SelectedContent(PositionSelector, "Top Center");
             timer.LastPresetPosition = selectedPosition == "Custom"
                 ? "Top Center" : selectedPosition;
+            if (applyFreshWorkspaceDefaults)
+            {
+                timer.HasCustomPosition = _emptyTimer.HasCustomPosition;
+                timer.CustomLeft = _emptyTimer.CustomLeft;
+                timer.CustomTop = _emptyTimer.CustomTop;
+                _freshWorkspaceTimerDefaultsPending = false;
+            }
             return timer;
         }
 
@@ -716,9 +725,28 @@ namespace StopwatchOverlay
 
         private void CreateNewTimer()
         {
-            if (ProjectTransitionIsTemporarilyBlocked(null, alwaysBlock: true)) return;
+            if (_isNamingTimer
+                || ProjectTransitionIsTemporarilyBlocked(null, alwaysBlock: true))
+            {
+                return;
+            }
+
+            if (!TryChooseProject(
+                    currentName: "",
+                    isCreatingTimer: true,
+                    out string projectName))
+            {
+                return;
+            }
+
+            // ShowDialog runs a nested dispatcher frame. Recheck after it closes in
+            // case a save failure established an exact recovery checkpoint meanwhile.
+            if (ProjectTransitionIsTemporarilyBlocked(null, alwaysBlock: true))
+                return;
+
             SaveActiveTimerEditorState();
             var timer = CreateTimerModel();
+            timer.Name = RegisterProjectName(projectName);
             RestoreActiveTimerEditorState();
 
             timer.OverlayVisible = true;
@@ -737,8 +765,53 @@ namespace StopwatchOverlay
             RefreshOverlayActiveStates();
             UpdateButtonStates();
             UpdateShortcutLabels();
-            UpdateStatus($"Timer {timer.Number} created", Brushes.DeepSkyBlue);
+            string createdLabel = string.IsNullOrWhiteSpace(timer.Name)
+                ? $"Timer {timer.Number}"
+                : timer.Name;
+            UpdateStatus($"{createdLabel} created", Brushes.DeepSkyBlue);
             CheckpointState();
+        }
+
+        private bool TryChooseProject(
+            string currentName,
+            bool isCreatingTimer,
+            out string projectName)
+        {
+            projectName = "";
+            if (_isNamingTimer)
+                return false;
+
+            var dialog = new TimerNameWindow(
+                currentName,
+                _projectHistory.ProjectNames,
+                isCreatingTimer,
+                ShortcutText(ShortcutAction.RenameTimer));
+            if (IsVisible)
+            {
+                dialog.Owner = this;
+            }
+            else
+            {
+                dialog.WindowStartupLocation = WindowStartupLocation.CenterScreen;
+                dialog.Topmost = true;
+            }
+
+            bool accepted;
+            _isNamingTimer = true;
+            try
+            {
+                accepted = dialog.ShowDialog() == true;
+            }
+            finally
+            {
+                _isNamingTimer = false;
+            }
+
+            if (!accepted)
+                return false;
+
+            projectName = dialog.TimerName;
+            return true;
         }
 
         private void CycleActiveTimer()
@@ -785,42 +858,94 @@ namespace StopwatchOverlay
 
             var timer = _activeTimer;
             if (ProjectTransitionIsTemporarilyBlocked(timer, alwaysBlock: true)) return;
-            var dialog = new TimerNameWindow(timer.Name, _projectHistory.ProjectNames);
-            if (IsVisible)
+            if (!TryChooseProject(
+                    timer.Name,
+                    isCreatingTimer: false,
+                    out string projectName)
+                || !_timers.Contains(timer))
             {
-                dialog.Owner = this;
-            }
-            else
-            {
-                dialog.WindowStartupLocation = WindowStartupLocation.CenterScreen;
-                dialog.Topmost = true;
+                return;
             }
 
-            bool accepted;
-            _isNamingTimer = true;
-            try
-            {
-                accepted = dialog.ShowDialog() == true;
-            }
-            finally
-            {
-                _isNamingTimer = false;
-            }
-            if (!accepted || !_timers.Contains(timer)) return;
+            // The modal runs a nested dispatcher frame, so persistence may have
+            // entered exact-checkpoint recovery while it was open.
+            if (ProjectTransitionIsTemporarilyBlocked(timer, alwaysBlock: true))
+                return;
 
-            timer.Name = RegisterProjectName(dialog.TimerName);
-            SynchronizeProjectTracking(timer, DateTime.UtcNow);
+            string requestedName = projectName.Trim();
+            bool assignmentChanged = !ProjectAssignmentsEqual(timer.Name, requestedName);
+            bool wasRunning = timer.IsRunning;
+            bool hadAccumulatedTime = timer.HasAccumulatedTime;
+            int runningMode = timer.Mode == 1 ? timer.LastNonClockMode : timer.Mode;
+
+            // Prepare a fresh countdown before mutating the project/history pair.
+            // An invalid smart expression leaves the old project untouched.
+            if (assignmentChanged
+                && hadAccumulatedTime
+                && runningMode == 2
+                && !InitializeCountdownFromEditor(timer))
+            {
+                return;
+            }
+
+            DateTime transitionUtc = DateTime.UtcNow;
+            string registeredName = RegisterProjectName(requestedName);
+            assignmentChanged = !ProjectAssignmentsEqual(timer.Name, registeredName);
+            timer.Name = registeredName;
+
+            bool resetForNewProject = assignmentChanged && hadAccumulatedTime;
+            if (resetForNewProject)
+            {
+                timer.ResetForProjectSwitch();
+                if (runningMode == 2)
+                {
+                    timer.CountdownInitialized = wasRunning;
+                    timer.LastCountdownUpdateUtc = wasRunning ? transitionUtc : default;
+                }
+
+                timer.RecBlinkVisible = wasRunning
+                    && ShowRecIndicatorCheckBox?.IsChecked == true;
+                if (ReferenceEquals(_activeTimer, timer))
+                    LapPlaceholder.Visibility = Visibility.Visible;
+            }
+
+            // IsRunning is preserved by ResetForProjectSwitch, so this closes the
+            // old project and opens the replacement at the same exact timestamp.
+            SynchronizeProjectTracking(timer, transitionUtc);
             foreach (var instance in _overlayInstances.Where(item => ReferenceEquals(item.Session, timer)))
+            {
                 instance.Window.SetTimerName(timer.Name);
+                if (resetForNewProject)
+                {
+                    instance.Window.SetRecIndicatorVisible(timer.RecBlinkVisible);
+                    instance.Window.SetRunning(timer.IsRunning);
+                }
+            }
             RefreshCombinedOverlayState();
             RepositionAllOverlays();
+            if (resetForNewProject)
+                UpdateTimeDisplay();
+            RecIndicator.Visibility = _activeTimer?.RecBlinkVisible == true
+                ? Visibility.Visible
+                : Visibility.Collapsed;
+            UpdateButtonStates();
+            UpdateShortcutLabels();
 
             string label = string.IsNullOrWhiteSpace(timer.Name) ? $"Timer {timer.Number}" : timer.Name;
             UpdateStatus(string.IsNullOrWhiteSpace(timer.Name)
-                ? $"Timer {timer.Number} is not assigned to a project"
-                : $"Project set to {label}", Brushes.DeepSkyBlue);
+                ? resetForNewProject
+                    ? $"Timer {timer.Number} unassigned; timer reset to zero"
+                    : $"Timer {timer.Number} is not assigned to a project"
+                : resetForNewProject
+                    ? $"Project set to {label}; timer reset to zero"
+                    : $"Project set to {label}", Brushes.DeepSkyBlue);
             CheckpointState();
         }
+
+        private static bool ProjectAssignmentsEqual(string? left, string? right)
+            => StringComparer.OrdinalIgnoreCase.Equals(
+                (left ?? "").Trim(),
+                (right ?? "").Trim());
 
         private void NewTimerMenuItem_Click(object sender, RoutedEventArgs e) => CreateNewTimer();
         private void NextTimerMenuItem_Click(object sender, RoutedEventArgs e) => CycleActiveTimer();
@@ -1431,15 +1556,11 @@ namespace StopwatchOverlay
                 RefreshOverlayActiveStates();
                 UpdateShortcutLabels();
             }
-            // A brand-new workspace starts with one visible overlay. Win+F7 can
-            // still hide/show it after launch.
-            else if (_activeTimer != null && !ActiveOverlayIsVisible())
+            // A brand-new workspace asks for a project before it mutates the timer
+            // manager. Cancel leaves the supported zero-timer state intact.
+            else
             {
-                _activeTimer.OverlayVisible = true;
-                ShowTimerOverlays(_activeTimer);
-                if (AutoStartCheckBox?.IsChecked == true && !_activeTimer.IsRunning && _activeTimer.Mode != 1)
-                    StartStopButton_Click(this, new RoutedEventArgs());
-                UpdateShortcutLabels();
+                CreateNewTimer();
             }
 
             // Settings now participate in the controller's page-level scrolling. Reset
@@ -1588,6 +1709,7 @@ namespace StopwatchOverlay
                     () => _projectHistory.CreateView(DateTime.UtcNow),
                     AddManualProjectRecord,
                     UpdateProjectRecord,
+                    DeleteProjectRecord,
                     CanMutateProjectRecords,
                     GetProjectRecordsWarning);
                 _projectRecordsWindow.Closed += (_, _) => _projectRecordsWindow = null;
@@ -1689,6 +1811,25 @@ namespace StopwatchOverlay
                 projectName,
                 startUtc,
                 endUtc);
+            if (result.Status == ProjectRecordMutationStatus.Success)
+            {
+                MarkProjectHistoryDirty();
+                CheckpointStateNow();
+            }
+
+            return result;
+        }
+
+        private ProjectRecordMutationResult DeleteProjectRecord(Guid recordId)
+        {
+            if (!Dispatcher.CheckAccess())
+            {
+                return Dispatcher.Invoke(() => DeleteProjectRecord(recordId));
+            }
+
+            EnsureProjectRecordsCanMutate();
+            ProjectRecordMutationResult result =
+                _projectHistory.DeleteClosedInterval(recordId);
             if (result.Status == ProjectRecordMutationStatus.Success)
             {
                 MarkProjectHistoryDirty();
@@ -2823,6 +2964,9 @@ namespace StopwatchOverlay
 
             var lapCombo = (_shortcuts.TryGetValue(ShortcutAction.Lap, out var lv) ? lv : new Shortcut(0, 0)).Format();
             var newTimerCombo = s(ShortcutAction.NewTimer);
+            NewTimerButton.ToolTip = newTimerCombo.Length > 0
+                ? $"Create a new timer and choose its project ({newTimerCombo})"
+                : "Create a new timer and choose its project";
             LapPlaceholder.Text = _activeTimer == null
                 ? (newTimerCombo.Length > 0
                     ? $"No timers — press {newTimerCombo} to create one"

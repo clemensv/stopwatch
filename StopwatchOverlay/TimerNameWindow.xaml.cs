@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Windows;
+using System.Windows.Automation;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Threading;
@@ -10,14 +11,19 @@ namespace StopwatchOverlay
 {
     public partial class TimerNameWindow : Window
     {
-        private static readonly object AddNewProjectTag = new();
         private readonly string _currentName;
-        private readonly int _projectCount;
+        private readonly bool _isCreatingTimer;
+        private bool _isAddingProject;
 
-        public TimerNameWindow(string currentName, IEnumerable<string> projectNames)
+        public TimerNameWindow(
+            string currentName,
+            IEnumerable<string> projectNames,
+            bool isCreatingTimer = false,
+            string renameShortcut = "")
         {
             InitializeComponent();
 
+            _isCreatingTimer = isCreatingTimer;
             _currentName = (currentName ?? "").Trim();
             var projects = (projectNames ?? Enumerable.Empty<string>())
                 .Select(name => name?.Trim() ?? "")
@@ -30,10 +36,9 @@ namespace StopwatchOverlay
                 && !projects.Contains(_currentName, StringComparer.OrdinalIgnoreCase))
                 projects.Insert(0, _currentName);
 
-            _projectCount = projects.Count;
             ProjectSelector.Items.Add(new ComboBoxItem
             {
-                Content = "No project (do not track)",
+                Content = "Select a project",
                 Tag = null
             });
 
@@ -46,20 +51,30 @@ namespace StopwatchOverlay
                 });
             }
 
-            ProjectSelector.Items.Add(new ComboBoxItem
+            if (_isCreatingTimer)
             {
-                Content = "＋ Add a new project…",
-                Tag = AddNewProjectTag
-            });
+                Title = "Create timer";
+                HeadingText.Text = "Choose a project for this timer";
+                DescriptionText.Text =
+                    "Select an existing project or use + to add a new one.";
+                string assignmentHint = string.IsNullOrWhiteSpace(renameShortcut)
+                    ? "You can assign it later from Timers > Set project."
+                    : $"You can assign it later with {renameShortcut}.";
+                NoProjectHintText.Text =
+                    $"Leave ‘Select a project’ selected to create an unnamed timer. {assignmentHint}";
+                SaveButton.Content = "Create timer";
+            }
+            else
+            {
+                NoProjectHintText.Text =
+                    "Choose ‘Select a project’ to make this an unnamed timer.";
+                SaveButton.Content = "Apply project";
+            }
 
             SelectInitialProject();
         }
 
         public string TimerName { get; private set; } = "";
-
-        private bool IsAddingProject
-            => ProjectSelector.SelectedItem is ComboBoxItem item
-                && ReferenceEquals(item.Tag, AddNewProjectTag);
 
         private void SelectInitialProject()
         {
@@ -77,22 +92,12 @@ namespace StopwatchOverlay
                 }
             }
 
-            ProjectSelector.SelectedIndex = _projectCount == 0
-                ? ProjectSelector.Items.Count - 1
-                : 0;
+            ProjectSelector.SelectedIndex = 0;
         }
 
         private void Window_Loaded(object sender, RoutedEventArgs e)
         {
-            if (IsAddingProject)
-            {
-                NewProjectBox.Focus();
-                NewProjectBox.SelectAll();
-            }
-            else
-            {
-                ProjectSelector.Focus();
-            }
+            ProjectSelector.Focus();
         }
 
         private void ProjectSelector_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -100,18 +105,50 @@ namespace StopwatchOverlay
             if (NewProjectPanel == null)
                 return;
 
-            NewProjectPanel.Visibility = IsAddingProject
-                ? Visibility.Visible
-                : Visibility.Collapsed;
+            if (_isAddingProject)
+                ShowNewProjectEditor(false);
+            else
+                ValidationText.Visibility = Visibility.Collapsed;
+        }
+
+        private void ProjectSelector_DropDownClosed(object? sender, EventArgs e)
+        {
+            // SelectionChanged does not fire when the user reselects the current
+            // row. Closing the dropdown still makes that choice authoritative.
+            if (_isAddingProject && ProjectSelector.SelectedIndex >= 0)
+                ShowNewProjectEditor(false);
+        }
+
+        private void AddProjectButton_Click(object sender, RoutedEventArgs e)
+            => ShowNewProjectEditor(!_isAddingProject);
+
+        private void ShowNewProjectEditor(bool show)
+        {
+            _isAddingProject = show;
+            NewProjectPanel.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
+            AddProjectButton.Content = show ? "×" : "+";
+            AddProjectButton.ToolTip = show ? "Cancel adding project" : "Add new project";
+            AutomationProperties.SetName(
+                AddProjectButton,
+                show ? "Cancel adding project" : "Add new project");
+            AutomationProperties.SetHelpText(
+                AddProjectButton,
+                show
+                    ? "Close the new project name field"
+                    : "Open a field for entering a new project name");
             ValidationText.Visibility = Visibility.Collapsed;
 
-            if (IsAddingProject && IsLoaded)
+            if (show)
             {
                 Dispatcher.BeginInvoke(new Action(() =>
                 {
                     NewProjectBox.Focus();
                     NewProjectBox.SelectAll();
                 }), DispatcherPriority.Input);
+            }
+            else if (IsLoaded)
+            {
+                ProjectSelector.Focus();
             }
         }
 
@@ -138,7 +175,10 @@ namespace StopwatchOverlay
             if (e.Key == Key.Escape && !ProjectSelector.IsDropDownOpen)
             {
                 e.Handled = true;
-                DialogResult = false;
+                if (_isAddingProject)
+                    ShowNewProjectEditor(false);
+                else
+                    DialogResult = false;
             }
         }
 
@@ -151,7 +191,7 @@ namespace StopwatchOverlay
         private void AcceptSelection()
         {
             string selectedName;
-            if (IsAddingProject)
+            if (_isAddingProject)
             {
                 selectedName = NewProjectBox.Text.Trim();
                 if (selectedName.Length == 0)
@@ -160,6 +200,18 @@ namespace StopwatchOverlay
                     NewProjectBox.Focus();
                     return;
                 }
+
+                if (!ProjectTimeHistory.TryNormalizeProjectName(
+                        selectedName,
+                        out string? normalizedName))
+                {
+                    ValidationText.Text = "Enter a valid project name.";
+                    ValidationText.Visibility = Visibility.Visible;
+                    NewProjectBox.Focus();
+                    return;
+                }
+
+                selectedName = normalizedName!;
             }
             else
             {

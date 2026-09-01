@@ -66,6 +66,7 @@
             <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
             <Setter Property="FontFamily" Value="{DynamicResource AppFontFamily}"/>
             <Setter Property="FontSize" Value="14"/>
+            <Setter Property="Icon" Value="pack://application:,,,/project-logo.ico"/>
         </Style>
 
         <Style TargetType="Menu">

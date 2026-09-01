@@ -15,6 +15,7 @@ public partial class ProjectRecordsWindow : Window
     private readonly Func<ProjectHistoryView> _historyProvider;
     private readonly Func<string, DateTime, DateTime, ProjectRecordMutationResult> _addRecord;
     private readonly Func<Guid, string, DateTime, DateTime, ProjectRecordMutationResult> _updateRecord;
+    private readonly Func<Guid, ProjectRecordMutationResult> _deleteRecord;
     private readonly Func<bool> _canMutate;
     private readonly Func<string?> _persistenceWarning;
     private readonly DispatcherTimer _liveRefreshTimer;
@@ -28,18 +29,21 @@ public partial class ProjectRecordsWindow : Window
         Func<ProjectHistoryView> historyProvider,
         Func<string, DateTime, DateTime, ProjectRecordMutationResult> addRecord,
         Func<Guid, string, DateTime, DateTime, ProjectRecordMutationResult> updateRecord,
+        Func<Guid, ProjectRecordMutationResult> deleteRecord,
         Func<bool> canMutate,
         Func<string?> persistenceWarning)
     {
         ArgumentNullException.ThrowIfNull(historyProvider);
         ArgumentNullException.ThrowIfNull(addRecord);
         ArgumentNullException.ThrowIfNull(updateRecord);
+        ArgumentNullException.ThrowIfNull(deleteRecord);
         ArgumentNullException.ThrowIfNull(canMutate);
         ArgumentNullException.ThrowIfNull(persistenceWarning);
 
         _historyProvider = historyProvider;
         _addRecord = addRecord;
         _updateRecord = updateRecord;
+        _deleteRecord = deleteRecord;
         _canMutate = canMutate;
         _persistenceWarning = persistenceWarning;
         InitializeComponent();
@@ -194,6 +198,53 @@ public partial class ProjectRecordsWindow : Window
     {
         EnsureMutationAvailable();
         return _updateRecord(id, project, startUtc, endUtc);
+    }
+
+    private void DeleteRecord(ProjectWorkIntervalView record)
+    {
+        if (record.IsOpen || !CheckMutationAvailable())
+            return;
+
+        var confirmation = new ProjectRecordDeleteWindow(record)
+        {
+            Owner = this
+        };
+        if (confirmation.ShowDialog() != true)
+            return;
+
+        ProjectRecordMutationResult result;
+        try
+        {
+            EnsureMutationAvailable();
+            result = _deleteRecord(record.Id);
+        }
+        catch (InvalidOperationException exception)
+        {
+            UpdateMutationAvailability();
+            ShowWarning(exception.Message);
+            return;
+        }
+        catch
+        {
+            ShowWarning("The record could not be deleted. Refresh the list and try again.");
+            return;
+        }
+
+        RefreshFromHistory();
+        switch (result.Status)
+        {
+            case ProjectRecordMutationStatus.Success:
+                return;
+            case ProjectRecordMutationStatus.NotFound:
+                ShowWarning("That record no longer exists. The list has been refreshed.");
+                return;
+            case ProjectRecordMutationStatus.OpenInterval:
+                ShowWarning("An active record cannot be deleted. Pause its timer first.");
+                return;
+            default:
+                ShowWarning("The record could not be deleted.");
+                return;
+        }
     }
 
     private void UpdateProjectFilter(IReadOnlyList<ProjectInfoView> projects)
@@ -402,19 +453,40 @@ public partial class ProjectRecordsWindow : Window
         }
         else
         {
+            var actions = new StackPanel
+            {
+                HorizontalAlignment = HorizontalAlignment.Right,
+                VerticalAlignment = VerticalAlignment.Center
+            };
             var edit = new Button
             {
                 Content = "Edit",
                 Style = (Style)FindResource("ModernButton"),
-                Height = 32,
+                Height = 28,
                 MinWidth = 72,
-                Padding = new Thickness(10, 4, 10, 4),
-                FontSize = 12,
+                Padding = new Thickness(9, 3, 9, 3),
+                FontSize = 11,
                 IsEnabled = canEdit,
                 ToolTip = canEdit ? "Edit this record" : "Record editing is unavailable while project history cannot be saved."
             };
             edit.Click += (_, _) => EditRecord(record);
-            action = edit;
+            actions.Children.Add(edit);
+
+            var delete = new Button
+            {
+                Content = "Delete",
+                Style = (Style)FindResource("StopButton"),
+                Height = 28,
+                MinWidth = 72,
+                Padding = new Thickness(9, 3, 9, 3),
+                FontSize = 11,
+                Margin = new Thickness(0, 6, 0, 0),
+                IsEnabled = canEdit,
+                ToolTip = canEdit ? "Delete this saved record" : "Record deletion is unavailable while project history cannot be saved."
+            };
+            delete.Click += (_, _) => DeleteRecord(record);
+            actions.Children.Add(delete);
+            action = actions;
         }
 
         Grid.SetColumn(action, 5);
