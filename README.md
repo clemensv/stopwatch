@@ -30,6 +30,7 @@ Stopwatch Overlay places customizable timers on top of all your windows — incl
 - 📝 **Editable project records** — Browse complete project history, add past work manually, and correct completed records without changing active sessions
 - 📊 **Project time dashboard** — Filter Today, 7 days, 30 days, or All time; compare project totals, daily activity, timelines, and detailed sessions
 - 🎨 **Four professional themes** — Midnight, Daylight, Pixel Deck Night, and Pixel Deck Day, all backed by the same consistent design tokens
+- 🧵 **Tiled background library** — Choose from five bundled seamless patterns or import a JPG, PNG, or BMP; the selection, strength, and managed custom copy survive restarts
 - 🖌️ **Deep overlay customization** — Choose display, position, text and outline colors, font, format, size, thickness, opacity, and optional light ring
 - 🖥️ **Multi-monitor and presentation tools** — Show timers on one or every display, keep them always on top, enable click-through, or hide overlays from screen capture
 - 🖱️ **Direct overlay controls** — Click a timer to activate it; hover for close, pause/resume, and reset controls
@@ -85,7 +86,7 @@ self-contained release includes the runtime and does not require a separate inst
 2. Click **▶ Start** (or press **Win+F5**) to start the timer
 3. The overlay is shown automatically; press **Win+F7** whenever you want to hide or show the active timer
 4. Choose your target **screen** and **position** from the dropdowns
-5. Customize colors, font, size, and opacity in the **Settings** panel
+5. Choose a theme and tiled background, then customize clock colors, font, size, and opacity in the **Settings** panel
 6. **Drag** the overlay with your mouse for pixel-perfect placement
 
 Close the controller whenever you want it out of the way. The application continues running in the notification area and keeps every timer active; right-click its tray icon and choose **Exit** to close it completely.
@@ -184,7 +185,7 @@ In Countdown mode, use the menu (**Switch to smart input** / **Switch to classic
 
 ## Tips
 
-- The overlay uses a semi-transparent dark background — adjust opacity in Settings
+- Background patterns repeat across the controller, reports, dialogs, and floating clock; adjust pattern strength separately from clock opacity
 - Text outlines keep the timer readable on any background
 - You can hide the overlay while keeping the timer running
 - Multiple timers can continue counting at the same time; "active" only means the one that receives commands
@@ -199,3 +200,5 @@ See [DEVELOPERS.md](DEVELOPERS.md) for build instructions, architecture details,
 ## License
 
 [MIT](LICENSE)
+
+The bundled sample background images were supplied separately by the project owner and are not licensed under the repository's MIT license. Confirm that you have the necessary rights before redistributing those image assets.

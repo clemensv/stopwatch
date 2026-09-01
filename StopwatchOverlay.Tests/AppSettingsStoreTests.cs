@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Runtime.ExceptionServices;
@@ -8,6 +9,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Markup;
 using System.Windows.Media;
+using System.Windows.Media.Imaging;
 using StopwatchOverlay;
 using Xunit;
 
@@ -54,6 +56,430 @@ public sealed class AppSettingsStoreTests
                 AppThemeCatalog.PixelDeckDay
             ],
             AppThemeCatalog.All);
+    }
+
+    [Fact]
+    public void BackgroundDefaults_AreThemeDefaultWithReadableStrength()
+    {
+        var settings = new AppSettings();
+
+        Assert.Equal(AppBackgroundCatalog.ThemeDefault, settings.PanelBackgroundId);
+        Assert.Equal(
+            AppBackgroundCatalog.DefaultPatternStrength,
+            settings.PanelBackgroundStrength);
+        Assert.Empty(settings.CustomBackgrounds);
+    }
+
+    [Theory]
+    [InlineData("Theme default", AppBackgroundCatalog.ThemeDefault)]
+    [InlineData("Festive Chalk", AppBackgroundCatalog.FestiveChalk)]
+    [InlineData("preset:cosmic-doodles", AppBackgroundCatalog.ThemeDefault)]
+    [InlineData("unknown", AppBackgroundCatalog.ThemeDefault)]
+    public void NormalizeBackground_MigratesLabelsAndRejectsUnknownValues(
+        string requested,
+        string expected)
+    {
+        var settings = new AppSettings { PanelBackgroundId = requested };
+
+        AppBackgroundCatalog.NormalizeSettings(settings);
+
+        Assert.Equal(expected, settings.PanelBackgroundId);
+    }
+
+    [Fact]
+    public void BackgroundCatalog_ExposesThemeDefaultAndFiveStablePresets()
+    {
+        Assert.Equal(
+            [
+                AppBackgroundCatalog.ThemeDefault,
+                AppBackgroundCatalog.FestiveChalk,
+                AppBackgroundCatalog.WoodlandMushrooms,
+                AppBackgroundCatalog.AutumnPatchwork,
+                AppBackgroundCatalog.GreenCreatures,
+                AppBackgroundCatalog.AquaTattoo
+            ],
+            AppBackgroundCatalog.BuiltInIds);
+    }
+
+    [Fact]
+    public void SaveThenLoad_BackgroundAndCustomCatalogRoundTripAcrossRestart()
+    {
+        using var scope = new TemporarySettingsFile();
+        string id = Guid.NewGuid().ToString("N");
+        var settings = NewSettings(AppThemeCatalog.PixelDeckDay);
+        settings.PanelBackgroundId = AppBackgroundCatalog.CustomSelectionId(id);
+        settings.PanelBackgroundStrength = 41;
+        settings.CustomBackgrounds.Add(new CustomAppBackground
+        {
+            Id = id,
+            DisplayName = "My pattern",
+            FileName = $"custom-{id}.png"
+        });
+
+        Assert.True(SettingsStore.Save(settings, scope.Path));
+
+        AppSettings restarted = SettingsStore.Load(scope.Path);
+        Assert.Equal(AppBackgroundCatalog.CustomSelectionId(id), restarted.PanelBackgroundId);
+        Assert.Equal(41, restarted.PanelBackgroundStrength);
+        CustomAppBackground custom = Assert.Single(restarted.CustomBackgrounds);
+        Assert.Equal("My pattern", custom.DisplayName);
+        Assert.Equal($"custom-{id}.png", custom.FileName);
+    }
+
+    [Fact]
+    public void NormalizeBackground_ClampsStrengthAndRejectsUnsafeCustomMetadata()
+    {
+        string validId = Guid.NewGuid().ToString("N");
+        string otherId = Guid.NewGuid().ToString("N");
+        var settings = new AppSettings
+        {
+            PanelBackgroundId = AppBackgroundCatalog.CustomSelectionId(validId),
+            PanelBackgroundStrength = double.NaN,
+            CustomBackgrounds =
+            [
+                new CustomAppBackground
+                {
+                    Id = validId,
+                    DisplayName = "  Safe\0 name  ",
+                    FileName = $"custom-{validId}.jpg"
+                },
+                new CustomAppBackground
+                {
+                    Id = validId,
+                    DisplayName = "Duplicate",
+                    FileName = $"custom-{validId}.png"
+                },
+                new CustomAppBackground
+                {
+                    Id = otherId,
+                    DisplayName = "Traversal",
+                    FileName = "..\\outside.png"
+                }
+            ]
+        };
+
+        AppBackgroundCatalog.NormalizeSettings(settings);
+
+        CustomAppBackground custom = Assert.Single(settings.CustomBackgrounds);
+        Assert.Equal(validId, custom.Id);
+        Assert.Equal("Safe name", custom.DisplayName);
+        Assert.Equal(
+            AppBackgroundCatalog.DefaultPatternStrength,
+            settings.PanelBackgroundStrength);
+        Assert.Equal(
+            AppBackgroundCatalog.CustomSelectionId(validId),
+            settings.PanelBackgroundId);
+    }
+
+    [Theory]
+    [InlineData(-100, AppBackgroundCatalog.MinimumPatternStrength)]
+    [InlineData(100, AppBackgroundCatalog.MaximumPatternStrength)]
+    public void NormalizeBackground_ClampsFiniteStrength(double value, double expected)
+    {
+        var settings = new AppSettings { PanelBackgroundStrength = value };
+
+        AppBackgroundCatalog.NormalizeSettings(settings);
+
+        Assert.Equal(expected, settings.PanelBackgroundStrength);
+    }
+
+    [Fact]
+    public void MissingManagedBackground_ResolvesAndRepairsToThemeDefault()
+    {
+        using var scope = new TemporarySettingsFile();
+        string id = Guid.NewGuid().ToString("N");
+        var settings = new AppSettings
+        {
+            PanelBackgroundId = AppBackgroundCatalog.CustomSelectionId(id),
+            CustomBackgrounds =
+            [
+                new CustomAppBackground
+                {
+                    Id = id,
+                    DisplayName = "Missing",
+                    FileName = $"custom-{id}.jpg"
+                }
+            ]
+        };
+
+        AppBackgroundChoice unavailable = Assert.Single(
+            AppBackgroundCatalog.GetAvailableChoices(settings, scope.Directory),
+            choice => choice.IsCustom);
+        Assert.Equal(AppBackgroundCatalog.CustomSelectionId(id), unavailable.Id);
+        Assert.False(unavailable.IsAvailable);
+        Assert.Contains("unavailable", unavailable.DisplayLabel, StringComparison.OrdinalIgnoreCase);
+
+        AppBackgroundChoice resolved = AppBackgroundCatalog.ResolveChoice(
+            settings,
+            scope.Directory);
+
+        Assert.True(resolved.IsThemeDefault);
+        Assert.Equal(AppBackgroundCatalog.ThemeDefault, settings.PanelBackgroundId);
+        Assert.Single(settings.CustomBackgrounds);
+        Assert.True(AppBackgroundCatalog.DeleteManagedCopy(
+            settings.CustomBackgrounds[0],
+            scope.Directory));
+    }
+
+    [Fact]
+    public void CorruptManagedBackground_RemainsVisibleAndCanBeRemoved()
+    {
+        using var scope = new TemporarySettingsFile();
+        string id = Guid.NewGuid().ToString("N");
+        string fileName = $"custom-{id}.jpg";
+        string path = Path.Combine(scope.Directory, fileName);
+        File.WriteAllBytes(path, [0x4E, 0x4F, 0x54, 0x2D, 0x41, 0x4E, 0x2D, 0x49, 0x4D, 0x41, 0x47, 0x45]);
+        var settings = new AppSettings
+        {
+            PanelBackgroundId = AppBackgroundCatalog.CustomSelectionId(id),
+            CustomBackgrounds =
+            [
+                new CustomAppBackground
+                {
+                    Id = id,
+                    DisplayName = "Damaged pattern",
+                    FileName = fileName
+                }
+            ]
+        };
+
+        AppBackgroundChoice unavailable = Assert.Single(
+            AppBackgroundCatalog.GetAvailableChoices(settings, scope.Directory),
+            choice => choice.IsCustom);
+        Assert.False(unavailable.IsAvailable);
+        Assert.True(AppBackgroundCatalog.ResolveChoice(settings, scope.Directory).IsThemeDefault);
+        Assert.Single(settings.CustomBackgrounds);
+
+        Assert.True(AppBackgroundCatalog.DeleteManagedCopy(
+            settings.CustomBackgrounds[0],
+            scope.Directory));
+        Assert.False(File.Exists(path));
+    }
+
+    [Fact]
+    public void RemovingUnavailableBackground_FreesCustomLibraryCapacity()
+    {
+        using var scope = new TemporarySettingsFile();
+        var settings = new AppSettings();
+        for (int index = 0; index < 64; index++)
+        {
+            string id = Guid.NewGuid().ToString("N");
+            settings.CustomBackgrounds.Add(new CustomAppBackground
+            {
+                Id = id,
+                DisplayName = $"Missing {index + 1}",
+                FileName = $"custom-{id}.jpg"
+            });
+        }
+
+        string source = Path.Combine(scope.Directory, "source.jpg");
+        string managed = Path.Combine(scope.Directory, "managed");
+        RunSta(() => WriteTestBitmap(source, jpeg: true));
+
+        Assert.Equal(
+            64,
+            AppBackgroundCatalog.GetAvailableChoices(settings, managed)
+                .Count(choice => choice.IsCustom && !choice.IsAvailable));
+        Assert.False(AppBackgroundCatalog.TryImport(
+            source,
+            settings.CustomBackgrounds,
+            out _,
+            out string? fullError,
+            managed));
+        Assert.Contains("up to 64", fullError, StringComparison.OrdinalIgnoreCase);
+
+        CustomAppBackground removed = settings.CustomBackgrounds[0];
+        settings.CustomBackgrounds.RemoveAt(0);
+        Assert.True(AppBackgroundCatalog.DeleteManagedCopy(removed, managed));
+        Assert.True(AppBackgroundCatalog.TryImport(
+            source,
+            settings.CustomBackgrounds,
+            out CustomAppBackground? imported,
+            out string? error,
+            managed), error);
+        Assert.NotNull(imported);
+        settings.CustomBackgrounds.Add(imported!);
+        Assert.Equal(64, settings.CustomBackgrounds.Count);
+        Assert.True(AppBackgroundCatalog.DeleteManagedCopy(imported!, managed));
+    }
+
+    [Fact]
+    public void DeleteManagedCopy_RejectsTraversalMetadata()
+    {
+        using var scope = new TemporarySettingsFile();
+        string sentinel = Path.Combine(scope.Directory, "sentinel.jpg");
+        File.WriteAllBytes(sentinel, [1, 2, 3, 4]);
+        var malicious = new CustomAppBackground
+        {
+            Id = Guid.NewGuid().ToString("N"),
+            DisplayName = "Unsafe",
+            FileName = "..\\sentinel.jpg"
+        };
+
+        Assert.False(AppBackgroundCatalog.DeleteManagedCopy(
+            malicious,
+            Path.Combine(scope.Directory, "managed")));
+        Assert.True(File.Exists(sentinel));
+    }
+
+    [Fact]
+    public void ImportBackground_CopiesManagedImageAndDoesNotLockEitherFile()
+    {
+        using var scope = new TemporarySettingsFile();
+        string source = Path.Combine(scope.Directory, "source.jpg");
+        string managed = Path.Combine(scope.Directory, "managed");
+
+        RunSta(() => WriteTestBitmap(source, jpeg: true));
+
+        Assert.True(AppBackgroundCatalog.TryImport(
+            source,
+            [],
+            out CustomAppBackground? imported,
+            out string? error,
+            managed), error);
+        Assert.NotNull(imported);
+
+        string managedPath = Path.Combine(managed, imported!.FileName);
+        Assert.True(File.Exists(managedPath));
+        File.Delete(source);
+
+        var settings = new AppSettings
+        {
+            PanelBackgroundId = AppBackgroundCatalog.CustomSelectionId(imported.Id),
+            CustomBackgrounds = [imported]
+        };
+        AppBackgroundChoice choice = AppBackgroundCatalog.ResolveChoice(settings, managed);
+        Assert.True(choice.IsCustom);
+
+        RunSta(() => _ = AppBackgroundManager.CreatePreviewBrush(
+            choice,
+            AppBackgroundCatalog.DefaultPatternStrength));
+        using (var exclusive = new FileStream(
+                   managedPath,
+                   FileMode.Open,
+                   FileAccess.ReadWrite,
+                   FileShare.None))
+        {
+            Assert.True(exclusive.Length > 0);
+        }
+        Assert.Empty(Directory.GetFiles(managed, "*.tmp"));
+        Assert.True(AppBackgroundCatalog.DeleteManagedCopy(imported, managed));
+        Assert.False(File.Exists(managedPath));
+    }
+
+    [Fact]
+    public void ImportedBackground_LoadsAfterRestartWhenOriginalWasDeleted()
+    {
+        using var scope = new TemporarySettingsFile();
+        string source = Path.Combine(scope.Directory, "restart-source.png");
+        string managed = Path.Combine(scope.Directory, "managed");
+        RunSta(() => WriteTestBitmap(source, jpeg: false));
+
+        Assert.True(AppBackgroundCatalog.TryImport(
+            source,
+            [],
+            out CustomAppBackground? imported,
+            out string? importError,
+            managed), importError);
+        Assert.NotNull(imported);
+
+        var settings = NewSettings(AppThemeCatalog.PixelDeckDay);
+        settings.PanelBackgroundId = AppBackgroundCatalog.CustomSelectionId(imported!.Id);
+        settings.PanelBackgroundStrength = 37;
+        settings.CustomBackgrounds.Add(imported);
+        Assert.True(SettingsStore.Save(settings, scope.Path));
+        File.Delete(source);
+
+        AppSettings restarted = SettingsStore.Load(scope.Path);
+        AppBackgroundChoice choice = AppBackgroundCatalog.ResolveChoice(restarted, managed);
+        Assert.True(choice.IsCustom);
+        Assert.True(choice.IsAvailable);
+        Assert.Equal(37, restarted.PanelBackgroundStrength);
+        RunSta(() =>
+        {
+            DrawingBrush preview = Assert.IsType<DrawingBrush>(
+                AppBackgroundManager.CreatePreviewBrush(
+                    choice,
+                    restarted.PanelBackgroundStrength));
+            Assert.Equal(TileMode.Tile, preview.TileMode);
+        });
+
+        string managedPath = Path.Combine(managed, imported.FileName);
+        using (var exclusive = new FileStream(
+                   managedPath,
+                   FileMode.Open,
+                   FileAccess.ReadWrite,
+                   FileShare.None))
+        {
+            Assert.True(exclusive.Length > 0);
+        }
+
+        AppBackgroundManager.ClearImageCache();
+        Assert.True(AppBackgroundCatalog.DeleteManagedCopy(imported, managed));
+    }
+
+    [Fact]
+    public void ImportBackground_RejectsImageWhoseContentsDoNotMatchExtension()
+    {
+        using var scope = new TemporarySettingsFile();
+        string source = Path.Combine(scope.Directory, "renamed.jpg");
+        string managed = Path.Combine(scope.Directory, "managed");
+        RunSta(() => WriteTestBitmap(source, jpeg: false));
+
+        Assert.False(AppBackgroundCatalog.TryImport(
+            source,
+            [],
+            out CustomAppBackground? imported,
+            out string? error,
+            managed));
+
+        Assert.Null(imported);
+        Assert.NotNull(error);
+        Assert.False(Directory.Exists(managed)
+            && Directory.EnumerateFiles(managed).Any());
+    }
+
+    [Fact]
+    public void ImportBackground_DisambiguatesNamesFromBuiltInPresets()
+    {
+        using var scope = new TemporarySettingsFile();
+        string source = Path.Combine(scope.Directory, "Festive Chalk.jpg");
+        string managed = Path.Combine(scope.Directory, "managed");
+        RunSta(() => WriteTestBitmap(source, jpeg: true));
+
+        Assert.True(AppBackgroundCatalog.TryImport(
+            source,
+            [],
+            out CustomAppBackground? imported,
+            out string? error,
+            managed), error);
+
+        Assert.NotNull(imported);
+        Assert.Equal("Festive Chalk (2)", imported!.DisplayName);
+        Assert.True(AppBackgroundCatalog.DeleteManagedCopy(imported, managed));
+    }
+
+    [Fact]
+    public void BuiltInBackgroundResources_LoadAsValidBitmaps()
+    {
+        RunSta(() =>
+        {
+            var settings = NewSettings(AppThemeCatalog.Midnight);
+            IReadOnlyList<AppBackgroundChoice> choices =
+                AppBackgroundCatalog.GetAvailableChoices(settings);
+
+            foreach (AppBackgroundChoice choice in choices.Where(item => !item.IsThemeDefault))
+            {
+                Assert.False(string.IsNullOrWhiteSpace(choice.ResourceUri));
+                var bitmap = new BitmapImage();
+                bitmap.BeginInit();
+                bitmap.CacheOption = BitmapCacheOption.OnLoad;
+                bitmap.UriSource = new Uri(choice.ResourceUri!, UriKind.Absolute);
+                bitmap.EndInit();
+                Assert.True(bitmap.PixelWidth > 0);
+                Assert.True(bitmap.PixelHeight > 0);
+            }
+        });
     }
 
     [Theory]
@@ -284,6 +710,27 @@ public sealed class AppSettingsStoreTests
                 Assert.Equal(
                     Color.FromRgb(29, 38, 48),
                     ((SolidColorBrush)button.Foreground).Color);
+
+                var backgroundSettings = NewSettings(AppThemeCatalog.PixelDeckDay);
+                backgroundSettings.PanelBackgroundId = AppBackgroundCatalog.GreenCreatures;
+                Assert.True(
+                    AppBackgroundManager.Apply(backgroundSettings, out string? warning),
+                    warning);
+                var pixelBrush = Assert.IsType<DrawingBrush>(
+                    application.Resources["AppBackgroundBrush"]);
+                Assert.Equal(TileMode.Tile, pixelBrush.TileMode);
+                Assert.Equal(BrushMappingMode.Absolute, pixelBrush.ViewportUnits);
+                Assert.True(pixelBrush.Viewport.Width > 0);
+                Assert.True(pixelBrush.Viewport.Height > 0);
+
+                backgroundSettings.ThemeMode = AppThemeCatalog.Daylight;
+                AppThemeManager.Apply(backgroundSettings.ThemeMode);
+                Assert.True(AppBackgroundManager.Apply(backgroundSettings, out warning), warning);
+                Assert.Equal(
+                    TileMode.Tile,
+                    Assert.IsType<DrawingBrush>(
+                        application.Resources["AppBackgroundBrush"]).TileMode);
+                Assert.True(AppBackgroundManager.HasPattern);
             }
             catch (Exception exception)
             {
@@ -294,12 +741,55 @@ public sealed class AppSettingsStoreTests
                 hostWindow?.Close();
                 if (application != null)
                 {
+                    AppBackgroundManager.ClearImageCache();
                     AppThemeManager.Apply(AppThemeCatalog.Midnight);
                     application.Shutdown();
                 }
             }
         });
 
+        thread.SetApartmentState(ApartmentState.STA);
+        thread.Start();
+        thread.Join();
+
+        if (failure != null)
+            ExceptionDispatchInfo.Capture(failure).Throw();
+    }
+
+    private static void WriteTestBitmap(string path, bool jpeg)
+    {
+        byte[] pixels =
+        [
+            20, 80, 160, 255,
+            240, 210, 40, 255,
+            80, 180, 100, 255,
+            220, 60, 90, 255
+        ];
+        BitmapSource bitmap = BitmapSource.Create(
+            2,
+            2,
+            96,
+            96,
+            PixelFormats.Bgra32,
+            null,
+            pixels,
+            8);
+        BitmapEncoder encoder = jpeg
+            ? new JpegBitmapEncoder()
+            : new PngBitmapEncoder();
+        encoder.Frames.Add(BitmapFrame.Create(bitmap));
+        using var stream = new FileStream(path, FileMode.CreateNew, FileAccess.Write, FileShare.None);
+        encoder.Save(stream);
+    }
+
+    private static void RunSta(Action action)
+    {
+        Exception? failure = null;
+        var thread = new Thread(() =>
+        {
+            try { action(); }
+            catch (Exception exception) { failure = exception; }
+        });
         thread.SetApartmentState(ApartmentState.STA);
         thread.Start();
         thread.Join();

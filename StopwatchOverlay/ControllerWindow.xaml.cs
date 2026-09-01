@@ -63,6 +63,7 @@ namespace StopwatchOverlay
         private readonly DispatcherTimer _timer;
         private readonly DispatcherTimer _blinkTimer;
         private readonly DispatcherTimer _stateSaveTimer;
+        private readonly DispatcherTimer _backgroundApplyTimer;
         private sealed record OverlayInstance(TimerSession Session, Screen Screen, OverlayWindow Window);
         private sealed record CombinedOverlayInstance(Screen Screen, OverlayWindow Window);
 
@@ -132,6 +133,10 @@ namespace StopwatchOverlay
         private bool _changingStartWithWindows;
         private bool _isNamingTimer;
         private bool _persistenceFailureNotified;
+        private bool _updatingPanelBackgroundSelector;
+        private string? _backgroundWarning;
+        private IReadOnlyList<AppBackgroundChoice> _backgroundChoices =
+            Array.Empty<AppBackgroundChoice>();
 
         // Custom overlay position (absolute, device-independent) set by dragging the overlay.
         private bool _hasCustomPosition { get => CurrentTimer.HasCustomPosition; set => CurrentTimer.HasCustomPosition = value; }
@@ -145,6 +150,9 @@ namespace StopwatchOverlay
             // created so startup never flashes the other theme.
             _settings = SettingsStore.Load();
             AppThemeManager.Apply(_settings.ThemeMode);
+            AppBackgroundManager.Apply(_settings, out _backgroundWarning);
+            if (_backgroundWarning != null)
+                SettingsStore.Save(_settings);
 
             InitializeComponent();
 
@@ -189,6 +197,12 @@ namespace StopwatchOverlay
                 if (_stateDirty)
                     CheckpointState();
             };
+
+            _backgroundApplyTimer = new DispatcherTimer
+            {
+                Interval = TimeSpan.FromMilliseconds(90)
+            };
+            _backgroundApplyTimer.Tick += (_, _) => ApplyPendingPanelBackgroundStrength();
 
             LapListBox.ItemsSource = CurrentTimer.LapTimes;
 
@@ -975,7 +989,16 @@ namespace StopwatchOverlay
             _settings.ThemeMode = theme;
             SettingsStore.Save(_settings);
 
+            _backgroundApplyTimer.Stop();
             AppThemeManager.Apply(theme);
+            AppBackgroundManager.Apply(_settings, out string? backgroundWarning);
+            _backgroundWarning = backgroundWarning;
+            if (backgroundWarning != null)
+            {
+                SettingsStore.Save(_settings);
+                PopulatePanelBackgroundChoices(_settings.PanelBackgroundId);
+            }
+            UpdatePanelBackgroundPreview();
 
             // Existing overlays contain a user-configurable content layer and a
             // theme-controlled chrome layer, so reapply both without discarding
@@ -988,7 +1011,287 @@ namespace StopwatchOverlay
             // The normal checkpoint remains as a retry and crash-recovery backstop
             // for the rest of the application state.
             CheckpointState();
-            UpdateStatus($"{theme} theme applied", (Brush)FindResource("AccentBrush"));
+            UpdateStatus(
+                backgroundWarning ?? $"{theme} theme applied",
+                backgroundWarning == null
+                    ? (Brush)FindResource("AccentBrush")
+                    : Brushes.OrangeRed);
+        }
+
+        private void PopulatePanelBackgroundChoices(string? preferredId = null)
+        {
+            _updatingPanelBackgroundSelector = true;
+            try
+            {
+                _backgroundChoices = AppBackgroundCatalog.GetAvailableChoices(_settings);
+                PanelBackgroundSelector.ItemsSource = _backgroundChoices;
+
+                string requested = preferredId ?? _settings.PanelBackgroundId;
+                AppBackgroundChoice selected = _backgroundChoices.FirstOrDefault(choice =>
+                    choice.Id.Equals(requested, StringComparison.OrdinalIgnoreCase))
+                    ?? _backgroundChoices[0];
+                PanelBackgroundSelector.SelectedItem = selected;
+                if (selected.IsAvailable)
+                    _settings.PanelBackgroundId = selected.Id;
+
+                if (!selected.Id.Equals(requested, StringComparison.OrdinalIgnoreCase))
+                {
+                    _backgroundWarning =
+                        "The saved custom background is missing; Theme default is being used.";
+                    SettingsStore.Save(_settings);
+                }
+            }
+            finally
+            {
+                _updatingPanelBackgroundSelector = false;
+            }
+
+            UpdatePanelBackgroundPreview();
+        }
+
+        private void UpdatePanelBackgroundPreview()
+        {
+            if (PanelBackgroundPreview == null)
+                return;
+
+            AppBackgroundChoice? selected =
+                PanelBackgroundSelector?.SelectedItem as AppBackgroundChoice;
+            PanelBackgroundPreview.Background = selected == null
+                ? (Brush)FindResource("AppBackgroundBrush")
+                : AppBackgroundManager.CreatePreviewBrush(
+                    selected,
+                    _settings.PanelBackgroundStrength);
+            PanelBackgroundPreview.ToolTip = selected == null
+                ? "Background preview"
+                : selected.IsAvailable
+                    ? $"Preview: {selected.DisplayName}"
+                    : $"{selected.DisplayName} is unavailable. Remove it and add the image again.";
+            if (PanelBackgroundStrengthSlider != null)
+                PanelBackgroundStrengthSlider.IsEnabled = selected is
+                    { IsThemeDefault: false, IsAvailable: true };
+            if (RemovePanelBackgroundButton != null)
+                RemovePanelBackgroundButton.IsEnabled = selected?.IsCustom == true;
+        }
+
+        private void PanelBackgroundSelector_SelectionChanged(
+            object sender,
+            SelectionChangedEventArgs e)
+        {
+            if (_updatingPanelBackgroundSelector
+                || !_initializationComplete
+                || PanelBackgroundSelector.SelectedItem is not AppBackgroundChoice choice)
+            {
+                return;
+            }
+
+            if (!choice.IsAvailable)
+            {
+                _backgroundApplyTimer.Stop();
+                PopulateSettingsFromUi();
+                _settings.PanelBackgroundId = AppBackgroundCatalog.ThemeDefault;
+                bool fallbackSaved = SettingsStore.Save(_settings);
+                AppBackgroundManager.Apply(_settings, out _);
+                UpdatePanelBackgroundPreview();
+                RefreshOverlayBackgroundSurfaces();
+                MarkStateDirty();
+                UpdateStatus(
+                    fallbackSaved
+                        ? $"{choice.DisplayName} is unavailable; remove it or add the image again"
+                        : $"{choice.DisplayName} is unavailable, and the fallback could not be saved",
+                    Brushes.OrangeRed);
+                return;
+            }
+
+            PopulateSettingsFromUi();
+            _settings.PanelBackgroundId = choice.Id;
+            bool saved = SettingsStore.Save(_settings);
+
+            _backgroundApplyTimer.Stop();
+            AppBackgroundManager.Apply(_settings, out string? warning);
+            _backgroundWarning = warning;
+            if (warning != null)
+            {
+                choice.IsAvailable = false;
+                PanelBackgroundSelector.Items.Refresh();
+                SettingsStore.Save(_settings);
+            }
+            UpdatePanelBackgroundPreview();
+            RefreshOverlayBackgroundSurfaces();
+            MarkStateDirty();
+
+            string message = warning
+                ?? (saved
+                    ? $"{choice.DisplayName} background applied"
+                    : $"{choice.DisplayName} applied, but the choice could not be saved");
+            UpdateStatus(
+                message,
+                warning == null && saved
+                    ? (Brush)FindResource("AccentBrush")
+                    : Brushes.OrangeRed);
+        }
+
+        private void PanelBackgroundStrengthSlider_ValueChanged(
+            object sender,
+            RoutedPropertyChangedEventArgs<double> e)
+        {
+            if (PanelBackgroundStrengthLabel != null)
+            {
+                PanelBackgroundStrengthLabel.Text =
+                    $"{(int)Math.Round(PanelBackgroundStrengthSlider.Value)}%";
+            }
+
+            if (!_initializationComplete)
+                return;
+
+            _settings.PanelBackgroundStrength = PanelBackgroundStrengthSlider.Value;
+            _backgroundApplyTimer.Stop();
+            _backgroundApplyTimer.Start();
+            MarkStateDirty();
+        }
+
+        private void ApplyPendingPanelBackgroundStrength()
+        {
+            _backgroundApplyTimer.Stop();
+            AppBackgroundManager.Apply(_settings, out string? warning);
+            _backgroundWarning = warning;
+            if (warning != null)
+            {
+                SettingsStore.Save(_settings);
+                PopulatePanelBackgroundChoices(_settings.PanelBackgroundId);
+            }
+            UpdatePanelBackgroundPreview();
+            RefreshOverlayBackgroundSurfaces();
+            if (warning != null)
+                UpdateStatus(warning, Brushes.OrangeRed);
+        }
+
+        private void AddPanelBackgroundButton_Click(object sender, RoutedEventArgs e)
+        {
+            var dialog = new Microsoft.Win32.OpenFileDialog
+            {
+                Title = "Add a background image",
+                Filter = "Background images (*.jpg;*.jpeg;*.png;*.bmp)|*.jpg;*.jpeg;*.png;*.bmp|All files (*.*)|*.*",
+                CheckFileExists = true,
+                CheckPathExists = true,
+                Multiselect = false
+            };
+
+            if (dialog.ShowDialog(this) != true)
+                return;
+
+            _backgroundApplyTimer.Stop();
+            PopulateSettingsFromUi();
+            string previousSelection = _settings.PanelBackgroundId;
+            if (!AppBackgroundCatalog.TryImport(
+                    dialog.FileName,
+                    _settings.CustomBackgrounds,
+                    out CustomAppBackground? imported,
+                    out string? error)
+                || imported == null)
+            {
+                System.Windows.MessageBox.Show(
+                    error ?? "The selected image could not be added.",
+                    "Add background",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning);
+                return;
+            }
+
+            _settings.CustomBackgrounds.Add(imported);
+            string selectionId = AppBackgroundCatalog.CustomSelectionId(imported.Id);
+            _settings.PanelBackgroundId = selectionId;
+            if (!SettingsStore.Save(_settings))
+            {
+                _settings.CustomBackgrounds.RemoveAll(item =>
+                    item.Id.Equals(imported.Id, StringComparison.OrdinalIgnoreCase));
+                _settings.PanelBackgroundId = previousSelection;
+                AppBackgroundCatalog.DeleteManagedCopy(imported);
+                System.Windows.MessageBox.Show(
+                    "The background could not be saved. Your existing settings were not changed.",
+                    "Add background",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning);
+                return;
+            }
+
+            PopulatePanelBackgroundChoices(selectionId);
+            AppBackgroundManager.Apply(_settings, out string? warning);
+            _backgroundWarning = warning;
+            if (warning != null)
+            {
+                SettingsStore.Save(_settings);
+                PopulatePanelBackgroundChoices(_settings.PanelBackgroundId);
+            }
+            UpdatePanelBackgroundPreview();
+            RefreshOverlayBackgroundSurfaces();
+            MarkStateDirty();
+            UpdateStatus(
+                warning ?? $"{imported.DisplayName} added and applied",
+                warning == null
+                    ? (Brush)FindResource("AccentBrush")
+                    : Brushes.OrangeRed);
+        }
+
+        private void RemovePanelBackgroundButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (PanelBackgroundSelector.SelectedItem is not AppBackgroundChoice
+                { IsCustom: true } choice)
+            {
+                return;
+            }
+
+            string customId = choice.Id["custom:".Length..];
+            int index = _settings.CustomBackgrounds.FindIndex(item =>
+                item.Id.Equals(customId, StringComparison.OrdinalIgnoreCase));
+            if (index < 0)
+                return;
+
+            MessageBoxResult confirmation = System.Windows.MessageBox.Show(
+                $"Remove “{choice.DisplayName}” from your background library?\n\n" +
+                "The app-managed copy will be deleted. This cannot be undone.",
+                "Remove background",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Warning,
+                MessageBoxResult.No);
+            if (confirmation != MessageBoxResult.Yes)
+                return;
+
+            _backgroundApplyTimer.Stop();
+            PopulateSettingsFromUi();
+            CustomAppBackground removed = _settings.CustomBackgrounds[index];
+            string previousSelection = _settings.PanelBackgroundId;
+            _settings.CustomBackgrounds.RemoveAt(index);
+            _settings.PanelBackgroundId = AppBackgroundCatalog.ThemeDefault;
+
+            if (!SettingsStore.Save(_settings))
+            {
+                _settings.CustomBackgrounds.Insert(
+                    Math.Min(index, _settings.CustomBackgrounds.Count),
+                    removed);
+                _settings.PanelBackgroundId = previousSelection;
+                System.Windows.MessageBox.Show(
+                    "The background could not be removed because settings could not be saved.",
+                    "Remove background",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning);
+                return;
+            }
+
+            bool deleted = AppBackgroundCatalog.DeleteManagedCopy(removed);
+            PopulatePanelBackgroundChoices(AppBackgroundCatalog.ThemeDefault);
+            AppBackgroundManager.Apply(_settings, out string? warning);
+            _backgroundWarning = warning;
+            UpdatePanelBackgroundPreview();
+            RefreshOverlayBackgroundSurfaces();
+            MarkStateDirty();
+            UpdateStatus(
+                warning
+                ?? (deleted
+                    ? $"{choice.DisplayName} removed"
+                    : $"{choice.DisplayName} removed from the library; its file could not be deleted"),
+                warning == null && deleted
+                    ? (Brush)FindResource("AccentBrush")
+                    : Brushes.OrangeRed);
         }
 
         protected override void OnSourceInitialized(EventArgs e)
@@ -1590,6 +1893,8 @@ namespace StopwatchOverlay
                 UpdateStatus("Project history recovered from backup", Brushes.DeepSkyBlue);
             else if (_workspaceRecoveredFromBackup)
                 UpdateStatus("Timer state recovered from backup", Brushes.DeepSkyBlue);
+            else if (_backgroundWarning != null)
+                UpdateStatus(_backgroundWarning, Brushes.OrangeRed);
         }
 
         private void StartWithWindowsCheckBox_Changed(object sender, RoutedEventArgs e)
@@ -2842,6 +3147,14 @@ namespace StopwatchOverlay
             RepositionAllOverlays();
         }
 
+        private void RefreshOverlayBackgroundSurfaces()
+        {
+            foreach (var instance in _overlayInstances)
+                ApplyOverlaySettings(instance.Window);
+            foreach (var instance in _combinedOverlayInstances)
+                ApplyOverlaySettings(instance.Window);
+        }
+
         private void ApplyOverlaySettings(OverlayWindow overlay)
         {
             if (TextColorSelector == null) return;
@@ -2981,6 +3294,8 @@ namespace StopwatchOverlay
         private void ApplySettingsToUi()
         {
             SelectByContent(ThemeModeSelector, _settings.ThemeMode);
+            PopulatePanelBackgroundChoices(_settings.PanelBackgroundId);
+            PanelBackgroundStrengthSlider.Value = _settings.PanelBackgroundStrength;
             SelectByContent(TextColorSelector, _settings.TextColor);
             SelectByContent(BorderColorSelector, _settings.BorderColor);
             SelectByContent(FontSelector, _settings.FontFamily);
@@ -3051,6 +3366,12 @@ namespace StopwatchOverlay
         {
             _settings.ThemeMode = AppThemeCatalog.Normalize(
                 SelectedContent(ThemeModeSelector, AppThemeCatalog.Midnight));
+            if (PanelBackgroundSelector.SelectedItem is AppBackgroundChoice
+                { IsAvailable: true } backgroundChoice)
+            {
+                _settings.PanelBackgroundId = backgroundChoice.Id;
+            }
+            _settings.PanelBackgroundStrength = PanelBackgroundStrengthSlider.Value;
             _settings.TextColor = SelectedContent(TextColorSelector, "White");
             _settings.BorderColor = SelectedContent(BorderColorSelector, "Black");
             _settings.FontFamily = SelectedContent(FontSelector, "Consolas");

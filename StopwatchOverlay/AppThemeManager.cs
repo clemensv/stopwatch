@@ -61,6 +61,7 @@ public static class AppThemeManager
     public static void Apply(string? requestedTheme)
     {
         string theme = AppThemeCatalog.Normalize(requestedTheme);
+        AppBackgroundManager.InvalidateThemeBase();
         var application = Application.Current;
         if (application == null)
         {

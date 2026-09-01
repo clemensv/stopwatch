@@ -63,6 +63,13 @@ namespace StopwatchOverlay
         // backwards compatibility with the legacy "Dark" setting.
         public string ThemeMode { get; set; } = AppThemeCatalog.Midnight;
 
+        // Tiled application background. Custom images are copied into the app's
+        // managed data folder; settings persist only their safe leaf filenames.
+        public string PanelBackgroundId { get; set; } = AppBackgroundCatalog.ThemeDefault;
+        public double PanelBackgroundStrength { get; set; } =
+            AppBackgroundCatalog.DefaultPatternStrength;
+        public List<CustomAppBackground> CustomBackgrounds { get; set; } = new();
+
         // Floating-overlay appearance (global, shared across timer modes).
         public string TextColor { get; set; } = "White";
         public string BorderColor { get; set; } = "Black";
@@ -146,6 +153,7 @@ namespace StopwatchOverlay
                     {
                         settings.EnsureAllActions();
                         settings.ThemeMode = AppThemeCatalog.Normalize(settings.ThemeMode);
+                        AppBackgroundCatalog.NormalizeSettings(settings);
                         return settings;
                     }
                 }
@@ -168,6 +176,7 @@ namespace StopwatchOverlay
             try
             {
                 settings.ThemeMode = AppThemeCatalog.Normalize(settings.ThemeMode);
+                AppBackgroundCatalog.NormalizeSettings(settings);
 
                 var dir = Path.GetDirectoryName(path);
                 if (!string.IsNullOrEmpty(dir))

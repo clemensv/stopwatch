@@ -170,12 +170,13 @@ namespace StopwatchOverlay
             UpdateShadowOffset(TimeTextShadow3, borderWidth, -borderWidth);
             UpdateShadowOffset(TimeTextShadow4, -borderWidth, borderWidth);
 
-            byte alpha = (byte)(_backgroundOpacity * 255);
             Color chrome = GetThemeColor("OverlayChromeBrush", Colors.Black);
-            var surface = new SolidColorBrush(
-                Color.FromArgb(alpha, chrome.R, chrome.G, chrome.B));
+            Brush surface = AppBackgroundManager.CreateOverlaySurfaceBrush(
+                chrome,
+                _backgroundOpacity);
             OverlayBorder.Background = surface;
             ActionSurface.Background = surface;
+            byte alpha = (byte)(_backgroundOpacity * 255);
             Color chromeBorder = AppThemeManager.UsesThemedOverlayChrome
                 ? GetThemeColor("OverlayChromeBorderBrush", textColor)
                 : Color.FromArgb(alpha, textColor.R, textColor.G, textColor.B);

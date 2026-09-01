@@ -213,8 +213,97 @@
                 <TextBlock Text="Settings" FontWeight="SemiBold"/>
             </Expander.Header>
             <StackPanel Margin="2,6,8,4">
+                <!-- Theme and tiled application background -->
+                <TextBlock Text="Theme &amp; background" Style="{StaticResource SectionHeaderText}" Margin="0,4,0,8"/>
+                <Border Style="{StaticResource SettingsCard}">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <TextBlock Grid.Row="0" Grid.Column="0" Text="Theme"
+                                   VerticalAlignment="Center" Margin="0,0,18,10"/>
+                        <ComboBox Grid.Row="0" Grid.Column="1" x:Name="ThemeModeSelector"
+                                  SelectionChanged="ThemeModeSelector_SelectionChanged"
+                                  Margin="0,0,0,10">
+                            <ComboBoxItem Content="Midnight" IsSelected="True"/>
+                            <ComboBoxItem Content="Daylight"/>
+                            <ComboBoxItem Content="Pixel Deck Night"/>
+                            <ComboBoxItem Content="Pixel Deck Day"/>
+                        </ComboBox>
+
+                        <TextBlock Grid.Row="1" Grid.Column="0" Text="Pattern"
+                                   VerticalAlignment="Center" Margin="0,0,18,10"/>
+                        <Grid Grid.Row="1" Grid.Column="1" Margin="0,0,0,10">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="54"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <ComboBox Grid.Column="0" x:Name="PanelBackgroundSelector"
+                                      DisplayMemberPath="DisplayLabel"
+                                      SelectionChanged="PanelBackgroundSelector_SelectionChanged"
+                                      AutomationProperties.Name="Application background pattern"
+                                      ToolTip="Choose a tiled background pattern"/>
+                            <Border Grid.Column="1" x:Name="PanelBackgroundPreview"
+                                    Width="44" Height="30" Margin="8,0,2,0"
+                                    VerticalAlignment="Center"
+                                    BorderBrush="{DynamicResource BorderBrush}"
+                                    BorderThickness="1"
+                                    CornerRadius="{DynamicResource ThemeItemCornerRadius}"
+                                    ToolTip="Preview of the selected background"/>
+                            <Button Grid.Column="2" x:Name="AddPanelBackgroundButton"
+                                    Content="+" Width="40" Height="40" Padding="0"
+                                    Margin="8,0,0,0"
+                                    Style="{StaticResource ModernButton}"
+                                    FontSize="20" FontWeight="Normal"
+                                    ToolTip="Add new background"
+                                    AutomationProperties.Name="Add new background"
+                                    AutomationProperties.HelpText="Copy a JPG, PNG, or BMP image into the background library"
+                                    Click="AddPanelBackgroundButton_Click"/>
+                            <Button Grid.Column="3" x:Name="RemovePanelBackgroundButton"
+                                    Content="−" Width="40" Height="40" Padding="0"
+                                    Margin="6,0,0,0"
+                                    Style="{StaticResource ModernButton}"
+                                    FontSize="20" FontWeight="Normal"
+                                    IsEnabled="False"
+                                    ToolTip="Remove selected custom background"
+                                    AutomationProperties.Name="Remove selected custom background"
+                                    AutomationProperties.HelpText="Remove this imported image from the background library"
+                                    Click="RemovePanelBackgroundButton_Click"/>
+                        </Grid>
+
+                        <TextBlock Grid.Row="2" Grid.Column="0" Text="Pattern strength"
+                                   VerticalAlignment="Center" Margin="0,0,18,8"/>
+                        <StackPanel Grid.Row="2" Grid.Column="1" Orientation="Horizontal" Margin="0,0,0,8">
+                            <Slider x:Name="PanelBackgroundStrengthSlider"
+                                    Width="210"
+                                    Minimum="10" Maximum="45" Value="30"
+                                    TickFrequency="1" IsSnapToTickEnabled="True"
+                                    VerticalAlignment="Center"
+                                    ValueChanged="PanelBackgroundStrengthSlider_ValueChanged"
+                                    AutomationProperties.Name="Background pattern strength"/>
+                            <TextBlock x:Name="PanelBackgroundStrengthLabel" Text="30%"
+                                       VerticalAlignment="Center" Margin="8,0,0,0" Width="42"/>
+                        </StackPanel>
+
+                        <TextBlock Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="2"
+                                   Text="Patterns repeat across panels, reports, dialogs, and floating clocks. Custom images are copied into the app so they remain available after restart."
+                                   Foreground="{DynamicResource SecondaryTextBrush}"
+                                   FontSize="11" TextWrapping="Wrap"/>
+                    </Grid>
+                </Border>
+
                 <!-- Screen and Position -->
-                <TextBlock Text="Screen &amp; position" Style="{StaticResource SectionHeaderText}" Margin="0,4,0,8"/>
+                <TextBlock Text="Screen &amp; position" Style="{StaticResource SectionHeaderText}" Margin="0,2,0,8"/>
                 <Border Style="{StaticResource SettingsCard}">
                 <Grid>
                         <Grid.ColumnDefinitions>
@@ -224,29 +313,17 @@
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="Auto"/>
                         </Grid.RowDefinitions>
 
-                        <TextBlock Grid.Row="0" Grid.Column="0" Text="Theme" 
+                        <TextBlock Grid.Row="0" Grid.Column="0" Text="Display"
                                    VerticalAlignment="Center" Margin="0,0,18,10"/>
-                        <ComboBox Grid.Row="0" Grid.Column="1" x:Name="ThemeModeSelector" 
-                                  SelectionChanged="ThemeModeSelector_SelectionChanged"
-                                  Margin="0,0,0,10">
-                            <ComboBoxItem Content="Midnight" IsSelected="True"/>
-                            <ComboBoxItem Content="Daylight"/>
-                            <ComboBoxItem Content="Pixel Deck Night"/>
-                            <ComboBoxItem Content="Pixel Deck Day"/>
-                        </ComboBox>
-
-                        <TextBlock Grid.Row="1" Grid.Column="0" Text="Display" 
-                                   VerticalAlignment="Center" Margin="0,0,18,10"/>
-                        <ComboBox Grid.Row="1" Grid.Column="1" x:Name="ScreenSelector" 
+                        <ComboBox Grid.Row="0" Grid.Column="1" x:Name="ScreenSelector"
                                   SelectionChanged="ScreenSelector_SelectionChanged"
                                   Margin="0,0,0,10"/>
 
-                        <TextBlock Grid.Row="2" Grid.Column="0" Text="Position" 
+                        <TextBlock Grid.Row="1" Grid.Column="0" Text="Position"
                                    VerticalAlignment="Center" Margin="0,0,18,0"/>
-                        <ComboBox Grid.Row="2" Grid.Column="1" x:Name="PositionSelector" 
+                        <ComboBox Grid.Row="1" Grid.Column="1" x:Name="PositionSelector"
                                   SelectionChanged="PositionSelector_SelectionChanged">
                             <ComboBoxItem Content="Top Left"/>
                             <ComboBoxItem Content="Top Center" IsSelected="True"/>
@@ -341,7 +418,7 @@
                                        VerticalAlignment="Center" Margin="5,0,0,0" Width="25"/>
                         </StackPanel>
 
-                        <TextBlock Grid.Row="3" Grid.Column="0" Text="Background" 
+                        <TextBlock Grid.Row="3" Grid.Column="0" Text="Clock opacity"
                                    VerticalAlignment="Center" Margin="0,0,10,0"/>
                         <StackPanel Grid.Row="3" Grid.Column="1" Grid.ColumnSpan="3" Orientation="Horizontal">
                             <Slider x:Name="BackgroundOpacitySlider" Width="200" Minimum="0" Maximum="100" Value="50"
