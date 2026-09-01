@@ -1,6 +1,6 @@
 # Background preset assets
 
-These five image files were supplied by the project owner for use as optional
+These nine image files were supplied by the project owner for use as optional
 background presets. Their image rights were not provided with the files, so they
 are not covered by the repository's MIT software license. Confirm redistribution
 permission before publishing these assets in a public release.

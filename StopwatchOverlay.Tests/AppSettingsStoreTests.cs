@@ -73,6 +73,7 @@ public sealed class AppSettingsStoreTests
     [Theory]
     [InlineData("Theme default", AppBackgroundCatalog.ThemeDefault)]
     [InlineData("Festive Chalk", AppBackgroundCatalog.FestiveChalk)]
+    [InlineData("Sapphire Garden", AppBackgroundCatalog.SapphireGarden)]
     [InlineData("preset:cosmic-doodles", AppBackgroundCatalog.ThemeDefault)]
     [InlineData("unknown", AppBackgroundCatalog.ThemeDefault)]
     public void NormalizeBackground_MigratesLabelsAndRejectsUnknownValues(
@@ -87,7 +88,7 @@ public sealed class AppSettingsStoreTests
     }
 
     [Fact]
-    public void BackgroundCatalog_ExposesThemeDefaultAndFiveStablePresets()
+    public void BackgroundCatalog_ExposesThemeDefaultAndNineStablePresets()
     {
         Assert.Equal(
             [
@@ -96,7 +97,11 @@ public sealed class AppSettingsStoreTests
                 AppBackgroundCatalog.WoodlandMushrooms,
                 AppBackgroundCatalog.AutumnPatchwork,
                 AppBackgroundCatalog.GreenCreatures,
-                AppBackgroundCatalog.AquaTattoo
+                AppBackgroundCatalog.AquaTattoo,
+                AppBackgroundCatalog.SapphireGarden,
+                AppBackgroundCatalog.TurquoisePomegranate,
+                AppBackgroundCatalog.MidnightPaisley,
+                AppBackgroundCatalog.AzureMosaic
             ],
             AppBackgroundCatalog.BuiltInIds);
     }

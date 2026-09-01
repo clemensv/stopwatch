@@ -30,7 +30,7 @@ Stopwatch Overlay places customizable timers on top of all your windows — incl
 - 📝 **Editable project records** — Browse complete project history, add past work manually, and correct completed records without changing active sessions
 - 📊 **Project time dashboard** — Filter Today, 7 days, 30 days, or All time; compare project totals, daily activity, timelines, and detailed sessions
 - 🎨 **Four professional themes** — Midnight, Daylight, Pixel Deck Night, and Pixel Deck Day, all backed by the same consistent design tokens
-- 🧵 **Tiled background library** — Choose from five bundled seamless patterns or import a JPG, PNG, or BMP; the selection, strength, and managed custom copy survive restarts
+- 🧵 **Tiled background library** — Choose from nine bundled seamless patterns or import a JPG, PNG, or BMP; the selection, strength, and managed custom copy survive restarts
 - 🖌️ **Deep overlay customization** — Choose display, position, text and outline colors, font, format, size, thickness, opacity, and optional light ring
 - 🖥️ **Multi-monitor and presentation tools** — Show timers on one or every display, keep them always on top, enable click-through, or hide overlays from screen capture
 - 🖱️ **Direct overlay controls** — Click a timer to activate it; hover for close, pause/resume, and reset controls

@@ -40,6 +40,10 @@ public static class AppBackgroundCatalog
     public const string AutumnPatchwork = "preset:autumn-patchwork";
     public const string GreenCreatures = "preset:green-creatures";
     public const string AquaTattoo = "preset:aqua-tattoo";
+    public const string SapphireGarden = "preset:sapphire-garden";
+    public const string TurquoisePomegranate = "preset:turquoise-pomegranate";
+    public const string MidnightPaisley = "preset:midnight-paisley";
+    public const string AzureMosaic = "preset:azure-mosaic";
 
     public const double DefaultPatternStrength = 30;
     public const double MinimumPatternStrength = 10;
@@ -65,7 +69,15 @@ public static class AppBackgroundCatalog
         new(GreenCreatures, "Green Creatures",
             "pack://application:,,,/StopwatchOverlay;component/Assets/Backgrounds/green-creatures.jpg", null, false),
         new(AquaTattoo, "Aqua Tattoo",
-            "pack://application:,,,/StopwatchOverlay;component/Assets/Backgrounds/aqua-tattoo.jpg", null, false)
+            "pack://application:,,,/StopwatchOverlay;component/Assets/Backgrounds/aqua-tattoo.jpg", null, false),
+        new(SapphireGarden, "Sapphire Garden",
+            "pack://application:,,,/StopwatchOverlay;component/Assets/Backgrounds/sapphire-garden.png", null, false),
+        new(TurquoisePomegranate, "Turquoise Pomegranate",
+            "pack://application:,,,/StopwatchOverlay;component/Assets/Backgrounds/turquoise-pomegranate.png", null, false),
+        new(MidnightPaisley, "Midnight Paisley",
+            "pack://application:,,,/StopwatchOverlay;component/Assets/Backgrounds/midnight-paisley.png", null, false),
+        new(AzureMosaic, "Azure Mosaic",
+            "pack://application:,,,/StopwatchOverlay;component/Assets/Backgrounds/azure-mosaic.png", null, false)
     ];
 
     public static IReadOnlyList<string> BuiltInIds { get; } =
@@ -700,7 +712,7 @@ public static class AppBackgroundManager
         }
         else
         {
-            // The bundled presets are portrait tiles.
+            // Bound decoded preset size while preserving the source aspect ratio.
             image.DecodePixelHeight = 768;
         }
         image.UriSource = new Uri(key, UriKind.RelativeOrAbsolute);
