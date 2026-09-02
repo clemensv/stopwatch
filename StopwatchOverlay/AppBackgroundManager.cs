@@ -71,13 +71,13 @@ public static class AppBackgroundCatalog
         new(AquaTattoo, "Aqua Tattoo",
             "pack://application:,,,/StopwatchOverlay;component/Assets/Backgrounds/aqua-tattoo.jpg", null, false),
         new(SapphireGarden, "Sapphire Garden",
-            "pack://application:,,,/StopwatchOverlay;component/Assets/Backgrounds/sapphire-garden.png", null, false),
+            "pack://application:,,,/StopwatchOverlay;component/Assets/Backgrounds/sapphire-garden.jpg", null, false),
         new(TurquoisePomegranate, "Turquoise Pomegranate",
-            "pack://application:,,,/StopwatchOverlay;component/Assets/Backgrounds/turquoise-pomegranate.png", null, false),
+            "pack://application:,,,/StopwatchOverlay;component/Assets/Backgrounds/turquoise-pomegranate.jpg", null, false),
         new(MidnightPaisley, "Midnight Paisley",
-            "pack://application:,,,/StopwatchOverlay;component/Assets/Backgrounds/midnight-paisley.png", null, false),
+            "pack://application:,,,/StopwatchOverlay;component/Assets/Backgrounds/midnight-paisley.jpg", null, false),
         new(AzureMosaic, "Azure Mosaic",
-            "pack://application:,,,/StopwatchOverlay;component/Assets/Backgrounds/azure-mosaic.png", null, false)
+            "pack://application:,,,/StopwatchOverlay;component/Assets/Backgrounds/azure-mosaic.jpg", null, false)
     ];
 
     public static IReadOnlyList<string> BuiltInIds { get; } =
