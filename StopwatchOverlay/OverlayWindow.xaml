@@ -1,7 +1,9 @@
 <Window x:Class="StopwatchOverlay.OverlayWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:ac="clr-namespace:StopwatchOverlay.Themes"
         Title="Stopwatch Overlay"
+        ac:AcanthusVisual.Scope="Collapsed"
         WindowStyle="None"
         AllowsTransparency="True"
         Background="Transparent"
@@ -17,49 +19,24 @@
         MouseRightButtonDown="Window_MouseRightButtonDown">
 
     <Window.Resources>
-        <!-- Kept local so the compact overlay controls never inherit controller sizing. -->
-        <Style x:Key="OverlayActionButtonStyle" TargetType="Button">
-            <Setter Property="Width" Value="28"/>
-            <Setter Property="Height" Value="28"/>
-            <Setter Property="Margin" Value="2,0"/>
-            <Setter Property="Padding" Value="0"/>
-            <Setter Property="Focusable" Value="False"/>
-            <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="Foreground" Value="{DynamicResource OverlayActionForegroundBrush}"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Button">
-                        <Border x:Name="ButtonSurface"
-                                Background="{TemplateBinding Background}"
-                                BorderBrush="{DynamicResource BorderSoftBrush}"
-                                BorderThickness="{DynamicResource ThemeOverlayButtonBorderThickness}"
-                                CornerRadius="{DynamicResource ThemeOverlayButtonCornerRadius}">
-                            <ContentPresenter HorizontalAlignment="Center"
-                                              VerticalAlignment="Center"/>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="ButtonSurface" Property="Background" Value="{DynamicResource OverlayHoverBrush}"/>
-                            </Trigger>
-                            <Trigger Property="IsPressed" Value="True">
-                                <Setter TargetName="ButtonSurface" Property="Background" Value="{DynamicResource OverlayPressedBrush}"/>
-                            </Trigger>
-                            <Trigger Property="IsEnabled" Value="False">
-                                <Setter TargetName="ButtonSurface" Property="Opacity" Value="0.4"/>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="Themes/Overlay/OverlayStyles.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
     </Window.Resources>
 
     <Grid>
         <Grid x:Name="TimerSurface">
-            <Border x:Name="OverlayBorder"
+            <!-- Only this surface receives user opacity; text, border, ornaments
+                 and the detached Popup stay outside its alpha/effect scope. -->
+            <Border x:Name="OverlayBackgroundSurface"
                     Background="{DynamicResource OverlayChromeBrush}"
+                    CornerRadius="{DynamicResource ThemeOverlayCornerRadius}"
+                    Effect="{DynamicResource OverlayShadowEffect}"
+                    IsHitTestVisible="False"/>
+            <Border x:Name="OverlayBorder"
+                    Background="Transparent"
                     BorderBrush="{DynamicResource OverlayChromeBorderBrush}"
                     BorderThickness="{DynamicResource ThemeOverlayFrameBorderThickness}"
                     CornerRadius="{DynamicResource ThemeOverlayCornerRadius}"
@@ -81,7 +58,7 @@
                                        Text="00:00:00.0"
                                        FontFamily="{DynamicResource ThemeTimerFontFamily}"
                                        FontSize="48"
-                                       FontWeight="Bold"
+                                       FontWeight="{DynamicResource OverlayTimerFontWeight}"
                                        Foreground="Black"
                                        RenderTransformOrigin="0.5,0.5">
                                 <TextBlock.RenderTransform>
@@ -93,7 +70,7 @@
                                        Text="00:00:00.0"
                                        FontFamily="{DynamicResource ThemeTimerFontFamily}"
                                        FontSize="48"
-                                       FontWeight="Bold"
+                                       FontWeight="{DynamicResource OverlayTimerFontWeight}"
                                        Foreground="Black"
                                        RenderTransformOrigin="0.5,0.5">
                                 <TextBlock.RenderTransform>
@@ -105,7 +82,7 @@
                                        Text="00:00:00.0"
                                        FontFamily="{DynamicResource ThemeTimerFontFamily}"
                                        FontSize="48"
-                                       FontWeight="Bold"
+                                       FontWeight="{DynamicResource OverlayTimerFontWeight}"
                                        Foreground="Black"
                                        RenderTransformOrigin="0.5,0.5">
                                 <TextBlock.RenderTransform>
@@ -117,7 +94,7 @@
                                        Text="00:00:00.0"
                                        FontFamily="{DynamicResource ThemeTimerFontFamily}"
                                        FontSize="48"
-                                       FontWeight="Bold"
+                                       FontWeight="{DynamicResource OverlayTimerFontWeight}"
                                        Foreground="Black"
                                        RenderTransformOrigin="0.5,0.5">
                                 <TextBlock.RenderTransform>
@@ -129,7 +106,7 @@
                                        Text="00:00:00.0"
                                        FontFamily="{DynamicResource ThemeTimerFontFamily}"
                                        FontSize="48"
-                                       FontWeight="Bold"
+                                       FontWeight="{DynamicResource OverlayTimerFontWeight}"
                                        Foreground="White"/>
                         </Grid>
                     </StackPanel>
@@ -138,41 +115,49 @@
                     <TextBlock x:Name="TimerNameText"
                                Visibility="Collapsed"
                                HorizontalAlignment="Center"
-                               Margin="4,2,4,0"
+                               Margin="{DynamicResource OverlayProjectMargin}"
                                MaxWidth="{Binding ActualWidth, ElementName=TimeTextGrid}"
                                TextAlignment="Center"
                                TextTrimming="CharacterEllipsis"
                                FontFamily="{DynamicResource AppFontFamily}"
-                               FontSize="13"
-                               FontWeight="SemiBold"
-                               Opacity="0.78"/>
+                               FontSize="{DynamicResource OverlayProjectFontSize}"
+                               FontWeight="{DynamicResource OverlayProjectFontWeight}"
+                               Opacity="{DynamicResource OverlayProjectOpacity}"/>
                 </StackPanel>
             </Border>
 
-            <Border Margin="5"
+            <Border Margin="8"
                     BorderBrush="{DynamicResource OverlayInnerRuleBrush}"
                     BorderThickness="1"
-                    CornerRadius="5"
-                    Visibility="{DynamicResource OrnamentVisibility}"
+                    CornerRadius="8"
+                    Visibility="{DynamicResource OverlayInnerRuleVisibility}"
                     IsHitTestVisible="False"/>
 
-            <Path Width="18" Height="16" Margin="8,7,0,0"
+            <Image Width="18" Height="16" Margin="8,7,0,0"
                   HorizontalAlignment="Left" VerticalAlignment="Top"
-                  Data="{StaticResource AcanthusCornerGeometry}"
-                  Stroke="{DynamicResource OrnamentStrokeBrush}"
-                  StrokeThickness="1.2" Stretch="Uniform"
-                  Visibility="{DynamicResource OrnamentVisibility}"
+                  Source="{DynamicResource OverlayCornerImage}" Stretch="Uniform"
+                  Visibility="{DynamicResource OverlayCornerVisibility}"
                   IsHitTestVisible="False"/>
-            <Path Width="18" Height="16" Margin="0,7,8,0"
+            <Image x:Name="RightCornerOrnament" Width="18" Height="16" Margin="0,7,8,0"
                   HorizontalAlignment="Right" VerticalAlignment="Top"
-                  Data="{StaticResource AcanthusCornerGeometry}"
-                  Stroke="{DynamicResource OrnamentStrokeBrush}"
-                  StrokeThickness="1.2" Stretch="Uniform"
+                  Source="{DynamicResource OverlayRightCornerImage}" Stretch="Uniform"
                   RenderTransformOrigin="0.5,0.5"
-                  Visibility="{DynamicResource OrnamentVisibility}"
+                  Visibility="{DynamicResource OverlayCornerVisibility}"
                   IsHitTestVisible="False">
-                <Path.RenderTransform><ScaleTransform ScaleX="-1"/></Path.RenderTransform>
-            </Path>
+                <Image.RenderTransform><ScaleTransform x:Name="RightCornerTransform" ScaleX="1"/></Image.RenderTransform>
+            </Image>
+
+            <Grid Margin="24,0,24,8" Height="18" VerticalAlignment="Bottom"
+                  Visibility="{DynamicResource OverlayCrestVisibility}" IsHitTestVisible="False">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/><ColumnDefinition Width="32"/><ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <Border Height="0.75" VerticalAlignment="Center" Background="{DynamicResource OverlayOrnamentBrush}" Opacity="0.7"/>
+                <Image Grid.Column="1" Width="18" Height="18" Source="{DynamicResource OverlayCrestImage}"/>
+                <Border Grid.Column="2" Height="0.75" VerticalAlignment="Center" Background="{DynamicResource OverlayOrnamentBrush}" Opacity="0.7"/>
+            </Grid>
+            <Image Width="14" Height="3" Margin="0,0,16,9" HorizontalAlignment="Right" VerticalAlignment="Bottom"
+                   Source="{DynamicResource OverlayLeafImage}" Visibility="{DynamicResource OverlayLeafVisibility}" IsHitTestVisible="False"/>
 
             <Border x:Name="AcanthusActiveEdge"
                     Width="4" Margin="0,8,0,8"
@@ -201,23 +186,25 @@
                Focusable="False"
                PopupAnimation="None">
             <Grid x:Name="ActionPopupRoot"
+                  ac:AcanthusVisual.Scope="Collapsed"
                   MouseEnter="ActionPopupRoot_MouseEnter"
                   MouseLeave="ActionPopupRoot_MouseLeave">
                 <!-- Top clearance gives the slide transform room without clipping. -->
                 <Border x:Name="ActionSurface"
                         Margin="0,8,0,0"
-                        Padding="3"
+                        Padding="{DynamicResource OverlayToolbarPadding}"
                         Background="{DynamicResource OverlayToolbarSurfaceBrush}"
-                        BorderBrush="{DynamicResource OverlayChromeBorderBrush}"
+                        BorderBrush="{DynamicResource OverlayToolbarBorderBrush}"
                         BorderThickness="{DynamicResource ThemePanelBorderThickness}"
-                        CornerRadius="{DynamicResource ThemeOverlayCornerRadius}"
+                        CornerRadius="{DynamicResource OverlayToolbarCornerRadius}"
+                        Effect="{DynamicResource OverlayToolbarShadowEffect}"
                         Opacity="0">
                     <Border.RenderTransform>
                         <TranslateTransform x:Name="ActionTranslate" Y="-8"/>
                     </Border.RenderTransform>
                     <StackPanel Orientation="Horizontal">
                         <Button x:Name="CloseActionButton"
-                                Style="{StaticResource OverlayActionButtonStyle}"
+                                Style="{StaticResource OverlayCloseButtonStyle}"
                                 ToolTip="Close timer"
                                 Click="CloseActionButton_Click">
                             <Path Width="13" Height="13"
@@ -230,7 +217,7 @@
                         </Button>
 
                         <Button x:Name="PauseResumeActionButton"
-                                Style="{StaticResource OverlayActionButtonStyle}"
+                                Style="{StaticResource OverlayPauseButtonStyle}"
                                 ToolTip="Pause timer"
                                 Click="PauseResumeActionButton_Click">
                             <Grid Width="14" Height="14">

@@ -49,8 +49,7 @@ public sealed class ThemeHoverResourcesTests
                      {
                          "Midnight.xaml",
                          "Daylight.xaml",
-                         "PixelDeckDay.xaml",
-                         "Acanthus.xaml"
+                         "PixelDeckDay.xaml"
                      })
             {
                 ResourceDictionary theme = Load(fileName);
@@ -79,6 +78,32 @@ public sealed class ThemeHoverResourcesTests
                 Assert.Equal(0.88d, Assert.IsType<double>(theme["NeutralButtonHoverOpacity"]));
                 Assert.Equal(0.72d, Assert.IsType<double>(theme["NeutralButtonPressedOpacity"]));
             }
+        });
+    }
+
+    [Fact]
+    public void Acanthus_NeutralButtonsUseOpaqueSageAndStoneWithReadableOliveOverlayIcons()
+    {
+        RunSta(() =>
+        {
+            ResourceDictionary theme = Load("Acanthus.xaml");
+
+            Assert.Equal(Color.FromRgb(213, 221, 207), BrushColor(theme, "NeutralButtonHoverBackgroundBrush"));
+            Assert.Equal(Color.FromRgb(229, 221, 207), BrushColor(theme, "NeutralButtonPressedBackgroundBrush"));
+            Assert.Equal(Color.FromRgb(176, 138, 77), BrushColor(theme, "NeutralButtonHoverBorderBrush"));
+            Assert.Equal(Color.FromRgb(176, 138, 77), BrushColor(theme, "NeutralButtonPressedBorderBrush"));
+            Assert.Equal(Color.FromRgb(44, 41, 36), BrushColor(theme, "NeutralButtonHoverForegroundBrush"));
+            Assert.Equal(Color.FromRgb(44, 41, 36), BrushColor(theme, "NeutralButtonPressedForegroundBrush"));
+            Assert.Equal(1d, Assert.IsType<double>(theme["NeutralButtonHoverOpacity"]));
+            Assert.Equal(1d, Assert.IsType<double>(theme["NeutralButtonPressedOpacity"]));
+            Assert.Equal(Color.FromRgb(68, 81, 64), BrushColor(theme, "OverlayActionForegroundBrush"));
+            Assert.Equal(Color.FromRgb(251, 248, 241), BrushColor(theme, "OverlayToolbarSurfaceBrush"));
+
+            // Semantic primary actions retain ivory text on olive rather than
+            // inheriting the neutral controls' charcoal foreground.
+            Assert.Equal(Color.FromRgb(251, 248, 241), BrushColor(theme, "OnActionTextBrush"));
+            Assert.Equal(Color.FromRgb(68, 81, 64), BrushColor(theme, "PrimaryActionBrush"));
+            Assert.Equal(Color.FromRgb(138, 62, 69), BrushColor(theme, "DangerActionBrush"));
         });
     }
 

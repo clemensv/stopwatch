@@ -32,6 +32,12 @@
     <Resource Include="project-logo-24.png" />
     <Resource Include="Assets\Backgrounds\*.jpg" />
     <Resource Include="Assets\Ornaments\*.svg" />
+    <Resource Include="Assets\Ornaments\Overlay\*.svg" />
+    <Resource Include="Assets\Fonts\Acanthus\*.ttf" />
+    <!-- Keep the bundled Acanthus font license readable beside single-file publishes. -->
+    <None Update="Assets\Fonts\Acanthus\OFL.txt"
+          CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest"
+          ExcludeFromSingleFile="true" />
   </ItemGroup>
 
 </Project>

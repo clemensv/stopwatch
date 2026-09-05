@@ -979,6 +979,43 @@ public sealed class AppSettingsStoreTests
                     Color.FromRgb(44, 41, 36),
                     ((SolidColorBrush)button.Foreground).Color);
 
+                // Acanthus may resolve its named design font to the embedded
+                // file, but must not reinterpret a user's saved custom choice
+                // or leak that embedded family into another theme.
+                Assert.Same(application.Resources["ThemeTimerFontFamily"],
+                    Themes.AcanthusVisual.ResolveTimerFont("Cascadia Mono"));
+                Assert.Same(application.Resources["ThemeTimerFontFamily"],
+                    Themes.AcanthusVisual.ResolveTimerFont("cascadia mono"));
+                foreach (bool hasTimer in new[] { false, true })
+                foreach (bool running in new[] { false, true })
+                    Assert.Equal("AcanthusPrimaryAction",
+                        Themes.AcanthusVisual.PrimaryActionStyleKey(hasTimer, running));
+                AssertAcanthusOverlayPauseResumeForeground(application);
+                foreach (string savedFont in new[] { "Consolas", "Arial", "Segoe UI" })
+                {
+                    var savedSettings = new AppSettings { FontFamily = savedFont };
+                    Assert.Equal(savedFont,
+                        Themes.AcanthusVisual.ResolveTimerFont(savedSettings.FontFamily).Source);
+                    Assert.Equal(savedFont, savedSettings.FontFamily);
+                }
+                foreach (string otherTheme in new[]
+                         {
+                             AppThemeCatalog.Midnight, AppThemeCatalog.Daylight,
+                             AppThemeCatalog.PixelDeckNight, AppThemeCatalog.PixelDeckDay
+                         })
+                {
+                    AppThemeManager.Apply(otherTheme);
+                    Assert.Equal("Cascadia Mono",
+                        Themes.AcanthusVisual.ResolveTimerFont("Cascadia Mono").Source);
+                    Assert.Equal("Consolas",
+                        Themes.AcanthusVisual.ResolveTimerFont("Consolas").Source);
+                    foreach (bool hasTimer in new[] { false, true })
+                    foreach (bool running in new[] { false, true })
+                        Assert.Equal(hasTimer && running ? "StopButton" : "StartButton",
+                            Themes.AcanthusVisual.PrimaryActionStyleKey(hasTimer, running));
+                }
+                AppThemeManager.Apply(AppThemeCatalog.Acanthus);
+
                 // This is the crash regression: slider input used to reapply the
                 // active theme while WPF was tearing down ScrollBar/Thumb styles.
                 // Same-theme work must be a true no-op while value and scroll
@@ -1052,6 +1089,75 @@ public sealed class AppSettingsStoreTests
         if (failure != null)
             ExceptionDispatchInfo.Capture(failure).Throw();
     }
+
+    private static void AssertAcanthusOverlayPauseResumeForeground(Application application)
+    {
+        // Exercise the compiled overlay's actual style/template precedence. No
+        // window or popup is shown and no native pointer input is synthesized.
+        var styles = new ResourceDictionary
+        {
+            Source = new Uri("/StopwatchOverlay;component/Themes/AcanthusStyles.xaml", UriKind.Relative)
+        };
+        var ornaments = new ResourceDictionary
+        {
+            Source = new Uri("/StopwatchOverlay;component/Themes/AcanthusOrnaments.xaml", UriKind.Relative)
+        };
+        application.Resources.MergedDictionaries.Add(styles);
+        application.Resources.MergedDictionaries.Add(ornaments);
+        OverlayWindow? overlay = null;
+        try
+        {
+            overlay = new OverlayWindow();
+            var popupRoot = Assert.IsType<Grid>(overlay.FindName("ActionPopupRoot"));
+            var pauseResume = Assert.IsType<Button>(overlay.FindName("PauseResumeActionButton"));
+            popupRoot.Measure(new Size(200, 60));
+            popupRoot.Arrange(new Rect(0, 0, 200, 60));
+            pauseResume.ApplyTemplate();
+            popupRoot.UpdateLayout();
+            Assert.Equal(Visibility.Visible, Themes.AcanthusVisual.GetScope(pauseResume));
+
+            DependencyPropertyKey mouseOverKey = ReadOnlyKey(typeof(UIElement), UIElement.IsMouseOverProperty);
+            DependencyPropertyKey pressedKey = ReadOnlyKey(typeof(System.Windows.Controls.Primitives.ButtonBase),
+                System.Windows.Controls.Primitives.ButtonBase.IsPressedProperty);
+            var surface = Assert.IsType<Border>(pauseResume.Template.FindName("ButtonSurface", pauseResume));
+            foreach (bool running in new[] { true, false })
+            {
+                overlay.SetRunning(running);
+                Assert.Equal(Color.FromRgb(251, 248, 241), Assert.IsType<SolidColorBrush>(pauseResume.Foreground).Color);
+                Assert.Equal(Color.FromRgb(68, 81, 64), Assert.IsType<SolidColorBrush>(surface.Background).Color);
+
+                pauseResume.SetValue(mouseOverKey, true);
+                popupRoot.UpdateLayout();
+                Assert.Equal(true, pauseResume.GetValue(UIElement.IsMouseOverProperty));
+                Assert.Equal(Color.FromRgb(68, 81, 64), Assert.IsType<SolidColorBrush>(pauseResume.Foreground).Color);
+                Assert.Equal(Color.FromRgb(213, 221, 207), Assert.IsType<SolidColorBrush>(surface.Background).Color);
+
+                pauseResume.SetValue(pressedKey, true);
+                popupRoot.UpdateLayout();
+                Assert.Equal(true, pauseResume.GetValue(System.Windows.Controls.Primitives.ButtonBase.IsPressedProperty));
+                Assert.Equal(Color.FromRgb(68, 81, 64), Assert.IsType<SolidColorBrush>(pauseResume.Foreground).Color);
+                Assert.Equal(Color.FromRgb(209, 188, 141), Assert.IsType<SolidColorBrush>(surface.Background).Color);
+
+                pauseResume.SetValue(pressedKey, false);
+                pauseResume.SetValue(mouseOverKey, false);
+                popupRoot.UpdateLayout();
+                Assert.Equal(Color.FromRgb(251, 248, 241), Assert.IsType<SolidColorBrush>(pauseResume.Foreground).Color);
+            }
+        }
+        finally
+        {
+            overlay?.Close();
+            application.Resources.MergedDictionaries.Remove(ornaments);
+            application.Resources.MergedDictionaries.Remove(styles);
+        }
+    }
+
+    private static DependencyPropertyKey ReadOnlyKey(Type owner, DependencyProperty property)
+        => owner.GetFields(System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Public
+                           | System.Reflection.BindingFlags.NonPublic)
+            .Where(field => field.FieldType == typeof(DependencyPropertyKey))
+            .Select(field => Assert.IsType<DependencyPropertyKey>(field.GetValue(null)))
+            .Single(key => key.DependencyProperty == property);
 
     private static void WriteTestBitmap(string path, bool jpeg)
     {

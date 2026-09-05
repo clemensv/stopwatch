@@ -74,6 +74,8 @@ public partial class SettingsWindow : Window
         {
             ThemeCombo.ItemsSource = AppThemeCatalog.All;
             ThemeCombo.SelectedItem = AppThemeCatalog.Normalize(_settings.ThemeMode);
+            OverlayThemeCombo.ItemsSource = OverlayThemeCatalog.All;
+            OverlayThemeCombo.SelectedItem = OverlayThemeCatalog.Normalize(_settings.OverlayTheme);
 
             ScreenCombo.Items.Clear();
             ScreenCombo.Items.Add("All displays");
@@ -84,7 +86,7 @@ public partial class SettingsWindow : Window
                 Screen.AllScreens.Length);
 
             SetItems(PositionCombo, ["Top Left", "Top Center", "Top Right", "Bottom Left", "Bottom Center", "Bottom Right", "Custom"], _settings.Position);
-            SetItems(TextColorCombo, ["White", "Charcoal", "Yellow", "Cyan", "Lime", "Orange", "Red", "Magenta"], _settings.TextColor);
+            SetItems(TextColorCombo, ["Theme default", "White", "Charcoal", "Yellow", "Cyan", "Lime", "Orange", "Red", "Magenta"], _settings.TextColor);
             SetItems(BorderColorCombo, ["Black", "White", "Dark Gray", "Red", "Blue"], _settings.BorderColor);
             SetItems(FontCombo, ["Consolas", "Cascadia Mono", "Segoe UI", "Arial", "Courier New", "Lucida Console"], _settings.FontFamily);
             SetItems(FormatCombo, ["HH:MM:SS.t", "HH:MM:SS", "MM:SS.t", "MM:SS", "HH:MM"], null);
@@ -125,6 +127,7 @@ public partial class SettingsWindow : Window
     private void WireChanges()
     {
         ThemeCombo.SelectionChanged += (_, _) => CommitControls(SettingsChangeKind.Theme);
+        OverlayThemeCombo.SelectionChanged += (_, _) => CommitControls(SettingsChangeKind.OverlayTheme);
         ScreenCombo.SelectionChanged += (_, _) => CommitControls(SettingsChangeKind.OverlayScreen);
         PositionCombo.SelectionChanged += (_, _) => CommitControls(SettingsChangeKind.OverlayPosition);
         TextColorCombo.SelectionChanged += (_, _) => CommitControls(SettingsChangeKind.OverlayAppearance);
@@ -209,6 +212,9 @@ public partial class SettingsWindow : Window
             if ((change & SettingsChangeKind.Theme) != 0)
                 _settings.ThemeMode = AppThemeCatalog.Normalize(ThemeCombo.SelectedItem?.ToString());
 
+            if ((change & SettingsChangeKind.OverlayTheme) != 0)
+                _settings.OverlayTheme = OverlayThemeCatalog.Normalize(OverlayThemeCombo.SelectedItem?.ToString());
+
             if ((change & SettingsChangeKind.OverlayScreen) != 0)
                 _settings.ScreenIndex = Math.Max(0, ScreenCombo.SelectedIndex);
 
@@ -268,6 +274,7 @@ public partial class SettingsWindow : Window
             UpdateValueLabels();
             UpdateDependentControlStates();
             if ((change & (SettingsChangeKind.Theme
+                           | SettingsChangeKind.OverlayTheme
                            | SettingsChangeKind.OverlayAppearance
                            | SettingsChangeKind.OverlayGeometry
                            | SettingsChangeKind.BackgroundSelection
@@ -313,12 +320,26 @@ public partial class SettingsWindow : Window
     {
         try
         {
-            Color chrome = ResourceColor("OverlayChromeBrush", Colors.Black);
+            string effectiveTheme = OverlayThemeManager.Apply(
+                PreviewThemeScope, _settings.OverlayTheme, _settings.ThemeMode);
+            OverlayThemeManager.Apply(
+                PreviewToolbarSurface, _settings.OverlayTheme, _settings.ThemeMode);
+            PreviewRightCornerTransform.ScaleX = effectiveTheme == OverlayThemeCatalog.AcanthusLight ? -1 : 1;
+            Color chrome = OverlayThemeManager.ResourceColor(
+                PreviewThemeScope, "OverlayChromeBrush", Colors.Black);
             Brush nextSurface = AppBackgroundManager.CreateOverlaySurfaceBrush(
                 chrome,
                 OverlayPresentationPolicy.ClampBackgroundOpacity(_settings.BackgroundOpacity / 100.0));
-            var nextTextBrush = new SolidColorBrush(SelectedTextColor(_settings.TextColor));
-            var nextFont = new FontFamily(_settings.FontFamily);
+            bool useThemeTextColor = _settings.TextColor == "Theme default";
+            Color textColor = useThemeTextColor
+                ? OverlayThemeManager.ResourceColor(PreviewThemeScope, "OverlayTimerForegroundBrush", Colors.White)
+                : SelectedTextColor(_settings.TextColor);
+            Color projectColor = useThemeTextColor
+                ? OverlayThemeManager.ResourceColor(PreviewThemeScope, "OverlayProjectForegroundBrush", textColor)
+                : textColor;
+            var nextTextBrush = new SolidColorBrush(textColor);
+            var nextFont = OverlayThemeManager.ResolveTimerFont(
+                PreviewThemeScope, effectiveTheme, _settings.FontFamily);
             double nextSize = Math.Clamp(_settings.TextSize, 24, 58);
             var outline = new DropShadowEffect
             {
@@ -333,7 +354,7 @@ public partial class SettingsWindow : Window
             PreviewSurface.Background = nextSurface;
             PreviewTimeText.Foreground = nextTextBrush;
             PreviewTimeText.Effect = outline;
-            PreviewProjectText.Foreground = nextTextBrush;
+            PreviewProjectText.Foreground = new SolidColorBrush(projectColor);
             PreviewTimeText.FontFamily = nextFont;
             PreviewTimeText.FontSize = nextSize;
             _previewFailureReported = false;
@@ -348,9 +369,6 @@ public partial class SettingsWindow : Window
             }
         }
     }
-
-    private Color ResourceColor(string key, Color fallback)
-        => TryFindResource(key) is SolidColorBrush brush ? brush.Color : fallback;
 
     private static Color SelectedTextColor(string value) => value switch
     {

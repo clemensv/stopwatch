@@ -9,9 +9,6 @@
                 <GeometryDrawing Brush="#F3EFE5">
                     <GeometryDrawing.Geometry><RectangleGeometry Rect="0,0,24,24"/></GeometryDrawing.Geometry>
                 </GeometryDrawing>
-                <GeometryDrawing Brush="#0CB08A4D">
-                    <GeometryDrawing.Geometry><EllipseGeometry Center="3,4" RadiusX="0.7" RadiusY="0.7"/></GeometryDrawing.Geometry>
-                </GeometryDrawing>
             </DrawingGroup>
         </DrawingBrush.Drawing>
     </DrawingBrush>
@@ -25,8 +22,8 @@
     <SolidColorBrush x:Key="BorderSoftBrush" Color="#B8B0A2"/>
     <SolidColorBrush x:Key="PrimaryTextBrush" Color="#2C2924"/>
     <SolidColorBrush x:Key="SecondaryTextBrush" Color="#706A61"/>
-    <SolidColorBrush x:Key="AccentBrush" Color="#4F755A"/>
-    <SolidColorBrush x:Key="TimerTextBrush" Color="#445140"/>
+    <SolidColorBrush x:Key="AccentBrush" Color="#445140"/>
+    <SolidColorBrush x:Key="TimerTextBrush" Color="#2C2924"/>
     <SolidColorBrush x:Key="PrimaryActionBrush" Color="#445140"/>
     <SolidColorBrush x:Key="OnActionTextBrush" Color="#FBF8F1"/>
     <SolidColorBrush x:Key="DangerActionBrush" Color="#8A3E45"/>
@@ -40,15 +37,15 @@
     <SolidColorBrush x:Key="OverlayChromeBorderBrush" Color="#B08A4D"/>
     <SolidColorBrush x:Key="OverlayHoverBrush" Color="#D5DDCF"/>
     <SolidColorBrush x:Key="OverlayPressedBrush" Color="#D1BC8D"/>
-    <SolidColorBrush x:Key="OverlayActionForegroundBrush" Color="#FBF8F1"/>
-    <SolidColorBrush x:Key="NeutralButtonHoverBackgroundBrush" Color="#E5DDCF"/>
+    <SolidColorBrush x:Key="OverlayActionForegroundBrush" Color="#445140"/>
+    <SolidColorBrush x:Key="NeutralButtonHoverBackgroundBrush" Color="#D5DDCF"/>
     <SolidColorBrush x:Key="NeutralButtonHoverBorderBrush" Color="#B08A4D"/>
     <SolidColorBrush x:Key="NeutralButtonHoverForegroundBrush" Color="#2C2924"/>
     <SolidColorBrush x:Key="NeutralButtonPressedBackgroundBrush" Color="#E5DDCF"/>
     <SolidColorBrush x:Key="NeutralButtonPressedBorderBrush" Color="#B08A4D"/>
     <SolidColorBrush x:Key="NeutralButtonPressedForegroundBrush" Color="#2C2924"/>
-    <sys:Double x:Key="NeutralButtonHoverOpacity">0.88</sys:Double>
-    <sys:Double x:Key="NeutralButtonPressedOpacity">0.72</sys:Double>
+    <sys:Double x:Key="NeutralButtonHoverOpacity">1</sys:Double>
+    <sys:Double x:Key="NeutralButtonPressedOpacity">1</sys:Double>
 
     <SolidColorBrush x:Key="ApplicationHeaderBrush" Color="#FBF8F1"/>
     <SolidColorBrush x:Key="NavigationRailBrush" Color="#D5DDCF"/>
@@ -60,17 +57,17 @@
     <SolidColorBrush x:Key="ChartSeries4Brush" Color="#8A3E45"/>
     <SolidColorBrush x:Key="DialogSurfaceBrush" Color="#FBF8F1"/>
     <SolidColorBrush x:Key="OverlayInnerRuleBrush" Color="#D1BC8D"/>
-    <SolidColorBrush x:Key="OverlayToolbarSurfaceBrush" Color="#445140"/>
+    <SolidColorBrush x:Key="OverlayToolbarSurfaceBrush" Color="#FBF8F1"/>
     <SolidColorBrush x:Key="OrnamentStrokeBrush" Color="#B08A4D"/>
     <SolidColorBrush x:Key="OrnamentAccentBrush" Color="#445140"/>
-    <SolidColorBrush x:Key="ActiveItemBorderBrush" Color="#4F755A"/>
+    <SolidColorBrush x:Key="ActiveItemBorderBrush" Color="#445140"/>
     <SolidColorBrush x:Key="SubtleDividerBrush" Color="#D1BC8D"/>
     <SolidColorBrush x:Key="FocusBorderBrush" Color="#4F755A"/>
 
-    <FontFamily x:Key="AppFontFamily">Inter, Segoe UI</FontFamily>
-    <FontFamily x:Key="DisplayHeadingFontFamily">Cormorant Garamond, Georgia</FontFamily>
-    <FontFamily x:Key="ThemeMonoFontFamily">Cascadia Mono, Consolas</FontFamily>
-    <FontFamily x:Key="ThemeTimerFontFamily">Cascadia Mono, Consolas</FontFamily>
+    <FontFamily x:Key="AppFontFamily">pack://application:,,,/StopwatchOverlay;component/Assets/Fonts/Acanthus/#Inter</FontFamily>
+    <FontFamily x:Key="DisplayHeadingFontFamily">pack://application:,,,/StopwatchOverlay;component/Assets/Fonts/Acanthus/#Cormorant Garamond</FontFamily>
+    <FontFamily x:Key="ThemeMonoFontFamily">pack://application:,,,/StopwatchOverlay;component/Assets/Fonts/Acanthus/#Cascadia Mono</FontFamily>
+    <FontFamily x:Key="ThemeTimerFontFamily">pack://application:,,,/StopwatchOverlay;component/Assets/Fonts/Acanthus/#Cascadia Mono</FontFamily>
 
     <Visibility x:Key="OrnamentVisibility">Visible</Visibility>
     <Visibility x:Key="BrandIconVisibility">Collapsed</Visibility>
@@ -80,17 +77,17 @@
     <Thickness x:Key="ThemeOverlayPadding">18,10,18,12</Thickness>
     <Thickness x:Key="ThemeOverlayFrameBorderThickness">1</Thickness>
     <Thickness x:Key="ThemeOverlayButtonBorderThickness">0</Thickness>
-    <CornerRadius x:Key="ThemeControlCornerRadius">6</CornerRadius>
+    <CornerRadius x:Key="ThemeControlCornerRadius">8</CornerRadius>
     <CornerRadius x:Key="ThemeItemCornerRadius">5</CornerRadius>
     <CornerRadius x:Key="ThemePopupCornerRadius">8</CornerRadius>
     <CornerRadius x:Key="ThemePanelCornerRadius">10</CornerRadius>
     <CornerRadius x:Key="ThemeCardCornerRadius">8</CornerRadius>
     <CornerRadius x:Key="ThemeCheckCornerRadius">3</CornerRadius>
-    <CornerRadius x:Key="ThemeOverlayCornerRadius">8</CornerRadius>
+    <CornerRadius x:Key="ThemeOverlayCornerRadius">10</CornerRadius>
     <CornerRadius x:Key="ThemeOverlayButtonCornerRadius">5</CornerRadius>
     <CornerRadius x:Key="ThemeTimerPanelCornerRadius">10</CornerRadius>
     <CornerRadius x:Key="ThemeDashboardCardCornerRadius">8</CornerRadius>
     <DropShadowEffect x:Key="ThemePanelShadowEffect"
-                      Color="#445140" BlurRadius="14" Direction="315"
-                      ShadowDepth="2" Opacity="0.08"/>
+                      Color="#445140" BlurRadius="12" Direction="270"
+                      ShadowDepth="3" Opacity="0.07"/>
 </ResourceDictionary>

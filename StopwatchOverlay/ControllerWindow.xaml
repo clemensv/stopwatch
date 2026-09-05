@@ -22,15 +22,14 @@
                 <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
             <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                <Path Width="28" Height="28" Margin="0,0,10,0"
-                      Data="{StaticResource AcanthusCrestGeometry}"
-                      Fill="{DynamicResource OrnamentAccentBrush}"
+                <Image Width="28" Height="28" Margin="0,0,10,0"
+                      Source="{StaticResource AcanthusCrestImage}"
                       Stretch="Uniform"
                       Visibility="{DynamicResource OrnamentVisibility}"/>
                 <Image Source="pack://application:,,,/StopwatchOverlay;component/project-logo-24.png" Width="24" Height="24"
                        Margin="0,0,10,0" VerticalAlignment="Center"
                        Visibility="{DynamicResource BrandIconVisibility}"/>
-                <TextBlock Text="Stopwatch Overlay" FontWeight="SemiBold" FontSize="17"
+                <TextBlock Text="Stopwatch Overlay" Style="{StaticResource AcanthusHeaderTitle}"
                            VerticalAlignment="Center"/>
             </StackPanel>
             <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
@@ -167,16 +166,16 @@
         <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,14">
             <RadioButton x:Name="StopwatchModeRadio" Content="Stopwatch"
                          IsChecked="True" GroupName="Mode"
-                         Checked="ModeRadio_Checked" Margin="0,0,24,0"/>
+                         Checked="ModeRadio_Checked" Style="{StaticResource AcanthusModeRadio}"/>
             <RadioButton x:Name="ClockModeRadio" Content="Clock"
                          GroupName="Mode"
-                         Checked="ModeRadio_Checked" Margin="0,0,24,0"/>
+                         Checked="ModeRadio_Checked" Style="{StaticResource AcanthusModeRadio}"/>
             <RadioButton x:Name="CountdownModeRadio" Content="Countdown"
                          GroupName="Mode"
-                         Checked="ModeRadio_Checked" Margin="0,0,24,0"/>
+                         Checked="ModeRadio_Checked" Style="{StaticResource AcanthusModeRadio}"/>
             <RadioButton x:Name="TimecodeModeRadio" Content="Timecode"
                          GroupName="Mode"
-                         Checked="ModeRadio_Checked"/>
+                         Checked="ModeRadio_Checked" Style="{StaticResource AcanthusModeRadio}" Margin="0"/>
         </StackPanel>
 
         <!-- Countdown inputs (only visible in countdown mode) -->
@@ -237,12 +236,8 @@
         </StackPanel>
 
         <!-- Current Time Display -->
-        <Border Grid.Row="3" Background="{DynamicResource SurfaceRaisedBrush}"
-                BorderBrush="{DynamicResource BorderBrush}"
-                BorderThickness="{DynamicResource ThemePanelBorderThickness}"
-                CornerRadius="{DynamicResource ThemeTimerPanelCornerRadius}"
-                Effect="{DynamicResource ThemePanelShadowEffect}"
-                Padding="20,17" Margin="0,0,0,14">
+        <Grid Grid.Row="3">
+        <Border Style="{StaticResource AcanthusTimerHero}">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto"/>
@@ -252,33 +247,27 @@
                          Fill="{DynamicResource RecBrush}" Margin="0,0,10,0" Visibility="Collapsed"/>
                 <TextBlock x:Name="TimeDisplay" Grid.Column="1"
                            Text="00:00:00.0" 
-                           FontSize="38" 
-                           FontFamily="{DynamicResource ThemeTimerFontFamily}"
-                           FontWeight="Bold"
-                           Foreground="{DynamicResource TimerTextBrush}"
-                           HorizontalAlignment="Center"/>
-                <Path Width="28" Height="25" Margin="0,0,4,0"
-                      HorizontalAlignment="Right" VerticalAlignment="Top"
-                      Data="{StaticResource AcanthusCornerGeometry}"
-                      Stroke="{DynamicResource OrnamentStrokeBrush}"
-                      StrokeThickness="1.2" Stretch="Uniform"
-                      Visibility="{DynamicResource OrnamentVisibility}"/>
+                           Style="{StaticResource AcanthusControllerTime}"/>
             </Grid>
         </Border>
+        <Image Source="{StaticResource AcanthusHeroFrameImage}" Stretch="Fill"
+               Margin="0,0,0,14" IsHitTestVisible="False"
+               Visibility="{DynamicResource OrnamentVisibility}"/>
+        </Grid>
 
         <!-- Control Buttons -->
         <WrapPanel Grid.Row="4" Grid.RowSpan="2" HorizontalAlignment="Center" Margin="0,0,0,12">
             <Button x:Name="StartStopButton" Content="Start  ·  Win+F5" Width="150"
-                    Style="{StaticResource StartButton}" 
+                    Style="{StaticResource AcanthusPrimaryAction}"
                     Click="StartStopButton_Click" Margin="0,0,10,0"/>
             <Button x:Name="LapButton" Content="Add lap  ·  Win+F8" Width="150"
-                    Style="{StaticResource ModernButton}"
+                    Style="{StaticResource AcanthusSecondaryAction}"
                     Click="LapButton_Click" Margin="0,0,10,0"/>
             <Button x:Name="ResetButton" Content="Reset  ·  Win+F6" Width="150"
-                    Style="{StaticResource ModernButton}" 
+                    Style="{StaticResource AcanthusResetButton}"
                     Click="ResetButton_Click" Margin="0,0,10,0"/>
             <Button x:Name="ToggleOverlayButton" Content="Show overlay  ·  Win+F7" Width="150"
-                    Style="{StaticResource ModernButton}" 
+                    Style="{StaticResource AcanthusSecondaryAction}"
                     Click="ToggleOverlayButton_Click"/>
         </WrapPanel>
 
@@ -455,6 +444,7 @@
                                    VerticalAlignment="Center" Margin="0,0,10,10"/>
                         <ComboBox Grid.Row="0" Grid.Column="1" x:Name="TextColorSelector" 
                                   SelectionChanged="AppearanceChanged" Margin="0,0,18,10">
+                            <ComboBoxItem Content="Theme default"/>
                             <ComboBoxItem Content="White" IsSelected="True"/>
                             <ComboBoxItem Content="Charcoal"/>
                             <ComboBoxItem Content="Yellow"/>
@@ -605,7 +595,11 @@
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="*"/>
                 </Grid.RowDefinitions>
-                <TextBlock Grid.Row="0" Text="Lap times" FontWeight="SemiBold" Margin="0,0,0,8"/>
+                <TextBlock Grid.Row="0" Text="Lap times" Style="{StaticResource AcanthusSectionTitle}" Margin="0,0,0,8"/>
+                <Image Grid.Row="0" Source="{StaticResource AcanthusDividerImage}" Height="8"
+                       VerticalAlignment="Bottom" HorizontalAlignment="Center" Margin="0,0,0,1"
+                       Stretch="Fill" IsHitTestVisible="False"
+                       Visibility="{DynamicResource OrnamentVisibility}"/>
                 <Grid Grid.Row="1">
                 <ListBox x:Name="LapListBox" 
                          Background="Transparent" BorderThickness="0" MaxHeight="100"

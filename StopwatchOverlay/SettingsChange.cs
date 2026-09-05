@@ -17,7 +17,8 @@ internal enum SettingsChangeKind
     LightRingVisibility = 1 << 8,
     LightRingAppearance = 1 << 9,
     Behavior = 1 << 10,
-    Startup = 1 << 11
+    Startup = 1 << 11,
+    OverlayTheme = 1 << 12
 }
 
 internal static class SettingsChangePolicy

@@ -35,6 +35,14 @@ namespace StopwatchOverlay
         private Color _textColor = Colors.White;
         private double _backgroundOpacity = 0.5;
         private bool _hideFromCapture;
+        private Color _borderColor = Colors.Black;
+        private int _fontSize = 48;
+        private int _borderWidth = 2;
+        private string _fontFamily = "Consolas";
+        private bool _useThemeTextColor;
+        private string _effectiveOverlayTheme = string.Empty;
+
+        public string EffectiveOverlayTheme => _effectiveOverlayTheme;
 
         public event Action? PositionChangedByUser;
         public event Action? ActivationRequested;
@@ -59,6 +67,7 @@ namespace StopwatchOverlay
             };
 
             ActionPopup.CustomPopupPlacementCallback = PlaceActionPopup;
+            ApplyTheme(OverlayThemeCatalog.FollowApplicationTheme, AppThemeManager.CurrentTheme);
             ApplySettings(Colors.White, Colors.Black, 48, 2, "Consolas", 0.5);
         }
 
@@ -83,13 +92,16 @@ namespace StopwatchOverlay
             Size popupSize, Size targetSize, Point offset)
         {
             double left = (targetSize.Width - popupSize.Width) / 2;
+            double gap = TryFindResource("OverlayToolbarGap") is double value ? value : 6;
+            // ActionSurface has eight pixels of animation clearance inside the
+            // popup. The actual opaque toolbar starts exactly gap pixels away.
             return new[]
             {
                 new CustomPopupPlacement(
-                    new Point(left, Math.Max(0, targetSize.Height - 2)),
+                    new Point(left, Math.Max(0, targetSize.Height + gap - 8)),
                     PopupPrimaryAxis.Horizontal),
                 new CustomPopupPlacement(
-                    new Point(left, -popupSize.Height + 2),
+                    new Point(left, -popupSize.Height - gap),
                     PopupPrimaryAxis.Horizontal)
             };
         }
@@ -118,7 +130,8 @@ namespace StopwatchOverlay
             ActiveIndicatorBorder.BorderBrush = active
                 ? new SolidColorBrush(Color.FromArgb(220, accent.R, accent.G, accent.B))
                 : Brushes.Transparent;
-            AcanthusActiveEdge.Visibility = active && AppThemeManager.IsAcanthus
+            AcanthusActiveEdge.Visibility = active
+                && _effectiveOverlayTheme == OverlayThemeCatalog.AcanthusLight
                 ? Visibility.Visible
                 : Visibility.Collapsed;
         }
@@ -144,22 +157,37 @@ namespace StopwatchOverlay
             int fontSize,
             int borderWidth,
             string fontFamily,
-            double backgroundOpacity)
+            double backgroundOpacity,
+            bool useThemeTextColor = false)
         {
             _textColor = textColor;
+            _borderColor = borderColor;
+            _fontSize = fontSize;
+            _borderWidth = borderWidth;
+            _fontFamily = fontFamily;
+            _useThemeTextColor = useThemeTextColor;
             _backgroundOpacity = OverlayPresentationPolicy.ClampBackgroundOpacity(backgroundOpacity);
 
-            var font = new FontFamily(fontFamily);
+            var font = OverlayThemeManager.ResolveTimerFont(this, _effectiveOverlayTheme, fontFamily);
             TimeText.FontFamily = font;
             TimeTextShadow1.FontFamily = font;
             TimeTextShadow2.FontFamily = font;
             TimeTextShadow3.FontFamily = font;
             TimeTextShadow4.FontFamily = font;
 
-            var textBrush = new SolidColorBrush(textColor);
+            Color timerColor = useThemeTextColor
+                ? GetThemeColor("OverlayTimerForegroundBrush", textColor) : textColor;
+            Color projectColor = useThemeTextColor
+                ? GetThemeColor("OverlayProjectForegroundBrush", timerColor) : textColor;
+            var textBrush = new SolidColorBrush(timerColor);
             TimeText.Foreground = textBrush;
             TimeText.FontSize = fontSize;
-            TimerNameText.Foreground = textBrush;
+            TimerNameText.Foreground = new SolidColorBrush(projectColor);
+            // Keep user sizing meaningful at both 16 and 120 points; the Figma
+            // reference width is a minimum at its 48-point sample, not a fixed
+            // width that clips long timers, timecodes, or custom fonts.
+            double minimumWidth = TryFindResource("OverlayMinimumWidth") is double width ? width : 0;
+            OverlayBorder.MinWidth = minimumWidth * fontSize / 48d;
 
             var outlineBrush = new SolidColorBrush(borderColor);
             TimeTextShadow1.Foreground = outlineBrush;
@@ -182,16 +210,38 @@ namespace StopwatchOverlay
             Brush surface = AppBackgroundManager.CreateOverlaySurfaceBrush(
                 chrome,
                 _backgroundOpacity);
-            OverlayBorder.Background = surface;
-            Color chromeBorder = AppThemeManager.UsesThemedOverlayChrome
+            OverlayBackgroundSurface.Background = surface;
+            Color chromeBorder = _effectiveOverlayTheme != OverlayThemeCatalog.Midnight
                 ? GetThemeColor("OverlayChromeBorderBrush", textColor)
                 : Color.FromArgb(255, textColor.R, textColor.G, textColor.B);
             var chromeBorderBrush = new SolidColorBrush(chromeBorder);
             OverlayBorder.BorderBrush = chromeBorderBrush;
-            ActionSurface.BorderBrush = chromeBorderBrush;
+            ActionSurface.BorderBrush = _effectiveOverlayTheme == OverlayThemeCatalog.Midnight
+                ? chromeBorderBrush
+                : new SolidColorBrush(GetThemeColor("OverlayToolbarBorderBrush", chromeBorder));
 
             // Re-apply because appearance updates can occur after active selection.
             SetActive(_isActive);
+        }
+
+        public void ApplyTheme(string? overlayTheme, string? applicationTheme)
+        {
+            string effective = OverlayThemeManager.Apply(this, overlayTheme, applicationTheme);
+            // Popup content has a separate visual tree. Give it the same local
+            // palette explicitly, without touching global application resources.
+            OverlayThemeManager.Apply(ActionPopupRoot, overlayTheme, applicationTheme);
+            if (_effectiveOverlayTheme == effective)
+                return;
+            _effectiveOverlayTheme = effective;
+            // Retain the legacy light-overlay scope for visual consumers, but
+            // derive it exclusively from this overlay, never the panel palette.
+            Visibility lightScope = effective == OverlayThemeCatalog.AcanthusLight
+                ? Visibility.Visible : Visibility.Collapsed;
+            Themes.AcanthusVisual.SetScope(this, lightScope);
+            Themes.AcanthusVisual.SetScope(ActionPopupRoot, lightScope);
+            RightCornerTransform.ScaleX = effective == OverlayThemeCatalog.AcanthusLight ? -1 : 1;
+            ApplySettings(_textColor, _borderColor, _fontSize, _borderWidth,
+                _fontFamily, _backgroundOpacity, _useThemeTextColor);
         }
 
         public void SetHideFromCapture(bool hideFromCapture)
@@ -213,8 +263,8 @@ namespace StopwatchOverlay
             textBlock.RenderTransform = new TranslateTransform(x, y);
         }
 
-        private static Color GetThemeColor(string key, Color fallback)
-            => Application.Current?.TryFindResource(key) is SolidColorBrush brush
+        private Color GetThemeColor(string key, Color fallback)
+            => TryFindResource(key) is SolidColorBrush brush
                 ? brush.Color
                 : fallback;
 

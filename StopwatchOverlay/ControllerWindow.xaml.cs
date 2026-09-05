@@ -1473,6 +1473,7 @@ namespace StopwatchOverlay
             ApplyAllOverlaySettings();
             UpdateButtonStates();
             _projectDashboardWindow?.RefreshFromHistory();
+            _settingsWindow?.ReloadFromSettings();
 
             // The normal checkpoint remains as a retry and crash-recovery backstop
             // for the rest of the application state.
@@ -3858,7 +3859,9 @@ namespace StopwatchOverlay
             var fontFamily = (FontSelector?.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "Consolas";
             var bgOpacity = (BackgroundOpacitySlider?.Value ?? 50) / 100.0;
 
-            overlay.ApplySettings(textColor, borderColor, fontSize, borderWidth, fontFamily, bgOpacity);
+            overlay.ApplyTheme(_settings.OverlayTheme, _settings.ThemeMode);
+            overlay.ApplySettings(textColor, borderColor, fontSize, borderWidth, fontFamily, bgOpacity,
+                useThemeTextColor: _settings.TextColor == "Theme default");
             overlay.SetHideFromCapture(_settings.HideOverlayFromCapture);
         }
 
@@ -3905,7 +3908,7 @@ namespace StopwatchOverlay
             ToggleCombinedOverlayMenuItem.IsEnabled = workspaceMutable
                 && (_combinedOverlayMode || hasTimer);
             StartStopButton.Style = (Style)FindResource(
-                hasTimer && _isRunning ? "StopButton" : "StartButton");
+                Themes.AcanthusVisual.PrimaryActionStyleKey(hasTimer, _isRunning));
             RecIndicator.Visibility = _activeTimer?.RecBlinkVisible == true
                 ? Visibility.Visible : Visibility.Collapsed;
             RefreshOverlayActiveStates();
@@ -4083,7 +4086,8 @@ namespace StopwatchOverlay
             ApplyCountdownInputMode();
         }
 
-        // Snapshots the current UI control values back into _settings (everything except shortcuts).
+        // Snapshot preferences represented by these legacy controls. OverlayTheme
+        // belongs to the dedicated Settings selector and must remain untouched.
         private void PopulateSettingsFromUi()
         {
             _settings.ThemeMode = AppThemeCatalog.Normalize(
@@ -4266,7 +4270,10 @@ namespace StopwatchOverlay
                 bool themeChanged = SettingsChangePolicy.RequiresThemeApply(changes);
                 bool backgroundChanged = SettingsChangePolicy.RequiresBackgroundApply(changes);
                 bool screenChanged = (changes & SettingsChangeKind.OverlayScreen) != 0;
-                bool geometryChanged = (changes & SettingsChangeKind.OverlayGeometry) != 0;
+                bool geometryChanged = (changes & (SettingsChangeKind.OverlayGeometry
+                                                  | SettingsChangeKind.OverlayTheme)) != 0
+                    || (themeChanged && OverlayThemeCatalog.Normalize(_settings.OverlayTheme)
+                        == OverlayThemeCatalog.FollowApplicationTheme);
                 bool rebuildLightRing = SettingsChangePolicy.RequiresLightRingRebuild(changes);
 
                 if (themeChanged)
@@ -4303,6 +4310,7 @@ namespace StopwatchOverlay
                     RebuildVisibleOverlays();
                 }
                 else if ((changes & (SettingsChangeKind.Theme
+                                     | SettingsChangeKind.OverlayTheme
                                      | SettingsChangeKind.BackgroundSelection
                                      | SettingsChangeKind.BackgroundStrength
                                      | SettingsChangeKind.OverlayAppearance

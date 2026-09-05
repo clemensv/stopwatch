@@ -1,0 +1,48 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:sys="clr-namespace:System;assembly=System.Runtime">
+    <ResourceDictionary.MergedDictionaries>
+        <ResourceDictionary Source="OverlayDefaults.xaml"/>
+    </ResourceDictionary.MergedDictionaries>
+    <!-- Existing local Acanthus light overlay values, isolated from the Acanthus panel dictionary. -->
+    <SolidColorBrush x:Key="OverlayChromeBrush" Color="#D1FBF8F1"/>
+    <SolidColorBrush x:Key="OverlayChromeBorderBrush" Color="#B08A4D"/>
+    <SolidColorBrush x:Key="OverlayToolbarSurfaceBrush" Color="#FBF8F1"/>
+    <SolidColorBrush x:Key="OverlayToolbarBorderBrush" Color="#B08A4D"/>
+    <SolidColorBrush x:Key="OverlayHoverBrush" Color="#D5DDCF"/>
+    <SolidColorBrush x:Key="OverlayPressedBrush" Color="#D1BC8D"/>
+    <SolidColorBrush x:Key="OverlayActionForegroundBrush" Color="#445140"/>
+    <SolidColorBrush x:Key="OverlayInnerRuleBrush" Color="#D1BC8D"/>
+    <SolidColorBrush x:Key="AccentBrush" Color="#445140"/>
+    <SolidColorBrush x:Key="RecBrush" Color="#8A3E45"/>
+    <SolidColorBrush x:Key="BorderSoftBrush" Color="#B8B0A2"/>
+    <SolidColorBrush x:Key="ActiveItemBorderBrush" Color="#445140"/>
+    <SolidColorBrush x:Key="OverlayTimerForegroundBrush" Color="#2C2924"/>
+    <SolidColorBrush x:Key="OverlayProjectForegroundBrush" Color="#2C2924"/>
+    <SolidColorBrush x:Key="OverlayActionBackgroundBrush" Color="#FBF8F1"/>
+    <SolidColorBrush x:Key="OverlayActionBorderBrush" Color="#D1BC8D"/>
+    <SolidColorBrush x:Key="OverlayCloseBackgroundBrush" Color="#FBF8F1"/>
+    <SolidColorBrush x:Key="OverlayCloseBorderBrush" Color="#8A3E45"/>
+    <SolidColorBrush x:Key="OverlayCloseForegroundBrush" Color="#8A3E45"/>
+    <SolidColorBrush x:Key="OverlayCloseHoverForegroundBrush" Color="#8A3E45"/>
+    <SolidColorBrush x:Key="OverlayPauseBackgroundBrush" Color="#445140"/>
+    <SolidColorBrush x:Key="OverlayPauseBorderBrush" Color="#445140"/>
+    <SolidColorBrush x:Key="OverlayPauseForegroundBrush" Color="#FBF8F1"/>
+    <SolidColorBrush x:Key="OverlayPauseHoverForegroundBrush" Color="#445140"/>
+    <SolidColorBrush x:Key="OverlayActionHoverForegroundBrush" Color="#445140"/>
+    <SolidColorBrush x:Key="OverlayOrnamentBrush" Color="#B08A4D"/>
+    <SolidColorBrush x:Key="OverlayOrnamentAccentBrush" Color="#445140"/>
+    <FontFamily x:Key="AppFontFamily">pack://application:,,,/StopwatchOverlay;component/Assets/Fonts/Acanthus/#Inter</FontFamily>
+    <FontFamily x:Key="ThemeTimerFontFamily">pack://application:,,,/StopwatchOverlay;component/Assets/Fonts/Acanthus/#Cascadia Mono</FontFamily>
+    <Thickness x:Key="ThemeOverlayPadding">18,10,18,12</Thickness>
+    <Thickness x:Key="ThemeOverlayFrameBorderThickness">1</Thickness>
+    <CornerRadius x:Key="ThemeOverlayCornerRadius">10</CornerRadius>
+    <Thickness x:Key="OverlayActionBorderThickness">1</Thickness>
+    <sys:Double x:Key="OverlayActionSize">36</sys:Double>
+    <CornerRadius x:Key="OverlayToolbarCornerRadius">10</CornerRadius>
+    <sys:Double x:Key="OverlayProjectOpacity">1</sys:Double>
+    <Visibility x:Key="OverlayCornerVisibility">Visible</Visibility>
+    <Visibility x:Key="OverlayInnerRuleVisibility">Visible</Visibility>
+    <Visibility x:Key="OverlayActiveEdgeVisibility">Visible</Visibility>
+    <sys:Boolean x:Key="OverlayUseThemedChrome">True</sys:Boolean>
+</ResourceDictionary>

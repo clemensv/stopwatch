@@ -1,0 +1,142 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <!-- WPF DrawingImage adaptations of the existing exported Assets/Ornaments SVGs.
+         Path coordinates, fills, pen widths and caps are copied mechanically, not redrawn.
+         Transparent bounds preserve each SVG viewBox when used by an Image. -->
+
+    <!-- Figma 89:971; acanthus-crest.svg; 28 x 28. -->
+    <DrawingImage x:Key="AcanthusCrestImage">
+        <DrawingImage.Drawing>
+            <DrawingGroup>
+                <GeometryDrawing Brush="Transparent">
+                    <GeometryDrawing.Geometry>
+                        <RectangleGeometry Rect="0,0,28,28"/>
+                    </GeometryDrawing.Geometry>
+                </GeometryDrawing>
+                <GeometryDrawing
+                                 Geometry="F1 M14 25V5M14 20C10.3 20 7.5 17.9 5.3 14.2C9.1 14 12.2 15.1 14 18C15.8 15.1 18.9 14 22.7 14.2C20.5 17.9 17.7 20 14 20ZM14 14.8C11 14.8 8.8 13.1 7.2 10.3C10.1 10.2 12.4 11 14 13C15.6 11 17.9 10.2 20.8 10.3C19.2 13.1 17 14.8 14 14.8ZM14 9.7C11.8 9.7 10.2 8.3 9.2 6.2C11.2 6.2 12.8 6.8 14 8.2C15.2 6.8 16.8 6.2 18.8 6.2C17.8 8.3 16.2 9.7 14 9.7Z">
+                    <GeometryDrawing.Pen>
+                        <Pen Brush="#445140" Thickness="1.35" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/>
+                    </GeometryDrawing.Pen>
+                </GeometryDrawing>
+                <GeometryDrawing
+                                 Geometry="F1 M9 24.3C10.8 23.1 12.5 22.7 14 23.2C15.5 22.7 17.2 23.1 19 24.3">
+                    <GeometryDrawing.Pen>
+                        <Pen Brush="#B08A4D" Thickness="1.25" StartLineCap="Round" EndLineCap="Round"/>
+                    </GeometryDrawing.Pen>
+                </GeometryDrawing>
+                <GeometryDrawing Brush="#B08A4D"
+                                 Geometry="F1 M14 4.6C14.7732 4.6 15.4 3.9732 15.4 3.2C15.4 2.4268 14.7732 1.8 14 1.8C13.2268 1.8 12.6 2.4268 12.6 3.2C12.6 3.9732 13.2268 4.6 14 4.6Z">
+                </GeometryDrawing>
+            </DrawingGroup>
+        </DrawingImage.Drawing>
+    </DrawingImage>
+
+    <!-- Figma 110:1078; acanthus-corner.svg; 18 x 16. -->
+    <DrawingImage x:Key="AcanthusCornerImage">
+        <DrawingImage.Drawing>
+            <DrawingGroup>
+                <GeometryDrawing Brush="Transparent">
+                    <GeometryDrawing.Geometry>
+                        <RectangleGeometry Rect="0,0,18,16"/>
+                    </GeometryDrawing.Geometry>
+                </GeometryDrawing>
+                <GeometryDrawing
+                                 Geometry="F1 M2 14C2 8 5 4 11 2M3 10C6 10 8 9 10 6M6 14C7 11 9 9 13 8">
+                    <GeometryDrawing.Pen>
+                        <Pen Brush="#B08A4D" Thickness="1" StartLineCap="Round" EndLineCap="Round"/>
+                    </GeometryDrawing.Pen>
+                </GeometryDrawing>
+                <GeometryDrawing
+                                 Geometry="F1 M9 5C7 3 5 3 4 4C5 6 6 7 9 7">
+                    <GeometryDrawing.Pen>
+                        <Pen Brush="#445140" Thickness="1"/>
+                    </GeometryDrawing.Pen>
+                </GeometryDrawing>
+            </DrawingGroup>
+        </DrawingImage.Drawing>
+    </DrawingImage>
+
+    <!-- Figma 94:881; acanthus-divider.svg; 684 x 8. -->
+    <DrawingImage x:Key="AcanthusDividerImage">
+        <DrawingImage.Drawing>
+            <DrawingGroup>
+                <GeometryDrawing Brush="Transparent">
+                    <GeometryDrawing.Geometry>
+                        <RectangleGeometry Rect="0,0,684,8"/>
+                    </GeometryDrawing.Geometry>
+                </GeometryDrawing>
+                <GeometryDrawing
+                                 Geometry="F1 M274 4H326M358 4H410">
+                    <GeometryDrawing.Pen>
+                        <Pen Brush="#D1BC8D" Thickness="1"/>
+                    </GeometryDrawing.Pen>
+                </GeometryDrawing>
+                <GeometryDrawing
+                                 Geometry="F1 M342 4C337.5 1.2 333.7 1.1 330.5 2.2C333.2 5.7 337.1 6.5 342 4ZM342 4C346.5 1.2 350.3 1.1 353.5 2.2C350.8 5.7 346.9 6.5 342 4Z">
+                    <GeometryDrawing.Pen>
+                        <Pen Brush="#B08A4D" Thickness="1.1" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/>
+                    </GeometryDrawing.Pen>
+                </GeometryDrawing>
+                <GeometryDrawing Brush="#445140"
+                                 Geometry="F1 M342 5.2C342.663 5.2 343.2 4.66274 343.2 4C343.2 3.33726 342.663 2.8 342 2.8C341.337 2.8 340.8 3.33726 340.8 4C340.8 4.66274 341.337 5.2 342 5.2Z">
+                </GeometryDrawing>
+            </DrawingGroup>
+        </DrawingImage.Drawing>
+    </DrawingImage>
+
+    <!-- Figma 93:899; acanthus-hero-frame.svg; 716 x 178. -->
+    <DrawingImage x:Key="AcanthusHeroFrameImage">
+        <DrawingImage.Drawing>
+            <DrawingGroup>
+                <GeometryDrawing Brush="Transparent">
+                    <GeometryDrawing.Geometry>
+                        <RectangleGeometry Rect="0,0,716,178"/>
+                    </GeometryDrawing.Geometry>
+                </GeometryDrawing>
+                <GeometryDrawing
+                                 Geometry="F1 M701 6.5H15C10.3056 6.5 6.5 10.3056 6.5 15V163C6.5 167.694 10.3056 171.5 15 171.5H701C705.694 171.5 709.5 167.694 709.5 163V15C709.5 10.3056 705.694 6.5 701 6.5Z">
+                    <GeometryDrawing.Pen>
+                        <Pen Brush="#D1BC8D" Thickness="1"/>
+                    </GeometryDrawing.Pen>
+                </GeometryDrawing>
+                <GeometryDrawing
+                                 Geometry="F1 M13 39C14 27 22 17 36 13M14 32C22 30 28 24 30 16M20 26C15 25 12 21 11 16M25 21C24 16 28 11 34 9">
+                    <GeometryDrawing.Pen>
+                        <Pen Brush="#B08A4D" Thickness="1.25" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/>
+                    </GeometryDrawing.Pen>
+                </GeometryDrawing>
+                <GeometryDrawing
+                                 Geometry="F1 M703 39C702 27 694 17 680 13M702 32C694 30 688 24 686 16M696 26C701 25 704 21 705 16M691 21C692 16 688 11 682 9">
+                    <GeometryDrawing.Pen>
+                        <Pen Brush="#B08A4D" Thickness="1.25" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/>
+                    </GeometryDrawing.Pen>
+                </GeometryDrawing>
+                <GeometryDrawing
+                                 Geometry="F1 M13 139C14 151 22 161 36 165M14 146C22 148 28 154 30 162M20 152C15 153 12 157 11 162M25 157C24 162 28 167 34 169">
+                    <GeometryDrawing.Pen>
+                        <Pen Brush="#B08A4D" Thickness="1.25" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/>
+                    </GeometryDrawing.Pen>
+                </GeometryDrawing>
+                <GeometryDrawing
+                                 Geometry="F1 M703 139C702 151 694 161 680 165M702 146C694 148 688 154 686 162M696 152C701 153 704 157 705 162M691 157C692 162 688 167 682 169">
+                    <GeometryDrawing.Pen>
+                        <Pen Brush="#B08A4D" Thickness="1.25" StartLineCap="Round" EndLineCap="Round" LineJoin="Round"/>
+                    </GeometryDrawing.Pen>
+                </GeometryDrawing>
+                <GeometryDrawing Brush="#445140"
+                                 Geometry="F1 M12 14.5C12.8284 14.5 13.5 13.8284 13.5 13C13.5 12.1716 12.8284 11.5 12 11.5C11.1716 11.5 10.5 12.1716 10.5 13C10.5 13.8284 11.1716 14.5 12 14.5Z">
+                </GeometryDrawing>
+                <GeometryDrawing Brush="#445140"
+                                 Geometry="F1 M704 14.5C704.828 14.5 705.5 13.8284 705.5 13C705.5 12.1716 704.828 11.5 704 11.5C703.172 11.5 702.5 12.1716 702.5 13C702.5 13.8284 703.172 14.5 704 14.5Z">
+                </GeometryDrawing>
+                <GeometryDrawing Brush="#445140"
+                                 Geometry="F1 M12 166.5C12.8284 166.5 13.5 165.828 13.5 165C13.5 164.172 12.8284 163.5 12 163.5C11.1716 163.5 10.5 164.172 10.5 165C10.5 165.828 11.1716 166.5 12 166.5Z">
+                </GeometryDrawing>
+                <GeometryDrawing Brush="#445140"
+                                 Geometry="F1 M704 166.5C704.828 166.5 705.5 165.828 705.5 165C705.5 164.172 704.828 163.5 704 163.5C703.172 163.5 702.5 164.172 702.5 165C702.5 165.828 703.172 166.5 704 166.5Z">
+                </GeometryDrawing>
+            </DrawingGroup>
+        </DrawingImage.Drawing>
+    </DrawingImage>
+</ResourceDictionary>

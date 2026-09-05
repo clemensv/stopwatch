@@ -1,0 +1,65 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <!-- Explicit overlay styles consume only the owning overlay/preview palette.
+         In particular a Popup does not inherit a panel theme's Acanthus scope. -->
+    <Style x:Key="OverlayActionButtonStyle" TargetType="Button">
+        <Setter Property="Width" Value="{DynamicResource OverlayActionSize}"/>
+        <Setter Property="Height" Value="{DynamicResource OverlayActionSize}"/>
+        <Setter Property="Margin" Value="2,0"/>
+        <Setter Property="Padding" Value="0"/>
+        <Setter Property="Focusable" Value="False"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Background" Value="{DynamicResource OverlayActionBackgroundBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource OverlayActionBorderBrush}"/>
+        <Setter Property="Foreground" Value="{DynamicResource OverlayActionForegroundBrush}"/>
+        <Setter Property="BorderThickness" Value="{DynamicResource OverlayActionBorderThickness}"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="ButtonSurface" Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}"
+                            CornerRadius="{DynamicResource ThemeOverlayButtonCornerRadius}">
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="ButtonSurface" Property="Background" Value="{DynamicResource OverlayHoverBrush}"/>
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter TargetName="ButtonSurface" Property="Background" Value="{DynamicResource OverlayPressedBrush}"/>
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter TargetName="ButtonSurface" Property="Opacity" Value="0.4"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+        <Style.Triggers>
+            <Trigger Property="IsMouseOver" Value="True">
+                <Setter Property="Foreground" Value="{DynamicResource OverlayActionHoverForegroundBrush}"/>
+            </Trigger>
+            <Trigger Property="IsPressed" Value="True">
+                <Setter Property="Foreground" Value="{DynamicResource OverlayActionHoverForegroundBrush}"/>
+            </Trigger>
+        </Style.Triggers>
+    </Style>
+    <Style x:Key="OverlayCloseButtonStyle" TargetType="Button" BasedOn="{StaticResource OverlayActionButtonStyle}">
+        <Setter Property="Background" Value="{DynamicResource OverlayCloseBackgroundBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource OverlayCloseBorderBrush}"/>
+        <Setter Property="Foreground" Value="{DynamicResource OverlayCloseForegroundBrush}"/>
+        <Style.Triggers>
+            <Trigger Property="IsMouseOver" Value="True"><Setter Property="Foreground" Value="{DynamicResource OverlayCloseHoverForegroundBrush}"/></Trigger>
+            <Trigger Property="IsPressed" Value="True"><Setter Property="Foreground" Value="{DynamicResource OverlayCloseHoverForegroundBrush}"/></Trigger>
+        </Style.Triggers>
+    </Style>
+    <Style x:Key="OverlayPauseButtonStyle" TargetType="Button" BasedOn="{StaticResource OverlayActionButtonStyle}">
+        <Setter Property="Background" Value="{DynamicResource OverlayPauseBackgroundBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource OverlayPauseBorderBrush}"/>
+        <Setter Property="Foreground" Value="{DynamicResource OverlayPauseForegroundBrush}"/>
+        <Style.Triggers>
+            <Trigger Property="IsMouseOver" Value="True"><Setter Property="Foreground" Value="{DynamicResource OverlayPauseHoverForegroundBrush}"/></Trigger>
+            <Trigger Property="IsPressed" Value="True"><Setter Property="Foreground" Value="{DynamicResource OverlayPauseHoverForegroundBrush}"/></Trigger>
+        </Style.Triggers>
+    </Style>
+</ResourceDictionary>

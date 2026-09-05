@@ -10,8 +10,8 @@
         PreviewKeyDown="Window_PreviewKeyDown">
     <Border Style="{StaticResource DialogSurface}" Margin="18">
     <StackPanel Margin="24">
-        <Path Width="28" Height="28" HorizontalAlignment="Center" Margin="0,0,0,8"
-              Data="{StaticResource AcanthusCrestGeometry}" Fill="{DynamicResource OrnamentAccentBrush}"
+        <Image Width="28" Height="28" HorizontalAlignment="Center" Margin="0,0,0,8"
+              Source="{StaticResource AcanthusCrestImage}"
               Stretch="Uniform" Visibility="{DynamicResource OrnamentVisibility}"/>
         <TextBlock x:Name="HeadingText" Text="Choose a project" Style="{StaticResource DisplayHeadingText}"
                    HorizontalAlignment="Center"/>

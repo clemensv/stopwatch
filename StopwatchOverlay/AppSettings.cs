@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace StopwatchOverlay
 {
@@ -63,6 +64,18 @@ namespace StopwatchOverlay
         // Application chrome theme. Stable display names are kept in JSON for
         // backwards compatibility with the legacy "Dark" setting.
         public string ThemeMode { get; set; } = AppThemeCatalog.Midnight;
+
+        // ThemeMode remains the JSON contract so older releases can still read
+        // the panel preference. The independent overlay choice is never folded
+        // back into it, even when it resolves to the same palette.
+        [JsonIgnore]
+        public string ApplicationTheme
+        {
+            get => ThemeMode;
+            set => ThemeMode = value;
+        }
+
+        public string OverlayTheme { get; set; } = OverlayThemeCatalog.FollowApplicationTheme;
 
         // Tiled application background. Custom images are copied into the app's
         // managed data folder; settings persist only their safe leaf filenames.
@@ -135,10 +148,11 @@ namespace StopwatchOverlay
         public void NormalizeForRuntime()
         {
             ThemeMode = AppThemeCatalog.Normalize(ThemeMode);
+            OverlayTheme = OverlayThemeCatalog.Normalize(OverlayTheme);
             TextColor = NormalizeChoice(
                 TextColor,
                 "White",
-                "White", "Charcoal", "Yellow", "Cyan", "Lime", "Orange", "Red", "Magenta");
+                "Theme default", "White", "Charcoal", "Yellow", "Cyan", "Lime", "Orange", "Red", "Magenta");
             BorderColor = NormalizeChoice(
                 BorderColor,
                 "Black",
