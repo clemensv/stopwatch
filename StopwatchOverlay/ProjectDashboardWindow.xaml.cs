@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Windows;
+using System.Windows.Automation;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
@@ -17,6 +18,11 @@ namespace StopwatchOverlay;
 /// </summary>
 public partial class ProjectDashboardWindow : Window
 {
+    private const int RecordsPerPage = 20;
+    private const int HeatmapWeekCount = 53;
+    private const double HeatmapCellSize = 13;
+    private const double HeatmapCellStep = 17;
+
     private static readonly Color[] MidnightProjectPalette =
     [
         Color.FromRgb(66, 185, 232),
@@ -67,41 +73,102 @@ public partial class ProjectDashboardWindow : Window
         Color.FromRgb(112, 64, 34)
     ];
 
+    private static readonly Color[] AcanthusProjectPalette =
+    [
+        Color.FromRgb(79, 117, 90),
+        Color.FromRgb(176, 138, 77),
+        Color.FromRgb(113, 128, 106),
+        Color.FromRgb(138, 62, 69),
+        Color.FromRgb(68, 81, 64),
+        Color.FromRgb(155, 109, 53),
+        Color.FromRgb(93, 126, 105),
+        Color.FromRgb(133, 100, 76)
+    ];
+
     private readonly Func<ProjectHistoryView> _historyProvider;
-    private readonly Action<string?> _openRecords;
+    private readonly Func<string, DateTime, DateTime, ProjectRecordMutationResult> _addRecord;
+    private readonly Func<Guid, string, DateTime, DateTime, ProjectRecordMutationResult> _updateRecord;
+    private readonly Func<Guid, ProjectRecordMutationResult> _deleteRecord;
+    private readonly Func<bool> _canMutateRecords;
+    private readonly Func<string?> _recordsPersistenceWarning;
     private readonly DispatcherTimer _liveRefreshTimer;
-    private DashboardRange _selectedRange = DashboardRange.Today;
+    private readonly Dictionary<DateTime, Button> _heatmapCells = [];
+    private readonly Dictionary<RecordActionFocus, Button> _recordActionButtons = [];
+    private ProjectHistoryView? _history;
+    private IReadOnlyList<DisplayInterval> _records = [];
+    private DashboardRange _selectedRange = DashboardRange.Day;
+    private DateTime? _selectedDayLocal;
+    private DateTime _latestLocalDate = DateTime.Today;
+    private bool _followToday = true;
     private string? _selectedProjectKey;
     private bool _updatingProjectFilter;
+    private int _recordsPageIndex;
+    private DateTime? _heatmapFirstDate;
+    private DateTime? _heatmapRenderedToday;
+    private Button? _heatmapTabStop;
+    private bool _recordDialogOpen;
+    private bool _refreshFailed;
 
     public ProjectDashboardWindow(ProjectHistoryView history)
-        : this(() => history, _ => { })
+        : this(
+            () => history,
+            (_, _, _) => new ProjectRecordMutationResult(ProjectRecordMutationStatus.NotFound),
+            (_, _, _, _) => new ProjectRecordMutationResult(ProjectRecordMutationStatus.NotFound),
+            _ => new ProjectRecordMutationResult(ProjectRecordMutationStatus.NotFound),
+            () => false,
+            () => "Record editing is unavailable in this read-only dashboard.")
     {
     }
 
     public ProjectDashboardWindow(Func<ProjectHistoryView> historyProvider)
-        : this(historyProvider, _ => { })
+        : this(
+            historyProvider,
+            (_, _, _) => new ProjectRecordMutationResult(ProjectRecordMutationStatus.NotFound),
+            (_, _, _, _) => new ProjectRecordMutationResult(ProjectRecordMutationStatus.NotFound),
+            _ => new ProjectRecordMutationResult(ProjectRecordMutationStatus.NotFound),
+            () => false,
+            () => "Record editing is unavailable in this read-only dashboard.")
     {
     }
 
     public ProjectDashboardWindow(
         Func<ProjectHistoryView> historyProvider,
-        Action<string?> openRecords)
+        Func<string, DateTime, DateTime, ProjectRecordMutationResult> addRecord,
+        Func<Guid, string, DateTime, DateTime, ProjectRecordMutationResult> updateRecord,
+        Func<Guid, ProjectRecordMutationResult> deleteRecord,
+        Func<bool> canMutateRecords,
+        Func<string?> recordsPersistenceWarning)
     {
         ArgumentNullException.ThrowIfNull(historyProvider);
-        ArgumentNullException.ThrowIfNull(openRecords);
+        ArgumentNullException.ThrowIfNull(addRecord);
+        ArgumentNullException.ThrowIfNull(updateRecord);
+        ArgumentNullException.ThrowIfNull(deleteRecord);
+        ArgumentNullException.ThrowIfNull(canMutateRecords);
+        ArgumentNullException.ThrowIfNull(recordsPersistenceWarning);
 
         _historyProvider = historyProvider;
-        _openRecords = openRecords;
+        _addRecord = addRecord;
+        _updateRecord = updateRecord;
+        _deleteRecord = deleteRecord;
+        _canMutateRecords = canMutateRecords;
+        _recordsPersistenceWarning = recordsPersistenceWarning;
         InitializeComponent();
 
         _liveRefreshTimer = new DispatcherTimer(DispatcherPriority.Background)
         {
             Interval = TimeSpan.FromMinutes(1)
         };
-        _liveRefreshTimer.Tick += (_, _) => RefreshFromHistory();
+        _liveRefreshTimer.Tick += (_, _) =>
+        {
+            if (_refreshFailed
+                || _history?.Intervals.Any(interval => interval.IsOpen) == true
+                || DateTime.Now.Date != _latestLocalDate)
+            {
+                RefreshFromHistory();
+            }
+        };
 
-        SelectRange(DashboardRange.Today);
+        SelectRange(DashboardRange.Day);
         _liveRefreshTimer.Start();
     }
 
@@ -110,23 +177,41 @@ public partial class ProjectDashboardWindow : Window
         if (sender is Button { Tag: string rangeName }
             && Enum.TryParse(rangeName, out DashboardRange range))
         {
+            _followToday = true;
+            _selectedDayLocal = null;
+            _recordsPageIndex = 0;
             SelectRange(range);
         }
     }
 
+    private void PreviousDayButton_Click(object sender, RoutedEventArgs e)
+    {
+        DateTime anchor = _selectedRange == DashboardRange.Day
+            ? _selectedDayLocal ?? _latestLocalDate
+            : _latestLocalDate;
+        _selectedDayLocal = anchor.AddDays(-1);
+        _followToday = false;
+        _recordsPageIndex = 0;
+        SelectRange(DashboardRange.Day);
+    }
+
+    private void NextDayButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (_selectedRange != DashboardRange.Day)
+            return;
+
+        DateTime current = _selectedDayLocal ?? _latestLocalDate;
+        if (current >= _latestLocalDate)
+            return;
+
+        DateTime next = current.AddDays(1);
+        _selectedDayLocal = next > _latestLocalDate ? _latestLocalDate : next;
+        _followToday = _selectedDayLocal.Value >= _latestLocalDate;
+        _recordsPageIndex = 0;
+        RefreshFromHistory();
+    }
+
     private void RefreshButton_Click(object sender, RoutedEventArgs e) => RefreshFromHistory();
-
-    private void OpenRecordsButton_Click(object sender, RoutedEventArgs e)
-    {
-        e.Handled = true;
-        _openRecords(_selectedProjectKey);
-    }
-
-    private void ProjectRecordsCard_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
-    {
-        e.Handled = true;
-        _openRecords(_selectedProjectKey);
-    }
 
     private void ProjectFilterSelector_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
@@ -136,7 +221,44 @@ public partial class ProjectDashboardWindow : Window
         }
 
         _selectedProjectKey = option.Key;
+        _recordsPageIndex = 0;
         RefreshFromHistory();
+    }
+
+    private void ProjectRecordsExpander_Expanded(object sender, RoutedEventArgs e) =>
+        RenderRecords();
+
+    private void RecordsButton_Click(object sender, RoutedEventArgs e)
+    {
+        ProjectRecordsExpander.IsExpanded = true;
+        RenderRecords();
+        ProjectRecordsExpander.BringIntoView();
+    }
+
+    private void PreviousRecordsPageButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (_recordsPageIndex <= 0)
+            return;
+
+        _recordsPageIndex--;
+        RenderRecords();
+    }
+
+    private void NextRecordsPageButton_Click(object sender, RoutedEventArgs e)
+    {
+        int pageCount = Math.Max(1, (_records.Count + RecordsPerPage - 1) / RecordsPerPage);
+        if (_recordsPageIndex + 1 >= pageCount)
+            return;
+
+        _recordsPageIndex++;
+        RenderRecords();
+    }
+
+    private void Window_Loaded(object sender, RoutedEventArgs e)
+    {
+        // The calendar is arranged oldest-to-newest, so open on the dates users
+        // are most likely to need while leaving subsequent manual scrolling alone.
+        HeatmapScrollViewer.ScrollToRightEnd();
     }
 
     private void Window_Closed(object? sender, EventArgs e) => _liveRefreshTimer.Stop();
@@ -153,28 +275,42 @@ public partial class ProjectDashboardWindow : Window
     /// </summary>
     internal void RefreshFromHistory()
     {
-        UpdateRangeButtons();
         RefreshDashboard();
     }
 
-    private void UpdateRangeButtons()
+    private void UpdateRangeButtons(DateTime asOfLocal)
     {
-        var normalBackground = (Brush)FindResource("SurfaceRaisedBrush");
-        var normalBorder = (Brush)FindResource("BorderBrush");
         var selectedBackground = (Brush)FindResource("PrimaryActionBrush");
         var selectedText = (Brush)FindResource("OnActionTextBrush");
-        var normalText = (Brush)FindResource("PrimaryTextBrush");
 
-        SetRangeButtonState(TodayButton, _selectedRange == DashboardRange.Today);
+        SetRangeButtonState(DayButton, _selectedRange == DashboardRange.Day);
         SetRangeButtonState(SevenDaysButton, _selectedRange == DashboardRange.SevenDays);
         SetRangeButtonState(ThirtyDaysButton, _selectedRange == DashboardRange.ThirtyDays);
         SetRangeButtonState(AllTimeButton, _selectedRange == DashboardRange.AllTime);
 
+        DateTime selectedDay = _selectedDayLocal ?? asOfLocal.Date;
+        bool viewingToday = selectedDay >= asOfLocal.Date;
+        DayButton.ToolTip = viewingToday
+            ? "Showing today"
+            : "Return to today";
+        NextDayButton.IsEnabled = _selectedRange == DashboardRange.Day && !viewingToday;
+
         void SetRangeButtonState(Button button, bool selected)
         {
-            button.Background = selected ? selectedBackground : normalBackground;
-            button.BorderBrush = selected ? selectedBackground : normalBorder;
-            button.Foreground = selected ? selectedText : normalText;
+            if (selected)
+            {
+                button.Background = selectedBackground;
+                button.BorderBrush = selectedBackground;
+                button.Foreground = selectedText;
+            }
+            else
+            {
+                // Let ModernButton own normal/hover/pressed resources. Local
+                // brush values would outrank its Pixel Deck Night hover states.
+                button.ClearValue(Control.BackgroundProperty);
+                button.ClearValue(Control.BorderBrushProperty);
+                button.ClearValue(Control.ForegroundProperty);
+            }
         }
     }
 
@@ -185,21 +321,46 @@ public partial class ProjectDashboardWindow : Window
         {
             history = _historyProvider();
         }
-        catch
+        catch (Exception exception) when (exception is
+            InvalidOperationException
+            or ArgumentException)
         {
             // A dashboard refresh should never take down the controller. The next
             // automatic refresh will try the provider again.
+            CrashLogger.LogRecoverable(exception, "ProjectDashboardHistoryProvider");
+            UpdatedText.Text = "Refresh failed — showing earlier data";
+            UpdatedText.SetResourceReference(TextBlock.ForegroundProperty, "WarningBrush");
+            ShowRecordsWarning("Project records could not be loaded. Your existing data has not been changed.");
+            _refreshFailed = true;
             return;
         }
 
+        _refreshFailed = false;
+        _history = history;
         DateTime asOfUtc = EnsureUtc(history.AsOfUtc);
         DateTime asOfLocal = asOfUtc.ToLocalTime();
-        DateTime? rangeStartUtc = GetRangeStartUtc(asOfLocal);
+        _latestLocalDate = asOfLocal.Date;
+        if (_followToday || !_selectedDayLocal.HasValue)
+        {
+            _selectedDayLocal = _latestLocalDate;
+        }
+        else if (_selectedDayLocal.Value > _latestLocalDate)
+        {
+            _selectedDayLocal = _latestLocalDate;
+            _followToday = true;
+        }
+
+        UpdateRangeButtons(asOfLocal);
+        DashboardUtcRange range = ProjectDashboardAnalytics.CreateRange(
+            _selectedRange,
+            _selectedDayLocal.Value,
+            asOfUtc,
+            TimeZoneInfo.Local);
 
         UpdateProjectFilter(history.Projects);
 
         List<DisplayInterval> intervals = history.Intervals
-            .Select(item => CreateDisplayInterval(item, rangeStartUtc, asOfUtc))
+            .Select(item => CreateDisplayInterval(item, range, asOfUtc))
             .Where(item => item is not null)
             .Cast<DisplayInterval>()
             .Where(item => _selectedProjectKey is null
@@ -208,9 +369,14 @@ public partial class ProjectDashboardWindow : Window
             .ToList();
 
         TimeSpan total = TimeSpan.FromTicks(intervals.Sum(item => item.Duration.Ticks));
-        int activeCount = intervals
-            .Where(item => item.Source.IsOpen)
-            .Select(item => item.Source.TimerSessionId)
+        int activeCount = history.Intervals
+            .Where(item => item.IsOpen)
+            .Where(item => _selectedProjectKey is null
+                           || string.Equals(
+                               item.ProjectKey,
+                               _selectedProjectKey,
+                               StringComparison.OrdinalIgnoreCase))
+            .Select(item => item.TimerSessionId)
             .Distinct()
             .Count();
         int projectCount = intervals
@@ -225,21 +391,22 @@ public partial class ProjectDashboardWindow : Window
         ActiveStatusDot.Opacity = activeCount > 0 ? 1 : 0.25;
         RangeHeadingText.Text = GetRangeHeading(asOfLocal);
         UpdatedText.Text = $"Updated {asOfLocal:t}";
+        UpdatedText.SetResourceReference(TextBlock.ForegroundProperty, "SecondaryTextBrush");
 
         RenderProjectBars(intervals);
         List<DayTotal> dayTotals = BuildDayTotals(intervals);
         RenderDailyBars(dayTotals);
-        RenderTimeline(intervals);
-        RenderSessions(intervals);
-
         ProjectFilterOption? selectedProject =
             ProjectFilterSelector.SelectedItem as ProjectFilterOption;
-        UpdateRecordsPreview(intervals, selectedProject);
+        RenderHeatmap(history, asOfLocal, selectedProject);
+        RenderTimeline(intervals);
+
+        UpdateRecordsSection(intervals, selectedProject);
+        UpdateRecordsMutationAvailability();
 
         bool hasData = intervals.Count > 0;
         ChartsGrid.Visibility = hasData ? Visibility.Visible : Visibility.Collapsed;
         TimelineCard.Visibility = hasData ? Visibility.Visible : Visibility.Collapsed;
-        SessionsCard.Visibility = hasData ? Visibility.Visible : Visibility.Collapsed;
         EmptyState.Visibility = hasData ? Visibility.Collapsed : Visibility.Visible;
 
         EmptyStateHeadingText.Text = selectedProject?.Key is null
@@ -250,34 +417,489 @@ public partial class ProjectDashboardWindow : Window
             : "This project has no sessions in the selected date range.";
     }
 
-    private void UpdateRecordsPreview(
+    private void UpdateRecordsSection(
         IReadOnlyList<DisplayInterval> intervals,
         ProjectFilterOption? selectedProject)
     {
-        int recordCount = intervals.Count;
-        ProjectRecordsCountText.Text = recordCount == 1
+        _records = intervals
+            .OrderByDescending(interval => interval.StartUtc)
+            .ThenByDescending(interval => interval.Source.Id)
+            .ToList();
+
+        int recordCount = _records.Count;
+        string count = recordCount == 1
             ? "1 record"
             : $"{recordCount.ToString(CultureInfo.CurrentCulture)} records";
-        ProjectRecordsScopeText.Text = selectedProject?.Key is null
-            ? "All projects in the selected period"
-            : $"{selectedProject.Name} in the selected period";
+        string scope = selectedProject?.Key is null
+            ? "All projects"
+            : selectedProject.Name;
+        DisplayInterval? latest = _records.FirstOrDefault();
+        string latestText = latest == null
+            ? "No records in the selected period"
+            : $"Most recent activity {latest.StartLocal.ToString("g", CultureInfo.CurrentCulture)}";
+        ProjectRecordsSummaryText.Text = $"{scope} · {count} · {latestText}";
+        ProjectRecordsSummaryText.ToolTip = ProjectRecordsSummaryText.Text;
+        RecordsHeadingText.Text = selectedProject?.Key is null
+            ? $"All records · {GetRangeHeading(EnsureUtc(_history!.AsOfUtc).ToLocalTime())}"
+            : $"{selectedProject.Name} records · {GetRangeHeading(EnsureUtc(_history!.AsOfUtc).ToLocalTime())}";
 
-        DisplayInterval? latest = intervals
-            .OrderByDescending(item => item.Source.StartUtc)
-            .FirstOrDefault();
-        if (latest == null)
+        int pageCount = Math.Max(1, (recordCount + RecordsPerPage - 1) / RecordsPerPage);
+        _recordsPageIndex = Math.Clamp(_recordsPageIndex, 0, pageCount - 1);
+        if (ProjectRecordsExpander.IsExpanded && !_recordDialogOpen)
+            RenderRecords();
+    }
+
+    private void AddRecordButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (_history == null || !CheckRecordsMutationAvailable())
+            return;
+
+        var editor = new ProjectRecordEditorWindow(
+            _history.Projects,
+            _selectedProjectKey,
+            commit: SaveAddedRecord,
+            initialLocalDate: _selectedRange == DashboardRange.Day
+                ? _selectedDayLocal
+                : null)
         {
-            ProjectRecordsLatestText.Text =
-                "No records here yet — open the records page to add one.";
+            Owner = this
+        };
+
+        bool saved = ShowRecordDialog(editor) == true;
+        if (saved)
+        {
+            if (_selectedProjectKey != null && editor.SavedRecord != null)
+                _selectedProjectKey = editor.SavedRecord.ProjectKey;
+            _recordsPageIndex = 0;
+        }
+
+        RefreshFromHistory();
+    }
+
+    private void EditRecord(ProjectWorkIntervalView record)
+    {
+        if (record.IsOpen || _history == null || !CheckRecordsMutationAvailable())
+            return;
+
+        var editor = new ProjectRecordEditorWindow(
+            _history.Projects,
+            record.ProjectKey,
+            record,
+            (project, startUtc, endUtc) =>
+                SaveUpdatedRecord(record.Id, project, startUtc, endUtc))
+        {
+            Owner = this
+        };
+
+        bool saved = ShowRecordDialog(editor) == true;
+        if (saved)
+        {
+            if (_selectedProjectKey != null && editor.SavedRecord != null)
+                _selectedProjectKey = editor.SavedRecord.ProjectKey;
+            _recordsPageIndex = 0;
+        }
+
+        RefreshFromHistory();
+    }
+
+    private ProjectRecordMutationResult SaveAddedRecord(
+        string project,
+        DateTime startUtc,
+        DateTime endUtc)
+    {
+        EnsureRecordsMutationAvailable();
+        return _addRecord(project, startUtc, endUtc);
+    }
+
+    private ProjectRecordMutationResult SaveUpdatedRecord(
+        Guid id,
+        string project,
+        DateTime startUtc,
+        DateTime endUtc)
+    {
+        EnsureRecordsMutationAvailable();
+        return _updateRecord(id, project, startUtc, endUtc);
+    }
+
+    private void DeleteRecord(ProjectWorkIntervalView record)
+    {
+        if (record.IsOpen || !CheckRecordsMutationAvailable())
+            return;
+
+        var confirmation = new ProjectRecordDeleteWindow(record)
+        {
+            Owner = this
+        };
+        if (ShowRecordDialog(confirmation) != true)
+        {
+            RefreshFromHistory();
             return;
         }
 
-        DateTime latestLocal = latest.Source.StartUtc.ToLocalTime();
-        string projectPrefix = selectedProject?.Key is null
-            ? $"{latest.ProjectName} · "
-            : "";
-        ProjectRecordsLatestText.Text =
-            $"Latest: {projectPrefix}{latestLocal.ToString("g", CultureInfo.CurrentCulture)}";
+        ProjectRecordMutationResult result;
+        try
+        {
+            EnsureRecordsMutationAvailable();
+            result = _deleteRecord(record.Id);
+        }
+        catch (Exception exception) when (exception is
+            InvalidOperationException
+            or ArgumentException)
+        {
+            CrashLogger.LogRecoverable(exception, "ProjectDashboardDeleteRecord");
+            UpdateRecordsMutationAvailability();
+            ShowRecordsWarning(exception is InvalidOperationException
+                ? "Project records are temporarily read-only. Refresh the dashboard and try again."
+                : "The record could not be deleted because its identifier is invalid. Refresh the dashboard and try again.");
+            return;
+        }
+
+        RefreshFromHistory();
+        switch (result.Status)
+        {
+            case ProjectRecordMutationStatus.Success:
+                return;
+            case ProjectRecordMutationStatus.NotFound:
+                ShowRecordsWarning("That record no longer exists. The dashboard has been refreshed.");
+                return;
+            case ProjectRecordMutationStatus.OpenInterval:
+                ShowRecordsWarning("An active record cannot be deleted. Pause its timer first.");
+                return;
+            default:
+                ShowRecordsWarning("The record could not be deleted.");
+                return;
+        }
+    }
+
+    private bool? ShowRecordDialog(Window dialog)
+    {
+        _recordDialogOpen = true;
+        try
+        {
+            return dialog.ShowDialog();
+        }
+        finally
+        {
+            _recordDialogOpen = false;
+        }
+    }
+
+    private void RenderRecords()
+    {
+        RecordActionFocus? focusedAction = Keyboard.FocusedElement is Button
+            { Tag: RecordActionFocus action }
+            ? action
+            : null;
+        _recordActionButtons.Clear();
+        RecordsPanel.Children.Clear();
+        if (_history == null)
+        {
+            RecordsPageStatusText.Text = "0 records";
+            PreviousRecordsPageButton.IsEnabled = false;
+            NextRecordsPageButton.IsEnabled = false;
+            RecordsEmptyState.Visibility = Visibility.Visible;
+            RecordsPanel.Visibility = Visibility.Collapsed;
+            return;
+        }
+
+        bool canEdit = SafeCanMutateRecords();
+        DateTime asOfUtc = EnsureUtc(_history.AsOfUtc);
+        int pageCount = Math.Max(1, (_records.Count + RecordsPerPage - 1) / RecordsPerPage);
+        _recordsPageIndex = Math.Clamp(_recordsPageIndex, 0, pageCount - 1);
+        List<DisplayInterval> visibleRecords = _records
+            .Skip(_recordsPageIndex * RecordsPerPage)
+            .Take(RecordsPerPage)
+            .ToList();
+
+        int first = _records.Count == 0 ? 0 : (_recordsPageIndex * RecordsPerPage) + 1;
+        int last = Math.Min(_records.Count, (_recordsPageIndex + 1) * RecordsPerPage);
+        RecordsPageStatusText.Text = _records.Count == 0
+            ? "0 records"
+            : $"{first}–{last} of {_records.Count.ToString(CultureInfo.CurrentCulture)}";
+        PreviousRecordsPageButton.IsEnabled = _recordsPageIndex > 0;
+        NextRecordsPageButton.IsEnabled = _recordsPageIndex + 1 < pageCount;
+
+        foreach (IGrouping<DateTime, DisplayInterval> group in visibleRecords
+                     .GroupBy(interval => interval.StartLocal.Date)
+                     .OrderByDescending(group => group.Key))
+        {
+            RecordsPanel.Children.Add(new TextBlock
+            {
+                Text = group.Key.ToString("dddd, MMMM d", CultureInfo.CurrentCulture),
+                Foreground = (Brush)FindResource("SecondaryTextBrush"),
+                FontSize = 12,
+                FontWeight = FontWeights.SemiBold,
+                Margin = new Thickness(0, RecordsPanel.Children.Count == 0 ? 0 : 14, 0, 7)
+            });
+
+            foreach (DisplayInterval interval in group.OrderByDescending(item => item.StartUtc))
+                RecordsPanel.Children.Add(CreateRecordCard(interval, asOfUtc, canEdit));
+        }
+
+        bool empty = _records.Count == 0;
+        RecordsEmptyState.Visibility = empty ? Visibility.Visible : Visibility.Collapsed;
+        RecordsPanel.Visibility = empty ? Visibility.Collapsed : Visibility.Visible;
+        ProjectFilterOption? selected = ProjectFilterSelector.SelectedItem as ProjectFilterOption;
+        RecordsEmptyHeadingText.Text = selected?.Key == null
+            ? "No project records in this period"
+            : $"No {selected.Name} records in this period";
+        RecordsEmptyDetailText.Text =
+            "Add a record manually, choose another date, or change the project filter.";
+
+        if (focusedAction is { } restoreAction
+            && _recordActionButtons.TryGetValue(restoreAction, out Button? focusedButton)
+            && focusedButton.IsEnabled)
+        {
+            Dispatcher.BeginInvoke(
+                DispatcherPriority.Input,
+                new Action(() => focusedButton.Focus()));
+        }
+    }
+
+    private Border CreateRecordCard(
+        DisplayInterval interval,
+        DateTime asOfUtc,
+        bool canEdit)
+    {
+        ProjectWorkIntervalView record = interval.Source;
+        DateTime startLocal = interval.StartLocal;
+        DateTime endLocal = interval.EndLocal;
+        DateTime sourceEndUtc = record.EndUtc.HasValue
+            ? EnsureUtc(record.EndUtc.Value)
+            : asOfUtc;
+        bool isClipped = interval.StartUtc != EnsureUtc(record.StartUtc)
+                         || interval.EndUtc != sourceEndUtc;
+
+        var card = new Border
+        {
+            Style = (Style)FindResource("DashboardRecordRow")
+        };
+        var grid = new Grid();
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(5) });
+        grid.ColumnDefinitions.Add(new ColumnDefinition
+        {
+            Width = new GridLength(1, GridUnitType.Star),
+            MinWidth = 105
+        });
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(112) });
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(150) });
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(82) });
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+        grid.Children.Add(new Border
+        {
+            Width = 4,
+            Background = (Brush)FindResource("AccentBrush"),
+            CornerRadius = new CornerRadius(2),
+            Margin = new Thickness(0, 1, 0, 1)
+        });
+
+        var project = new TextBlock
+        {
+            Text = record.ProjectName,
+            FontWeight = FontWeights.SemiBold,
+            TextTrimming = TextTrimming.CharacterEllipsis,
+            VerticalAlignment = VerticalAlignment.Center,
+            Margin = new Thickness(12, 0, 10, 0),
+            ToolTip = record.ProjectName
+        };
+        Grid.SetColumn(project, 1);
+        grid.Children.Add(project);
+
+        var date = CreateRecordsSecondaryCell(
+            startLocal.ToString("MMM d, yyyy", CultureInfo.CurrentCulture));
+        Grid.SetColumn(date, 2);
+        grid.Children.Add(date);
+
+        string startTimeLabel = FormatLocalTime(startLocal, interval.StartUtc);
+        string endLabel = interval.IsLive
+            ? "Now"
+            : endLocal.Date == startLocal.Date
+                ? FormatLocalTime(endLocal, interval.EndUtc)
+                : $"{endLocal.ToString("MMM d", CultureInfo.CurrentCulture)}, {FormatLocalTime(endLocal, interval.EndUtc)}";
+        string timeLabel = $"{startTimeLabel} – {endLabel}";
+        var times = CreateRecordsSecondaryCell(timeLabel);
+        times.ToolTip = isClipped
+            ? $"{timeLabel}. Showing only the part inside the selected period; Edit changes the full record."
+            : record.IsOpen
+                ? "This record is still being tracked by a running timer."
+                : timeLabel;
+        Grid.SetColumn(times, 3);
+        grid.Children.Add(times);
+
+        var duration = new TextBlock
+        {
+            Text = FormatDetailedDuration(interval.Duration),
+            FontFamily = (FontFamily)FindResource("ThemeMonoFontFamily"),
+            TextAlignment = TextAlignment.Right,
+            VerticalAlignment = VerticalAlignment.Center,
+            Margin = new Thickness(0, 0, 10, 0)
+        };
+        Grid.SetColumn(duration, 4);
+        grid.Children.Add(duration);
+
+        FrameworkElement action;
+        if (record.IsOpen)
+        {
+            action = new Border
+            {
+                Background = (Brush)FindResource("SelectionBrush"),
+                CornerRadius = (CornerRadius)FindResource("ThemeCardCornerRadius"),
+                Padding = new Thickness(7, 4, 7, 4),
+                HorizontalAlignment = HorizontalAlignment.Right,
+                VerticalAlignment = VerticalAlignment.Center,
+                ToolTip = "Pause this timer before editing its active record.",
+                Child = new TextBlock
+                {
+                    Text = "ACTIVE",
+                    Foreground = (Brush)FindResource("AccentBrush"),
+                    FontSize = 9,
+                    FontWeight = FontWeights.Bold
+                }
+            };
+        }
+        else
+        {
+            var actions = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                HorizontalAlignment = HorizontalAlignment.Right,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            var edit = new Button
+            {
+                Content = "Edit",
+                Style = (Style)FindResource("ModernButton"),
+                Height = 28,
+                MinWidth = 58,
+                Padding = new Thickness(8, 3, 8, 3),
+                FontSize = 11,
+                IsEnabled = canEdit,
+                ToolTip = canEdit
+                    ? "Edit this record"
+                    : "Record editing is unavailable while project history cannot be saved."
+            };
+            var editFocus = new RecordActionFocus(record.Id, IsDelete: false);
+            edit.Tag = editFocus;
+            AutomationProperties.SetName(
+                edit,
+                $"Edit {record.ProjectName} record from {EnsureUtc(record.StartUtc).ToLocalTime().ToString("g", CultureInfo.CurrentCulture)}");
+            _recordActionButtons[editFocus] = edit;
+            edit.Click += (_, _) => EditRecord(record);
+            actions.Children.Add(edit);
+
+            var delete = new Button
+            {
+                Content = "Delete",
+                Style = (Style)FindResource("StopButton"),
+                Height = 28,
+                MinWidth = 58,
+                Padding = new Thickness(8, 3, 8, 3),
+                FontSize = 11,
+                Margin = new Thickness(6, 0, 0, 0),
+                IsEnabled = canEdit,
+                ToolTip = canEdit
+                    ? "Delete this saved record"
+                    : "Record deletion is unavailable while project history cannot be saved."
+            };
+            var deleteFocus = new RecordActionFocus(record.Id, IsDelete: true);
+            delete.Tag = deleteFocus;
+            AutomationProperties.SetName(
+                delete,
+                $"Delete {record.ProjectName} record from {EnsureUtc(record.StartUtc).ToLocalTime().ToString("g", CultureInfo.CurrentCulture)}");
+            _recordActionButtons[deleteFocus] = delete;
+            delete.Click += (_, _) => DeleteRecord(record);
+            actions.Children.Add(delete);
+            action = actions;
+        }
+
+        Grid.SetColumn(action, 5);
+        grid.Children.Add(action);
+        card.Child = grid;
+        return card;
+    }
+
+    private TextBlock CreateRecordsSecondaryCell(string text) => new()
+    {
+        Text = text,
+        Foreground = (Brush)FindResource("SecondaryTextBrush"),
+        TextTrimming = TextTrimming.CharacterEllipsis,
+        VerticalAlignment = VerticalAlignment.Center,
+        Margin = new Thickness(7, 0, 7, 0)
+    };
+
+    private void UpdateRecordsMutationAvailability()
+    {
+        bool canMutate = SafeCanMutateRecords();
+        AddRecordButton.IsEnabled = canMutate;
+
+        string? warning;
+        try
+        {
+            warning = _recordsPersistenceWarning();
+        }
+        catch (InvalidOperationException exception)
+        {
+            CrashLogger.LogRecoverable(
+                exception,
+                "ProjectDashboardPersistenceWarningProvider");
+            warning = "Project history storage is unavailable.";
+        }
+
+        if (!canMutate && string.IsNullOrWhiteSpace(warning))
+            warning = "Records are read-only because project history cannot currently be saved.";
+
+        AddRecordButton.ToolTip = canMutate
+            ? "Add a past project record manually"
+            : warning;
+        if (string.IsNullOrWhiteSpace(warning))
+        {
+            RecordsPersistenceWarningPanel.Visibility = Visibility.Collapsed;
+        }
+        else
+        {
+            ShowRecordsWarning(warning.Trim());
+        }
+    }
+
+    private bool CheckRecordsMutationAvailable()
+    {
+        if (SafeCanMutateRecords())
+            return true;
+
+        UpdateRecordsMutationAvailability();
+        ProjectRecordsExpander.IsExpanded = true;
+        return false;
+    }
+
+    private void EnsureRecordsMutationAvailable()
+    {
+        if (!SafeCanMutateRecords())
+        {
+            throw new InvalidOperationException(
+                "Project records are read-only because project history cannot be saved.");
+        }
+    }
+
+    private bool SafeCanMutateRecords()
+    {
+        try
+        {
+            return _canMutateRecords();
+        }
+        catch (InvalidOperationException exception)
+        {
+            CrashLogger.LogRecoverable(
+                exception,
+                "ProjectDashboardMutationAvailabilityProvider");
+            return false;
+        }
+    }
+
+    private void ShowRecordsWarning(string message)
+    {
+        RecordsPersistenceWarningText.Text = message;
+        RecordsPersistenceWarningPanel.Visibility = Visibility.Visible;
     }
 
     private void UpdateProjectFilter(IReadOnlyList<ProjectInfoView> projects)
@@ -314,22 +936,10 @@ public partial class ProjectDashboardWindow : Window
         }
     }
 
-    private DateTime? GetRangeStartUtc(DateTime asOfLocal)
-    {
-        DateTime? localStart = _selectedRange switch
-        {
-            DashboardRange.Today => asOfLocal.Date,
-            DashboardRange.SevenDays => asOfLocal.Date.AddDays(-6),
-            DashboardRange.ThirtyDays => asOfLocal.Date.AddDays(-29),
-            _ => null
-        };
-
-        return localStart is null ? null : LocalBoundaryToUtc(localStart.Value);
-    }
-
     private string GetRangeHeading(DateTime asOfLocal) => _selectedRange switch
     {
-        DashboardRange.Today => asOfLocal.ToString("dddd, MMMM d", CultureInfo.CurrentCulture),
+        DashboardRange.Day => (_selectedDayLocal ?? asOfLocal.Date)
+            .ToString("dddd, MMMM d", CultureInfo.CurrentCulture),
         DashboardRange.SevenDays => "Last 7 days",
         DashboardRange.ThirtyDays => "Last 30 days",
         _ => "All tracked time"
@@ -337,20 +947,15 @@ public partial class ProjectDashboardWindow : Window
 
     private static DisplayInterval? CreateDisplayInterval(
         ProjectWorkIntervalView source,
-        DateTime? rangeStartUtc,
+        DashboardUtcRange range,
         DateTime asOfUtc)
     {
-        DateTime sourceStart = EnsureUtc(source.StartUtc);
-        DateTime sourceEnd = EnsureUtc(source.EndUtc ?? asOfUtc);
-        DateTime start = rangeStartUtc is { } rangeStart && sourceStart < rangeStart
-            ? rangeStart
-            : sourceStart;
-        DateTime end = sourceEnd < asOfUtc ? sourceEnd : asOfUtc;
-
-        if (end <= start)
-        {
+        ClippedProjectInterval? clipped = ProjectDashboardAnalytics.Clip(
+            source,
+            range,
+            asOfUtc);
+        if (clipped is not { } value)
             return null;
-        }
 
         string projectKey = string.IsNullOrWhiteSpace(source.ProjectKey)
             ? source.ProjectName.Trim()
@@ -359,7 +964,13 @@ public partial class ProjectDashboardWindow : Window
             ? "Unnamed project"
             : source.ProjectName.Trim();
 
-        return new DisplayInterval(source, projectKey, projectName, start, end);
+        return new DisplayInterval(
+            source,
+            projectKey,
+            projectName,
+            value.StartUtc,
+            value.EndUtc,
+            value.IsLive);
     }
 
     private void RenderProjectBars(IReadOnlyList<DisplayInterval> intervals)
@@ -513,7 +1124,7 @@ public partial class ProjectDashboardWindow : Window
             });
             proportion.Children.Add(new Border
             {
-                Background = (Brush)FindResource("AccentBrush"),
+                Background = (Brush)FindResource("ChartSeries1Brush"),
                 CornerRadius = new CornerRadius(4)
             });
             track.Child = proportion;
@@ -532,6 +1143,388 @@ public partial class ProjectDashboardWindow : Window
             row.Children.Add(valueText);
             DailyBarsPanel.Children.Add(row);
         }
+    }
+
+    private void RenderHeatmap(
+        ProjectHistoryView history,
+        DateTime asOfLocal,
+        ProjectFilterOption? selectedProject)
+    {
+        DateTime today = asOfLocal.Date;
+        int daysSinceMonday = ((int)today.DayOfWeek + 6) % 7;
+        DateTime currentWeekStart = today.AddDays(-daysSinceMonday);
+        DateTime firstDate = currentWeekStart.AddDays(-(HeatmapWeekCount - 1) * 7);
+        DateTime lastDate = currentWeekStart.AddDays(6);
+
+        IReadOnlyList<HeatmapDayValue> values = ProjectDashboardAnalytics.BuildHeatmap(
+            history,
+            firstDate,
+            lastDate,
+            selectedProject?.Key,
+            TimeZoneInfo.Local);
+        long maximumTicks = values
+            .Where(item => item.Date <= today)
+            .Select(item => item.Duration.Ticks)
+            .DefaultIfEmpty(0)
+            .Max();
+
+        string scope = selectedProject?.Key is null
+            ? "All projects"
+            : selectedProject.Name;
+        HeatmapScopeText.Text = $"{scope} · last 12 months";
+        HeatmapScopeText.ToolTip = HeatmapScopeText.Text;
+        HeatmapEmptyText.Text = maximumTicks == 0
+            ? selectedProject?.Key is null
+                ? "No tracked time for any project in the last 12 months."
+                : $"No tracked time for {scope} in the last 12 months."
+            : "";
+
+        SolidColorBrush[] levelBrushes = CreateHeatmapLevelBrushes();
+        SolidColorBrush borderBrush = GetSolidResourceBrush(
+            "BorderBrush",
+            Color.FromRgb(76, 88, 98));
+        SolidColorBrush accentBrush = GetSolidResourceBrush(
+            "AccentBrush",
+            Color.FromRgb(66, 185, 232));
+
+        DateTime? previouslyRenderedToday = _heatmapRenderedToday;
+        EnsureHeatmapGrid(firstDate, today);
+        foreach (HeatmapDayValue value in values)
+        {
+            Button cell = _heatmapCells[value.Date];
+            bool isFuture = value.Date > today;
+            bool isSelected = _selectedRange == DashboardRange.Day
+                              && _selectedDayLocal == value.Date;
+            int level = GetHeatmapLevel(value.Duration.Ticks, maximumTicks);
+            string toolTip = CreateHeatmapToolTip(value, scope, isFuture);
+
+            cell.Background = isFuture ? levelBrushes[0] : levelBrushes[level];
+            cell.BorderBrush = isSelected ? accentBrush : borderBrush;
+            cell.BorderThickness = new Thickness(isSelected ? 2 : 1);
+            cell.Opacity = isFuture ? 0.3 : 1;
+            cell.Cursor = isFuture ? Cursors.Arrow : Cursors.Hand;
+            cell.ToolTip = toolTip;
+            cell.IsEnabled = !isFuture;
+            cell.Focusable = !isFuture;
+            cell.IsTabStop = !isFuture && ReferenceEquals(cell, _heatmapTabStop);
+            AutomationProperties.SetName(
+                cell,
+                isFuture
+                    ? toolTip.Replace('\n', ' ')
+                    : $"{toolTip.Replace('\n', ' ')}. Open daily statistics");
+        }
+
+        if (_heatmapTabStop?.Focusable != true
+            && _heatmapCells.TryGetValue(today, out Button? todayCell))
+        {
+            SetHeatmapTabStop(todayCell);
+        }
+
+        if (previouslyRenderedToday.HasValue
+            && previouslyRenderedToday.Value != today
+            && !HeatmapHost.IsKeyboardFocusWithin)
+        {
+            DateTime preferredTabDate = _selectedRange == DashboardRange.Day
+                                        && _selectedDayLocal is { } selectedDate
+                                        && selectedDate >= firstDate
+                                        && selectedDate <= today
+                ? selectedDate
+                : today;
+            if (_heatmapCells.TryGetValue(preferredTabDate, out Button? preferredCell)
+                && preferredCell.IsEnabled)
+            {
+                SetHeatmapTabStop(preferredCell);
+            }
+        }
+
+        _heatmapRenderedToday = today;
+
+        RenderHeatmapLegend(levelBrushes, borderBrush);
+    }
+
+    private void EnsureHeatmapGrid(DateTime firstDate, DateTime today)
+    {
+        if (_heatmapFirstDate == firstDate && _heatmapCells.Count == HeatmapWeekCount * 7)
+            return;
+
+        DateTime? focusedDate = Keyboard.FocusedElement is Button { Tag: DateTime focusedTagDate }
+            ? focusedTagDate.Date
+            : null;
+        _heatmapFirstDate = firstDate;
+        _heatmapCells.Clear();
+        _heatmapTabStop = null;
+        HeatmapHost.Children.Clear();
+        HeatmapHost.ColumnDefinitions.Clear();
+        HeatmapHost.RowDefinitions.Clear();
+        HeatmapHost.Width = 42 + (HeatmapWeekCount * HeatmapCellStep);
+        HeatmapHost.Height = 25 + (7 * HeatmapCellStep);
+        HeatmapHost.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(42) });
+        for (int week = 0; week < HeatmapWeekCount; week++)
+        {
+            HeatmapHost.ColumnDefinitions.Add(new ColumnDefinition
+            {
+                Width = new GridLength(HeatmapCellStep)
+            });
+        }
+
+        HeatmapHost.RowDefinitions.Add(new RowDefinition { Height = new GridLength(25) });
+        for (int day = 0; day < 7; day++)
+        {
+            HeatmapHost.RowDefinitions.Add(new RowDefinition
+            {
+                Height = new GridLength(HeatmapCellStep)
+            });
+        }
+
+        AddHeatmapLabels(firstDate);
+        DateTime preferredTabDate = focusedDate
+                                    ?? (_selectedRange == DashboardRange.Day
+                                        && _selectedDayLocal is { } selectedDate
+                                        && selectedDate >= firstDate
+                                        && selectedDate <= today
+                                            ? selectedDate
+                                            : today);
+        if (preferredTabDate < firstDate || preferredTabDate > today)
+            preferredTabDate = today;
+
+        for (int week = 0; week < HeatmapWeekCount; week++)
+        {
+            for (int dayIndex = 0; dayIndex < 7; dayIndex++)
+            {
+                DateTime date = firstDate.AddDays((week * 7) + dayIndex);
+                bool isFuture = date > today;
+                var cell = new Button
+                {
+                    Style = (Style)FindResource("HeatmapCellButton"),
+                    Width = HeatmapCellSize,
+                    Height = HeatmapCellSize,
+                    Margin = new Thickness(2),
+                    Tag = date,
+                    IsEnabled = !isFuture,
+                    Focusable = !isFuture,
+                    IsTabStop = !isFuture && date == preferredTabDate
+                };
+                cell.Click += HeatmapCell_Click;
+                cell.PreviewKeyDown += HeatmapCell_PreviewKeyDown;
+                cell.GotKeyboardFocus += HeatmapCell_GotKeyboardFocus;
+                Grid.SetColumn(cell, week + 1);
+                Grid.SetRow(cell, dayIndex + 1);
+                HeatmapHost.Children.Add(cell);
+                _heatmapCells.Add(date, cell);
+                if (cell.IsTabStop)
+                    _heatmapTabStop = cell;
+            }
+        }
+
+        if (focusedDate is { } restoreDate
+            && _heatmapCells.TryGetValue(restoreDate, out Button? focusedCell)
+            && focusedCell.Focusable)
+        {
+            Dispatcher.BeginInvoke(
+                DispatcherPriority.Input,
+                new Action(() => focusedCell.Focus()));
+        }
+    }
+
+    private void AddHeatmapLabels(DateTime firstDate)
+    {
+        DateTime? previousMonth = null;
+        for (int week = 0; week < HeatmapWeekCount; week++)
+        {
+            DateTime labelDate = firstDate.AddDays((week * 7) + 3);
+            if (previousMonth?.Month == labelDate.Month
+                && previousMonth?.Year == labelDate.Year)
+            {
+                continue;
+            }
+
+            var monthLabel = new TextBlock
+            {
+                Text = labelDate.ToString("MMM", CultureInfo.CurrentCulture),
+                FontSize = 10,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            monthLabel.SetResourceReference(TextBlock.ForegroundProperty, "SecondaryTextBrush");
+            Grid.SetColumn(monthLabel, week + 1);
+            Grid.SetColumnSpan(monthLabel, Math.Min(4, HeatmapWeekCount - week));
+            HeatmapHost.Children.Add(monthLabel);
+            previousMonth = labelDate;
+        }
+
+        for (int dayIndex = 0; dayIndex < 7; dayIndex++)
+        {
+            DateTime labelDate = firstDate.AddDays(dayIndex);
+            var dayLabel = new TextBlock
+            {
+                Text = labelDate.ToString("ddd", CultureInfo.CurrentCulture),
+                FontSize = 10,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            dayLabel.SetResourceReference(TextBlock.ForegroundProperty, "SecondaryTextBrush");
+            Grid.SetRow(dayLabel, dayIndex + 1);
+            HeatmapHost.Children.Add(dayLabel);
+        }
+    }
+
+    private void HeatmapCell_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not Button { Tag: DateTime date } || date > _latestLocalDate)
+            return;
+
+        e.Handled = true;
+        SelectHeatmapDay(date);
+    }
+
+    private void HeatmapCell_GotKeyboardFocus(object sender, KeyboardFocusChangedEventArgs e)
+    {
+        if (sender is Button cell)
+            SetHeatmapTabStop(cell);
+    }
+
+    private void HeatmapCell_PreviewKeyDown(object sender, KeyEventArgs e)
+    {
+        if (sender is not Button { Tag: DateTime date })
+            return;
+
+        int dayOffset = e.Key switch
+        {
+            Key.Up => -1,
+            Key.Down => 1,
+            Key.Left => -7,
+            Key.Right => 7,
+            _ => 0
+        };
+        if (dayOffset == 0)
+            return;
+
+        DateTime targetDate = date.AddDays(dayOffset);
+        if (_heatmapCells.TryGetValue(targetDate, out Button? target)
+            && target.Focusable)
+        {
+            e.Handled = true;
+            target.Focus();
+        }
+    }
+
+    private void SetHeatmapTabStop(Button cell)
+    {
+        if (!ReferenceEquals(_heatmapTabStop, cell) && _heatmapTabStop != null)
+            _heatmapTabStop.IsTabStop = false;
+
+        _heatmapTabStop = cell;
+        cell.IsTabStop = true;
+    }
+
+    private void SelectHeatmapDay(DateTime date)
+    {
+        _selectedDayLocal = date.Date > _latestLocalDate
+            ? _latestLocalDate
+            : date.Date;
+        _followToday = _selectedDayLocal.Value >= _latestLocalDate;
+        _recordsPageIndex = 0;
+        SelectRange(DashboardRange.Day);
+    }
+
+    private static int GetHeatmapLevel(long ticks, long maximumTicks)
+    {
+        if (ticks <= 0 || maximumTicks <= 0)
+            return 0;
+
+        double ratio = ticks / (double)maximumTicks;
+        return Math.Clamp((int)Math.Ceiling(ratio * 4), 1, 4);
+    }
+
+    private static string CreateHeatmapToolTip(
+        HeatmapDayValue value,
+        string scope,
+        bool isFuture)
+    {
+        string date = value.Date.ToString("D", CultureInfo.CurrentCulture);
+        if (isFuture)
+            return $"{date}\nFuture date";
+
+        string records = value.RecordCount == 1
+            ? "1 record"
+            : $"{value.RecordCount.ToString(CultureInfo.CurrentCulture)} records";
+        return $"{date}\n{scope}\n{FormatCompactDuration(value.Duration)} · {records}";
+    }
+
+    private SolidColorBrush[] CreateHeatmapLevelBrushes()
+    {
+        Color surface = GetSolidResourceBrush(
+            "SurfaceRaisedBrush",
+            Color.FromRgb(31, 38, 44)).Color;
+        Color accent = GetSolidResourceBrush(
+            "AccentBrush",
+            Color.FromRgb(66, 185, 232)).Color;
+        double[] strengths = [0, 0.18, 0.38, 0.62, 0.88];
+        return strengths
+            .Select(strength =>
+            {
+                var brush = new SolidColorBrush(BlendColors(surface, accent, strength));
+                brush.Freeze();
+                return brush;
+            })
+            .ToArray();
+    }
+
+    private void RenderHeatmapLegend(
+        IReadOnlyList<SolidColorBrush> levelBrushes,
+        Brush borderBrush)
+    {
+        HeatmapLegendPanel.Children.Clear();
+        HeatmapLegendPanel.Children.Add(new TextBlock
+        {
+            Text = "Less",
+            FontSize = 10,
+            Foreground = (Brush)FindResource("SecondaryTextBrush"),
+            VerticalAlignment = VerticalAlignment.Center,
+            Margin = new Thickness(0, 0, 5, 0)
+        });
+
+        foreach (SolidColorBrush brush in levelBrushes)
+        {
+            HeatmapLegendPanel.Children.Add(new Border
+            {
+                Width = 12,
+                Height = 12,
+                Background = brush,
+                BorderBrush = borderBrush,
+                BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(2),
+                Margin = new Thickness(2, 0, 0, 0)
+            });
+        }
+
+        HeatmapLegendPanel.Children.Add(new TextBlock
+        {
+            Text = "More",
+            FontSize = 10,
+            Foreground = (Brush)FindResource("SecondaryTextBrush"),
+            VerticalAlignment = VerticalAlignment.Center,
+            Margin = new Thickness(6, 0, 0, 0)
+        });
+    }
+
+    private SolidColorBrush GetSolidResourceBrush(string key, Color fallback)
+    {
+        if (FindResource(key) is SolidColorBrush brush)
+            return brush;
+
+        var fallbackBrush = new SolidColorBrush(fallback);
+        fallbackBrush.Freeze();
+        return fallbackBrush;
+    }
+
+    private static Color BlendColors(Color from, Color to, double amount)
+    {
+        amount = Math.Clamp(amount, 0, 1);
+        byte Blend(byte start, byte end) =>
+            (byte)Math.Round(start + ((end - start) * amount));
+        return Color.FromRgb(
+            Blend(from.R, to.R),
+            Blend(from.G, to.G),
+            Blend(from.B, to.B));
     }
 
     private void RenderTimeline(IReadOnlyList<DisplayInterval> intervals)
@@ -698,7 +1691,7 @@ public partial class ProjectDashboardWindow : Window
 
     private static string CreateTimelineToolTip(DayFragment fragment)
     {
-        string end = fragment.IsOpen && fragment.EndsAtIntervalEnd
+        string end = fragment.IsLive && fragment.EndsAtIntervalEnd
             ? "Now"
             : FormatLocalTime(fragment.EndLocal, fragment.EndUtc);
         return $"{fragment.ProjectName}\n{FormatLocalTime(fragment.StartLocal, fragment.StartUtc)} – {end}\n{FormatDetailedDuration(fragment.Duration)}";
@@ -727,117 +1720,6 @@ public partial class ProjectDashboardWindow : Window
         return result;
     }
 
-    private void RenderSessions(IReadOnlyList<DisplayInterval> intervals)
-    {
-        SessionsPanel.Children.Clear();
-        if (intervals.Count == 0)
-        {
-            SessionsPanel.Children.Add(CreateMutedMessage("No sessions in this period."));
-            return;
-        }
-
-        foreach (IGrouping<DateTime, DisplayInterval> group in intervals
-                     .GroupBy(item => item.StartLocal.Date)
-                     .OrderByDescending(group => group.Key))
-        {
-            SessionsPanel.Children.Add(new TextBlock
-            {
-                Text = group.Key.ToString("dddd, MMMM d", CultureInfo.CurrentCulture),
-                Foreground = (Brush)FindResource("SecondaryTextBrush"),
-                FontSize = 12,
-                FontWeight = FontWeights.SemiBold,
-                Margin = new Thickness(0, SessionsPanel.Children.Count == 0 ? 0 : 16, 0, 7)
-            });
-
-            foreach (DisplayInterval interval in group.OrderByDescending(item => item.StartUtc))
-            {
-                var row = new Border
-                {
-                    Background = (Brush)FindResource("SurfaceRaisedBrush"),
-                    CornerRadius = new CornerRadius(7),
-                    Padding = new Thickness(12, 9, 12, 9),
-                    Margin = new Thickness(0, 0, 0, 6)
-                };
-                var grid = new Grid();
-                grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-                grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(190) });
-                grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(88) });
-                grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-
-                var project = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
-                project.Children.Add(new Border
-                {
-                    Width = 4,
-                    Height = 24,
-                    Background = GetProjectBrush(interval.ProjectKey),
-                    CornerRadius = new CornerRadius(2),
-                    Margin = new Thickness(0, 0, 10, 0)
-                });
-                project.Children.Add(new TextBlock
-                {
-                    Text = interval.ProjectName,
-                    FontWeight = FontWeights.SemiBold,
-                    TextTrimming = TextTrimming.CharacterEllipsis,
-                    VerticalAlignment = VerticalAlignment.Center
-                });
-                grid.Children.Add(project);
-
-                string endLabel = interval.Source.IsOpen
-                    ? "Now"
-                    : FormatLocalTime(interval.EndLocal, interval.EndUtc);
-                string timesLabel =
-                    $"{FormatLocalTime(interval.StartLocal, interval.StartUtc)} – {endLabel}";
-                var times = new TextBlock
-                {
-                    Text = timesLabel,
-                    ToolTip = timesLabel,
-                    TextTrimming = TextTrimming.CharacterEllipsis,
-                    Foreground = (Brush)FindResource("SecondaryTextBrush"),
-                    VerticalAlignment = VerticalAlignment.Center
-                };
-                Grid.SetColumn(times, 1);
-                grid.Children.Add(times);
-
-                var duration = new TextBlock
-                {
-                    Text = FormatDetailedDuration(interval.Duration),
-                    Foreground = (Brush)FindResource("PrimaryTextBrush"),
-                    FontFamily = (FontFamily)FindResource("ThemeMonoFontFamily"),
-                    TextAlignment = TextAlignment.Right,
-                    VerticalAlignment = VerticalAlignment.Center
-                };
-                Grid.SetColumn(duration, 2);
-                grid.Children.Add(duration);
-
-                if (interval.Source.IsOpen)
-                {
-                    var accentColor = ((SolidColorBrush)FindResource("AccentBrush")).Color;
-                    var active = new Border
-                    {
-                        Background = new SolidColorBrush(Color.FromArgb(
-                            45, accentColor.R, accentColor.G, accentColor.B)),
-                        CornerRadius = (CornerRadius)FindResource("ThemeCardCornerRadius"),
-                        Margin = new Thickness(12, 0, 0, 0),
-                        Padding = new Thickness(7, 3, 7, 3),
-                        VerticalAlignment = VerticalAlignment.Center,
-                        Child = new TextBlock
-                        {
-                            Text = "ACTIVE",
-                            Foreground = (Brush)FindResource("AccentBrush"),
-                            FontSize = 9,
-                            FontWeight = FontWeights.Bold
-                        }
-                    };
-                    Grid.SetColumn(active, 3);
-                    grid.Children.Add(active);
-                }
-
-                row.Child = grid;
-                SessionsPanel.Children.Add(row);
-            }
-        }
-    }
-
     private TextBlock CreateMutedMessage(string text) => new()
     {
         Text = text,
@@ -856,6 +1738,7 @@ public partial class ProjectDashboardWindow : Window
 
         Color[] palette = AppThemeManager.CurrentTheme switch
         {
+            AppThemeCatalog.Acanthus => AcanthusProjectPalette,
             AppThemeCatalog.PixelDeckDay => PixelDeckDayProjectPalette,
             AppThemeCatalog.Daylight => DaylightProjectPalette,
             AppThemeCatalog.PixelDeckNight => PixelDeckProjectPalette,
@@ -911,31 +1794,13 @@ public partial class ProjectDashboardWindow : Window
                 startLocal,
                 endLocal,
                 endUtc - startUtc,
-                interval.Source.IsOpen,
+                interval.IsLive,
                 endUtc == interval.EndUtc);
         }
     }
 
-    private static DateTime LocalBoundaryToUtc(DateTime local)
-    {
-        DateTime unspecified = DateTime.SpecifyKind(local, DateTimeKind.Unspecified);
-        TimeZoneInfo zone = TimeZoneInfo.Local;
-        while (zone.IsInvalidTime(unspecified))
-        {
-            unspecified = unspecified.AddMinutes(30);
-        }
-
-        if (zone.IsAmbiguousTime(unspecified))
-        {
-            // A few time zones move their clocks at midnight. Choose the earlier
-            // UTC occurrence so the dashboard does not discard the repeated part
-            // at the beginning of that local date.
-            TimeSpan earlierOffset = zone.GetAmbiguousTimeOffsets(unspecified).Max();
-            return new DateTimeOffset(unspecified, earlierOffset).UtcDateTime;
-        }
-
-        return TimeZoneInfo.ConvertTimeToUtc(unspecified, zone);
-    }
+    private static DateTime LocalBoundaryToUtc(DateTime local) =>
+        ProjectDashboardAnalytics.LocalBoundaryToUtc(local, TimeZoneInfo.Local);
 
     private static DateTime EnsureUtc(DateTime value) => value.Kind switch
     {
@@ -980,20 +1845,13 @@ public partial class ProjectDashboardWindow : Window
         return $"{hours:00}:{duration.Minutes:00}:{duration.Seconds:00}";
     }
 
-    private enum DashboardRange
-    {
-        Today,
-        SevenDays,
-        ThirtyDays,
-        AllTime
-    }
-
     private sealed record DisplayInterval(
         ProjectWorkIntervalView Source,
         string ProjectKey,
         string ProjectName,
         DateTime StartUtc,
-        DateTime EndUtc)
+        DateTime EndUtc,
+        bool IsLive)
     {
         public TimeSpan Duration => EndUtc - StartUtc;
         public DateTime StartLocal => StartUtc.ToLocalTime();
@@ -1013,9 +1871,10 @@ public partial class ProjectDashboardWindow : Window
         DateTime StartLocal,
         DateTime EndLocal,
         TimeSpan Duration,
-        bool IsOpen,
+        bool IsLive,
         bool EndsAtIntervalEnd);
     private sealed record TimelineItem(DayFragment Fragment, int Lane);
+    private readonly record struct RecordActionFocus(Guid RecordId, bool IsDelete);
 
     private sealed record ProjectFilterOption(string? Key, string Name)
     {

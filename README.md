@@ -27,8 +27,8 @@ Stopwatch Overlay places customizable timers on top of all your windows — incl
 - 🧩 **Independent multi-timer workspace** — Create several floating timers, run them simultaneously, name them, and choose which timer receives commands
 - 🗂️ **Combined timer view** — Merge every open timer into one compact overlay and cycle the active timer without stopping the others
 - 🏷️ **Automatic project tracking** — Assign an existing or new project to a timer and record every running work session automatically
-- 📝 **Editable project records** — Browse complete project history, add past work manually, and correct completed records without changing active sessions
-- 📊 **Project time dashboard** — Filter Today, 7 days, 30 days, or All time; compare project totals, daily activity, timelines, and detailed sessions
+- 📝 **Inline editable project records** — Expand records inside the dashboard, add past work manually, and correct completed records without changing active sessions
+- 📊 **Project time dashboard** — Step through individual days or review 7 days, 30 days, and All time; compare project totals, timelines, and a project-filtered 12-month heatmap
 - 🎨 **Four professional themes** — Midnight, Daylight, Pixel Deck Night, and Pixel Deck Day, all backed by the same consistent design tokens
 - 🧵 **Tiled background library** — Choose from nine bundled seamless patterns or import a JPG, PNG, or BMP; the selection, strength, and managed custom copy survive restarts
 - 🖌️ **Deep overlay customization** — Choose display, position, text and outline colors, font, format, size, thickness, opacity, and optional light ring
@@ -51,7 +51,7 @@ Stopwatch Overlay places customizable timers on top of all your windows — incl
 ### Project time dashboard
 
 <p align="center">
-  <img src="project-dashboard.png" alt="Project time dashboard with totals, charts, timeline, and session history" width="960">
+  <img src="project-dashboard.png" alt="Project time dashboard with daily navigation, charts, timeline, heatmap, and project records" width="960">
 </p>
 
 ---
@@ -119,16 +119,16 @@ Clicking an overlay selects its timer. Hovering over an interactive overlay reve
 
 A timer's name is also its **project name**. New timers may begin unnamed, which keeps their time out of reports. Use **Win+F10** to assign, change, or clear the active timer's project. Starting a named timer begins a work session for that project. Pausing, stopping, closing, or clearing the project ends its current session. Changing a non-zero timer to another project saves the old project segment, resets the timer for the new project, and preserves whether it was running or paused. Changing a reset/zero timer only changes its assignment, so it begins from scratch when started.
 
-Open the dashboard with **Win+F11**. Its **Today**, **Last 7 days**, **Last 30 days**, and **All time** views include:
+Open the dashboard with **Win+F11**. Use the day arrows to move through previous dates, select **Day** to return to today, or choose **Last 7 days**, **Last 30 days**, and **All time**. Each view includes:
 
 - total tracked time, session count, project count, and currently active sessions
 - horizontal time-by-project bars and daily totals
 - a 24-hour project timeline for each local calendar day
-- individual work sessions grouped by date, including their start time, end time, and duration
+- a 53-week activity heatmap whose squares open the selected day's statistics
 
-Use the dashboard's **Project** filter to switch every card, chart, timeline, and session list between **All projects** and one specific project.
+Use the dashboard's **Project** filter to switch every card, chart, timeline, heatmap, and record list between **All projects** and one specific project. **Project records** is collapsed by default near the bottom of the dashboard; expand it to inspect the records that overlap the selected period. The **Add record** button remains visible while the list is collapsed.
 
-The dashboard's **Project records** card opens a dedicated records page. There you can filter the complete history by project, inspect exact local start/end times and durations, add a past work record manually, edit any completed record, or permanently delete a saved record after reviewing a confirmation. A currently running record remains visible but is locked; pause its timer first if you need to correct or delete it. Manual changes use the same crash-safe project-history storage as automatically tracked sessions.
+The inline record list shows each selected-period portion in local time and lets you edit any completed record or permanently delete it after reviewing a confirmation. Editing always opens the complete saved record, even when only part of it falls inside the selected day or range. A currently running record remains visible but is locked; pause its timer first if you need to correct or delete it. Choose **All time** to browse the complete history. Manual changes use the same crash-safe project-history storage as automatically tracked sessions.
 
 Every timer is tracked independently, so separately running project timers can record overlapping sessions. Dashboard timer-time totals add simultaneous sessions together rather than de-duplicating them. Unnamed timers continue to work normally but do not add project history.
 

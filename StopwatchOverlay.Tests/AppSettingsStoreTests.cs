@@ -38,6 +38,8 @@ public sealed class AppSettingsStoreTests
     [InlineData("Pixel Deck Night", AppThemeCatalog.PixelDeckNight)]
     [InlineData("PixelDeckDay", AppThemeCatalog.PixelDeckDay)]
     [InlineData("Pixel Deck Day", AppThemeCatalog.PixelDeckDay)]
+    [InlineData("Acanthus", AppThemeCatalog.Acanthus)]
+    [InlineData("acanthus", AppThemeCatalog.Acanthus)]
     public void NormalizeTheme_MigratesLegacyAndRejectsUnknownValues(
         string? value,
         string expected)
@@ -46,14 +48,15 @@ public sealed class AppSettingsStoreTests
     }
 
     [Fact]
-    public void ThemeCatalog_ExposesAllFourStableChoicesInDisplayOrder()
+    public void ThemeCatalog_ExposesAllFiveStableChoicesInDisplayOrder()
     {
         Assert.Equal(
             [
                 AppThemeCatalog.Midnight,
                 AppThemeCatalog.Daylight,
                 AppThemeCatalog.PixelDeckNight,
-                AppThemeCatalog.PixelDeckDay
+                AppThemeCatalog.PixelDeckDay,
+                AppThemeCatalog.Acanthus
             ],
             AppThemeCatalog.All);
     }
@@ -492,6 +495,7 @@ public sealed class AppSettingsStoreTests
     [InlineData(AppThemeCatalog.Daylight)]
     [InlineData(AppThemeCatalog.PixelDeckNight)]
     [InlineData(AppThemeCatalog.PixelDeckDay)]
+    [InlineData(AppThemeCatalog.Acanthus)]
     public void SaveThenLoad_ThemeRoundTripsAcrossRestart(string theme)
     {
         using var scope = new TemporarySettingsFile();
@@ -561,6 +565,32 @@ public sealed class AppSettingsStoreTests
     }
 
     [Fact]
+    public void TemporarilyUnavailablePrimary_UsesBackupWithoutReplacingNewerPrimary()
+    {
+        using var scope = new TemporarySettingsFile();
+        Assert.True(SettingsStore.Save(NewSettings(AppThemeCatalog.Midnight), scope.Path));
+        Assert.True(SettingsStore.Save(NewSettings(AppThemeCatalog.PixelDeckNight), scope.Path));
+
+        using (var locked = new FileStream(
+                   scope.Path,
+                   FileMode.Open,
+                   FileAccess.Read,
+                   FileShare.None))
+        {
+            AppSettings fallback = SettingsStore.Load(scope.Path);
+            Assert.Equal(AppThemeCatalog.Midnight, fallback.ThemeMode);
+            Assert.True(SettingsStore.IsWriteProtected(scope.Path));
+            Assert.False(SettingsStore.Save(
+                NewSettings(AppThemeCatalog.Daylight),
+                scope.Path));
+        }
+
+        AppSettings newerPrimary = SettingsStore.Load(scope.Path);
+        Assert.Equal(AppThemeCatalog.PixelDeckNight, newerPrimary.ThemeMode);
+        Assert.False(SettingsStore.IsWriteProtected(scope.Path));
+    }
+
+    [Fact]
     public void CorruptPrimary_FallsBackToSafeMidnightTheme()
     {
         using var scope = new TemporarySettingsFile();
@@ -570,6 +600,195 @@ public sealed class AppSettingsStoreTests
 
         Assert.Equal(AppThemeCatalog.Midnight, settings.ThemeMode);
         Assert.NotEmpty(settings.Shortcuts);
+    }
+
+    [Fact]
+    public void NormalizeForRuntime_ClampsUnsafeValuesAndPreservesValidChoices()
+    {
+        var settings = new AppSettings
+        {
+            ThemeMode = "unknown",
+            TextColor = " cyan ",
+            BorderColor = "chartreuse",
+            FontFamily = "cascadia mono",
+            TimeFormat = 99,
+            TextSize = double.NaN,
+            BorderWidth = -12,
+            BackgroundOpacity = 180,
+            Position = " bottom right ",
+            ScreenIndex = 900,
+            HasCustomPosition = true,
+            CustomLeft = double.PositiveInfinity,
+            CustomTop = 25,
+            LightRingBrightness = 2,
+            LightRingWidth = double.NegativeInfinity,
+            Mode = -5
+        };
+
+        settings.NormalizeForRuntime();
+
+        Assert.Equal(AppThemeCatalog.Midnight, settings.ThemeMode);
+        Assert.Equal("Cyan", settings.TextColor);
+        Assert.Equal("Black", settings.BorderColor);
+        Assert.Equal("Cascadia Mono", settings.FontFamily);
+        Assert.Equal(4, settings.TimeFormat);
+        Assert.Equal(48, settings.TextSize);
+        Assert.Equal(1, settings.BorderWidth);
+        Assert.Equal(100, settings.BackgroundOpacity);
+        Assert.Equal("Bottom Right", settings.Position);
+        Assert.Equal(64, settings.ScreenIndex);
+        Assert.False(settings.HasCustomPosition);
+        Assert.Equal(0, settings.CustomLeft);
+        Assert.Equal(0, settings.CustomTop);
+        Assert.Equal(10, settings.LightRingBrightness);
+        Assert.Equal(20, settings.LightRingWidth);
+        Assert.Equal(0, settings.Mode);
+    }
+
+    [Fact]
+    public void CorruptPrimary_RecoversValidBackupAndPreservesUnreadableBytes()
+    {
+        using var scope = new TemporarySettingsFile();
+        var expected = NewSettings(AppThemeCatalog.PixelDeckNight);
+        expected.TextColor = "Cyan";
+        expected.Position = "Bottom Right";
+        expected.TextSize = 83;
+        expected.BackgroundOpacity = 37;
+        expected.PanelBackgroundId = AppBackgroundCatalog.AzureMosaic;
+        expected.PanelBackgroundStrength = 42;
+        expected.LightRingEnabled = true;
+        expected.LightRingBrightness = 71;
+        expected.LightRingWidth = 34;
+        expected.Shortcuts[ShortcutAction.Reset] = new Shortcut(
+            Shortcut.MOD_CONTROL | Shortcut.MOD_SHIFT,
+            0x52);
+        Assert.True(SettingsStore.Save(expected, scope.Path));
+        File.Copy(scope.Path, scope.Path + ".bak");
+
+        const string corruptContents = "{ definitely-not-valid-json";
+        File.WriteAllText(scope.Path, corruptContents);
+
+        AppSettings recovered = SettingsStore.Load(scope.Path);
+
+        Assert.Equal(AppThemeCatalog.PixelDeckNight, recovered.ThemeMode);
+        Assert.Equal("Cyan", recovered.TextColor);
+        Assert.Equal("Bottom Right", recovered.Position);
+        Assert.Equal(83, recovered.TextSize);
+        Assert.Equal(37, recovered.BackgroundOpacity);
+        Assert.Equal(AppBackgroundCatalog.AzureMosaic, recovered.PanelBackgroundId);
+        Assert.Equal(42, recovered.PanelBackgroundStrength);
+        Assert.True(recovered.LightRingEnabled);
+        Assert.Equal(71, recovered.LightRingBrightness);
+        Assert.Equal(34, recovered.LightRingWidth);
+        Assert.Equal(
+            new Shortcut(Shortcut.MOD_CONTROL | Shortcut.MOD_SHIFT, 0x52),
+            recovered.Shortcuts[ShortcutAction.Reset]);
+
+        // Recovery repairs the primary for the next launch but keeps the exact
+        // unreadable input alongside it for diagnostics/manual recovery.
+        AppSettings repairedPrimary = SettingsStore.Load(scope.Path);
+        Assert.Equal(recovered.ThemeMode, repairedPrimary.ThemeMode);
+        Assert.Equal(recovered.Shortcuts[ShortcutAction.Reset],
+            repairedPrimary.Shortcuts[ShortcutAction.Reset]);
+        string preserved = Assert.Single(
+            Directory.GetFiles(scope.Directory, "settings.json.corrupt-*"));
+        Assert.Equal(corruptContents, File.ReadAllText(preserved));
+    }
+
+    [Fact]
+    public void SettingsChangePolicy_ClassifiesTargetedAndContinuousWork()
+    {
+        Assert.True(SettingsChangePolicy.IsContinuous(SettingsChangeKind.OverlayAppearance));
+        Assert.True(SettingsChangePolicy.IsContinuous(SettingsChangeKind.OverlayGeometry));
+        Assert.True(SettingsChangePolicy.IsContinuous(SettingsChangeKind.BackgroundStrength));
+        Assert.True(SettingsChangePolicy.IsContinuous(SettingsChangeKind.LightRingAppearance));
+        Assert.True(SettingsChangePolicy.IsContinuous(
+            SettingsChangeKind.Behavior | SettingsChangeKind.OverlayGeometry));
+        Assert.False(SettingsChangePolicy.IsContinuous(SettingsChangeKind.Theme));
+        Assert.False(SettingsChangePolicy.IsContinuous(SettingsChangeKind.BackgroundSelection));
+
+        Assert.True(SettingsChangePolicy.RequiresThemeApply(SettingsChangeKind.Theme));
+        Assert.True(SettingsChangePolicy.RequiresBackgroundApply(SettingsChangeKind.Theme));
+        Assert.True(SettingsChangePolicy.RequiresBackgroundApply(
+            SettingsChangeKind.BackgroundSelection));
+        Assert.True(SettingsChangePolicy.RequiresBackgroundApply(
+            SettingsChangeKind.BackgroundStrength));
+        Assert.True(SettingsChangePolicy.RequiresLightRingRebuild(
+            SettingsChangeKind.LightRingVisibility));
+        Assert.True(SettingsChangePolicy.RequiresLightRingRebuild(
+            SettingsChangeKind.OverlayScreen));
+        Assert.False(SettingsChangePolicy.RequiresLightRingRebuild(
+            SettingsChangeKind.LightRingAppearance));
+    }
+
+    [Theory]
+    [InlineData(-2, 3, 1)]
+    [InlineData(-1, 3, 1)]
+    [InlineData(0, 3, 0)]
+    [InlineData(1, 3, 1)]
+    [InlineData(3, 3, 3)]
+    [InlineData(4, 3, 1)]
+    [InlineData(-1, 1, 0)]
+    [InlineData(1, 1, 1)]
+    [InlineData(2, 1, 0)]
+    [InlineData(5, 0, 0)]
+    public void ResolveScreenComboIndex_UsesDirectAllPlusMonitorIndexMapping(
+        int persistedIndex,
+        int screenCount,
+        int expectedIndex)
+    {
+        Assert.Equal(
+            expectedIndex,
+            SettingsChangePolicy.ResolveScreenComboIndex(persistedIndex, screenCount));
+    }
+
+    [Fact]
+    public void CrashLogger_RedactsPrivatePathsRotatesAndNeverMasksFailure()
+    {
+        using var scope = new TemporarySettingsFile();
+        string logs = Path.Combine(scope.Directory, "logs");
+        string userProfile = Environment.GetFolderPath(
+            Environment.SpecialFolder.UserProfile);
+        string privatePath = Path.Combine(userProfile, "Private", "settings.json");
+        string forwardSlashPrivatePath = privatePath.Replace('\\', '/');
+        CrashLogger.RecordUiAction("Settings slider " + privatePath, "Appearance");
+
+        Assert.True(CrashLogger.TryWrite(
+            new InvalidOperationException("Failed at " + forwardSlashPrivatePath),
+            "StabilityTest " + privatePath,
+            isTerminating: false,
+            directoryOverride: logs,
+            retainedLogCount: 3));
+
+        string firstEntry = File.ReadAllText(Assert.Single(Directory.GetFiles(logs, "crash-*.log")));
+        Assert.DoesNotContain(userProfile, firstEntry, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("%USERPROFILE%", firstEntry, StringComparison.Ordinal);
+        Assert.DoesNotContain("Private", firstEntry, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("settings.json", firstEntry, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("SettingsCategory: Appearance", firstEntry, StringComparison.Ordinal);
+        Assert.Contains("System.InvalidOperationException", firstEntry, StringComparison.Ordinal);
+
+        for (int index = 0; index < 6; index++)
+        {
+            Assert.True(CrashLogger.TryWrite(
+                new InvalidOperationException($"rotation-{index}"),
+                "StabilityTestRotation",
+                isTerminating: false,
+                directoryOverride: logs,
+                retainedLogCount: 3));
+        }
+        Assert.Equal(3, Directory.GetFiles(logs, "crash-*.log").Length);
+
+        string occupiedPath = Path.Combine(scope.Directory, "not-a-directory");
+        File.WriteAllText(occupiedPath, "occupied");
+        bool result = true;
+        Exception? loggerFailure = Record.Exception(() => result = CrashLogger.TryWrite(
+            new InvalidOperationException("original failure"),
+            "StabilityTestUnwritable",
+            isTerminating: true,
+            directoryOverride: occupiedPath));
+        Assert.Null(loggerFailure);
+        Assert.False(result);
     }
 
     [Fact]
@@ -596,12 +815,17 @@ public sealed class AppSettingsStoreTests
                     new Uri(
                         "/StopwatchOverlay;component/Themes/PixelDeckDay.xaml",
                         UriKind.Relative));
+                var acanthus = (ResourceDictionary)Application.LoadComponent(
+                    new Uri(
+                        "/StopwatchOverlay;component/Themes/Acanthus.xaml",
+                        UriKind.Relative));
 
                 foreach (ResourceDictionary candidate in new[]
                          {
                              daylight,
                              pixelDeck,
-                             pixelDeckDay
+                             pixelDeckDay,
+                             acanthus
                          })
                 {
                     object[] expectedKeys = midnight.Keys.Cast<object>()
@@ -636,6 +860,12 @@ public sealed class AppSettingsStoreTests
                 Assert.Equal(
                     Color.FromRgb(29, 38, 48),
                     ((SolidColorBrush)pixelDeckDay["PrimaryTextBrush"]).Color);
+                Assert.Equal(
+                    Color.FromRgb(251, 248, 241),
+                    ((SolidColorBrush)acanthus["SurfaceBrush"]).Color);
+                Assert.Equal(
+                    Visibility.Visible,
+                    acanthus["OrnamentVisibility"]);
             }
             catch (Exception exception)
             {
@@ -659,6 +889,7 @@ public sealed class AppSettingsStoreTests
         {
             Application? application = null;
             Window? hostWindow = null;
+            EventHandler? themeObserver = null;
             try
             {
                 application = new Application();
@@ -682,11 +913,28 @@ public sealed class AppSettingsStoreTests
                 {
                     Style = (Style)application.Resources["LiveThemeButtonStyle"]
                 };
+                var slider = new Slider
+                {
+                    Minimum = 0,
+                    Maximum = 100,
+                    SmallChange = 1,
+                    Value = 10
+                };
+                var content = new StackPanel();
+                content.Children.Add(button);
+                content.Children.Add(slider);
+                content.Children.Add(new Border { Height = 600 });
+                var scrollViewer = new ScrollViewer
+                {
+                    Content = content,
+                    Height = 100,
+                    VerticalScrollBarVisibility = ScrollBarVisibility.Visible
+                };
                 hostWindow = new Window
                 {
-                    Content = button,
+                    Content = scrollViewer,
                     Width = 240,
-                    Height = 80,
+                    Height = 120,
                     Left = -10000,
                     Top = -10000,
                     Opacity = 0,
@@ -696,6 +944,9 @@ public sealed class AppSettingsStoreTests
                 };
                 hostWindow.Show();
                 button.ApplyTemplate();
+                slider.ApplyTemplate();
+                scrollViewer.ApplyTemplate();
+                hostWindow.UpdateLayout();
 
                 Style originalStyle = button.Style;
                 Assert.True(originalStyle.IsSealed);
@@ -715,6 +966,45 @@ public sealed class AppSettingsStoreTests
                 Assert.Equal(
                     Color.FromRgb(29, 38, 48),
                     ((SolidColorBrush)button.Foreground).Color);
+
+                AppThemeManager.Apply(AppThemeCatalog.Acanthus);
+                button.Dispatcher.Invoke(
+                    System.Windows.Threading.DispatcherPriority.DataBind,
+                    new Action(() => { }));
+                Assert.Same(originalStyle, button.Style);
+                Assert.Equal(
+                    Color.FromRgb(229, 221, 207),
+                    ((SolidColorBrush)button.Background).Color);
+                Assert.Equal(
+                    Color.FromRgb(44, 41, 36),
+                    ((SolidColorBrush)button.Foreground).Color);
+
+                // This is the crash regression: slider input used to reapply the
+                // active theme while WPF was tearing down ScrollBar/Thumb styles.
+                // Same-theme work must be a true no-op while value and scroll
+                // input continue to route normally.
+                int themeChangedCount = 0;
+                themeObserver = (_, _) => themeChangedCount++;
+                AppThemeManager.ThemeChanged += themeObserver;
+                object surfaceBeforeInput = application.Resources["SurfaceBrush"];
+                slider.ValueChanged += (_, _) =>
+                    AppThemeManager.Apply(AppThemeCatalog.Acanthus);
+                for (int value = 11; value <= 80; value++)
+                {
+                    slider.Value = value;
+                    scrollViewer.ScrollToVerticalOffset(value * 2);
+                }
+                scrollViewer.ScrollToEnd();
+                hostWindow.UpdateLayout();
+                application.Dispatcher.Invoke(
+                    System.Windows.Threading.DispatcherPriority.Render,
+                    new Action(() => { }));
+
+                Assert.Equal(80, slider.Value);
+                Assert.True(scrollViewer.ScrollableHeight > 0);
+                Assert.True(scrollViewer.VerticalOffset > 0);
+                Assert.Equal(0, themeChangedCount);
+                Assert.Same(surfaceBeforeInput, application.Resources["SurfaceBrush"]);
 
                 var backgroundSettings = NewSettings(AppThemeCatalog.PixelDeckDay);
                 backgroundSettings.PanelBackgroundId = AppBackgroundCatalog.GreenCreatures;
@@ -743,6 +1033,8 @@ public sealed class AppSettingsStoreTests
             }
             finally
             {
+                if (themeObserver != null)
+                    AppThemeManager.ThemeChanged -= themeObserver;
                 hostWindow?.Close();
                 if (application != null)
                 {

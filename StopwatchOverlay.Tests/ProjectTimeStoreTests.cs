@@ -908,6 +908,45 @@ namespace StopwatchOverlay.Tests
             Assert.Equal(newerJson, File.ReadAllText(path));
         }
 
+        [Fact]
+        public void SaveNew_CreatesPrimaryButNeverReplacesIt()
+        {
+            using var directory = new TemporaryDirectory();
+            string path = Path.Combine(directory.Path, "project-history.json");
+            var first = new ProjectTimeHistory();
+            first.RegisterProject("First");
+            var store = new ProjectTimeStore(path);
+
+            Assert.True(store.SaveNew(first, StartUtc));
+            Assert.False(store.LastSaveNewConflictDetected);
+            string firstGeneration = File.ReadAllText(path);
+            Assert.Equal(firstGeneration, File.ReadAllText(path + ".bak"));
+
+            var second = new ProjectTimeHistory();
+            second.RegisterProject("Second");
+            Assert.False(store.SaveNew(second, StartUtc.AddMinutes(1)));
+            Assert.True(store.LastSaveNewConflictDetected);
+            Assert.Equal(firstGeneration, File.ReadAllText(path));
+        }
+
+        [Fact]
+        public void SaveNew_ExistingBackupWinsWithoutCreatingPrimary()
+        {
+            using var directory = new TemporaryDirectory();
+            string path = Path.Combine(directory.Path, "project-history.json");
+            byte[] backup = [2, 4, 6, 8];
+            File.WriteAllBytes(path + ".bak", backup);
+            var history = new ProjectTimeHistory();
+            history.RegisterProject("New");
+            var store = new ProjectTimeStore(path);
+
+            Assert.False(store.SaveNew(history, StartUtc));
+            Assert.True(store.LastSaveNewConflictDetected);
+
+            Assert.False(File.Exists(path));
+            Assert.Equal(backup, File.ReadAllBytes(path + ".bak"));
+        }
+
         public static IEnumerable<object[]> InvalidDocuments()
         {
             ProjectHistoryDocument unknownProject = ValidDocument();

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Security;
 using System.Windows;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
@@ -313,10 +314,7 @@ public static class AppBackgroundCatalog
             };
             return true;
         }
-        catch (Exception exception) when (exception is
-            IOException or UnauthorizedAccessException or NotSupportedException
-            or ArgumentException or InvalidOperationException or FormatException
-            or OutOfMemoryException or OverflowException)
+        catch (Exception exception) when (IsExpectedImageBoundaryFailure(exception))
         {
             error = "This image could not be added. Try a different JPG, PNG, or BMP file.";
             return false;
@@ -353,8 +351,11 @@ public static class AppBackgroundCatalog
             File.Delete(path);
             return !File.Exists(path);
         }
-        catch
+        catch (Exception exception) when (exception is
+            IOException or UnauthorizedAccessException or NotSupportedException
+            or SecurityException)
         {
+            CrashLogger.LogRecoverable(exception, "ManagedBackgroundDelete");
             return false;
         }
     }
@@ -442,10 +443,7 @@ public static class AppBackgroundCatalog
                    && frame.PixelHeight <= MaximumImageDimension
                    && (long)frame.PixelWidth * frame.PixelHeight <= MaximumPixelCount;
         }
-        catch (Exception exception) when (exception is
-            IOException or UnauthorizedAccessException or NotSupportedException
-            or ArgumentException or InvalidOperationException or FormatException
-            or OutOfMemoryException or OverflowException)
+        catch (Exception exception) when (IsExpectedImageBoundaryFailure(exception))
         {
             return false;
         }
@@ -464,6 +462,20 @@ public static class AppBackgroundCatalog
             output.Write(buffer, 0, read);
         }
     }
+
+    // WPF's image codecs use these exception types for unavailable files,
+    // unsupported/corrupt image streams, invalid URIs, and decoder state errors.
+    // Resource exhaustion and arithmetic failures remain fatal so an unrelated
+    // process-level problem is never mislabeled as a bad background.
+    internal static bool IsExpectedImageBoundaryFailure(Exception exception)
+        => exception is IOException
+            or UnauthorizedAccessException
+            or SecurityException
+            or NotSupportedException
+            or ArgumentException
+            or InvalidOperationException
+            or FileFormatException
+            or UriFormatException;
 
     private static string MakeUniqueDisplayName(
         string requested,
@@ -607,8 +619,10 @@ public static class AppBackgroundManager
                     _currentStrength,
                     opacity: 1);
             }
-            catch
+            catch (Exception exception) when (
+                AppBackgroundCatalog.IsExpectedImageBoundaryFailure(exception))
             {
+                CrashLogger.LogRecoverable(exception, "BackgroundImageApply");
                 warning = $"{choice.DisplayName} could not be loaded; Theme default is being used.";
                 settings.PanelBackgroundId = AppBackgroundCatalog.ThemeDefault;
                 next = EnsureDrawingBrush(_baseBackground.Clone());
@@ -645,7 +659,8 @@ public static class AppBackgroundManager
             brush.Freeze();
             return brush;
         }
-        catch
+        catch (Exception exception) when (
+            AppBackgroundCatalog.IsExpectedImageBoundaryFailure(exception))
         {
             return _baseBackground?.Clone() ?? new SolidColorBrush(Colors.Transparent);
         }

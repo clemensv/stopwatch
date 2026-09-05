@@ -31,6 +31,7 @@
     <Resource Include="project-logo.ico" />
     <Resource Include="project-logo-24.png" />
     <Resource Include="Assets\Backgrounds\*.jpg" />
+    <Resource Include="Assets\Ornaments\*.svg" />
   </ItemGroup>
 
 </Project>

@@ -44,3 +44,6 @@ Desktop.ini
 .idea/
 *.sln.iml
 .playwright-mcp/
+
+## Local Codex repair evidence and user-data snapshots
+.codex-stability-repair/

@@ -20,8 +20,8 @@ StopwatchOverlay/
 ├── TimerSessionManager.cs          # Timer collection and active-timer selection
 ├── TimerWorkspaceStore.cs          # Versioned, atomic workspace persistence and recovery
 ├── ProjectTimeStore.cs             # Crash-safe project work-session history and aggregation
-├── ProjectDashboardWindow.xaml/.cs # Date-filtered project totals, charts, timeline, and sessions
-├── ProjectRecordsWindow.xaml/.cs   # Filterable detailed history with add/edit entry points
+├── ProjectDashboardAnalytics.cs    # Tested date bounds, clipping, and heatmap aggregation
+├── ProjectDashboardWindow.xaml/.cs # Daily/range analytics plus inline editable records
 ├── ProjectRecordEditorWindow.xaml/.cs # Local-time manual record editor and validation
 ├── TimerNameWindow.xaml / .cs      # Select, create, or clear the active timer's project
 └── StopwatchOverlay.csproj         # Project configuration
@@ -36,8 +36,8 @@ StopwatchOverlay/
 | **TimerSessionManager** | Owns the ordered timer collection and its single logical active timer; creates, activates, cycles, and closes sessions without WPF dependencies |
 | **TimerWorkspaceStore** | Captures and restores the versioned timer workspace and writes crash-safe atomic checkpoints under `%APPDATA%\StopwatchOverlay` |
 | **ProjectTimeStore** | Owns named-project work intervals, UTC persistence, crash-safe primary/backup files, startup reconciliation, and date-range aggregation |
-| **ProjectDashboardWindow** | Read-only visualization window with an all-project/single-project filter, Today, Last 7 days, Last 30 days, and All time summaries, charts, daily timelines, and session details |
-| **ProjectRecordsWindow** | Detailed project-history page. It renders immutable history views, keeps active records read-only, and delegates add/edit/delete requests back to the controller |
+| **ProjectDashboardAnalytics** | Time-zone-aware half-open date ranges, interval clipping, live-state calculation, and zero-filled project heatmap aggregation |
+| **ProjectDashboardWindow** | Day navigation, all-project/single-project filtering, Day, Last 7 days, Last 30 days, and All time summaries, a 53-week heatmap, charts, daily timelines, and a collapsed inline record editor that delegates mutations back to the controller |
 | **ProjectRecordEditorWindow** | Modal local-time form for creating or correcting closed records; validates project names, positive duration, future endpoints, and invalid daylight-saving wall times before returning UTC values |
 | **ProjectRecordDeleteWindow** | Themed, owner-bound confirmation that identifies a closed record before permanent deletion |
 | **TimerNameWindow** | Compact dialog used before new-timer creation and by Win+F10 to select or add a project; edit mode can also clear the active timer's project |
@@ -58,6 +58,7 @@ StopwatchOverlay/
 - **Managed custom backgrounds**: Imported JPG, JPEG, PNG, and BMP files are validated and copied atomically into `%LOCALAPPDATA%\StopwatchOverlay\Backgrounds`. Settings store only a generated ID, display name, and safe leaf filename, so the original image can be moved or deleted without breaking the app.
 - **Recovery semantics**: Running timers account for UTC time elapsed while the process or PC was off; paused timers restore their exact saved value. State-changing actions are checkpointed immediately, while pending text, slider, and checkbox edits are flushed atomically by a one-second save timer. No idle writes occur when state is unchanged. Checkpoints live under `%APPDATA%\StopwatchOverlay`; a hard crash can lose at most roughly one second of the latest UI edits while retaining the previous valid checkpoint.
 - **Project intervals**: A named running timer owns one open UTC work interval. Pause, stop, close, or clearing its name closes that interval. Renaming a running timer to another project closes the old interval and opens the new interval at the same instant. Each timer is independent, so intervals may overlap.
+- **One records surface**: Exact records are embedded in the dashboard and follow its project/date filters. The list is collapsed by default, while Add record stays visible; active records remain read-only and completed records delegate edit/delete mutations to the controller.
 - **Project-history recovery**: Project history is stored in `%APPDATA%\StopwatchOverlay\project-history.json` with a crash-recovery backup. Workspace and history writes share one timestamp; a partial failure retries the exact same logical snapshot instead of moving a project boundary forward. If an older workspace backup and newer history are recovered together, a persisted guard prevents backward reconciliation until explicit timer actions make their open states agree. Startup reconciliation otherwise preserves valid open intervals for restored named/running timers, closes stale intervals, and creates missing ones. Dashboard calendar grouping is shown in local time.
 - **Win32 interop**: `RegisterHotKey` for system-wide hotkeys (Win+F2 through Win+F12), `SetWindowLong` for click-through, no-activate, and tool-window styles.
 - **Text outline rendering**: Four offset `TextBlock` layers beneath the main text create a border/outline effect that stays readable on any background.

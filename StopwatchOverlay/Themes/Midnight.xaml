@@ -1,5 +1,6 @@
 <ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:sys="clr-namespace:System;assembly=System.Runtime">
     <DrawingBrush x:Key="AppBackgroundBrush" TileMode="Tile"
                   ViewportUnits="Absolute" Viewport="0,0,1,1"
                   ViewboxUnits="Absolute" Viewbox="0,0,1,1">
@@ -34,10 +35,38 @@
     <SolidColorBrush x:Key="OverlayChromeBorderBrush" Color="#80FFFFFF"/>
     <SolidColorBrush x:Key="OverlayHoverBrush" Color="#24FFFFFF"/>
     <SolidColorBrush x:Key="OverlayPressedBrush" Color="#3AFFFFFF"/>
+    <SolidColorBrush x:Key="OverlayActionForegroundBrush" Color="#FFFFFF"/>
+    <SolidColorBrush x:Key="NeutralButtonHoverBackgroundBrush" Color="#1E242A"/>
+    <SolidColorBrush x:Key="NeutralButtonHoverBorderBrush" Color="#303942"/>
+    <SolidColorBrush x:Key="NeutralButtonHoverForegroundBrush" Color="#F2F5F7"/>
+    <SolidColorBrush x:Key="NeutralButtonPressedBackgroundBrush" Color="#1E242A"/>
+    <SolidColorBrush x:Key="NeutralButtonPressedBorderBrush" Color="#303942"/>
+    <SolidColorBrush x:Key="NeutralButtonPressedForegroundBrush" Color="#F2F5F7"/>
+    <sys:Double x:Key="NeutralButtonHoverOpacity">0.88</sys:Double>
+    <sys:Double x:Key="NeutralButtonPressedOpacity">0.72</sys:Double>
+    <SolidColorBrush x:Key="ApplicationHeaderBrush" Color="#101316"/>
+    <SolidColorBrush x:Key="NavigationRailBrush" Color="#171B20"/>
+    <SolidColorBrush x:Key="SelectedNavigationBrush" Color="#243E49"/>
+    <SolidColorBrush x:Key="TableHeaderBrush" Color="#1E242A"/>
+    <SolidColorBrush x:Key="ChartSeries1Brush" Color="#42B9E8"/>
+    <SolidColorBrush x:Key="ChartSeries2Brush" Color="#52C97C"/>
+    <SolidColorBrush x:Key="ChartSeries3Brush" Color="#F4B24D"/>
+    <SolidColorBrush x:Key="ChartSeries4Brush" Color="#FF735F"/>
+    <SolidColorBrush x:Key="DialogSurfaceBrush" Color="#171B20"/>
+    <SolidColorBrush x:Key="OverlayInnerRuleBrush" Color="#80FFFFFF"/>
+    <SolidColorBrush x:Key="OverlayToolbarSurfaceBrush" Color="#171B20"/>
+    <SolidColorBrush x:Key="OrnamentStrokeBrush" Color="Transparent"/>
+    <SolidColorBrush x:Key="OrnamentAccentBrush" Color="Transparent"/>
+    <SolidColorBrush x:Key="ActiveItemBorderBrush" Color="#42B9E8"/>
+    <SolidColorBrush x:Key="SubtleDividerBrush" Color="#303942"/>
+    <SolidColorBrush x:Key="FocusBorderBrush" Color="#42B9E8"/>
 
     <FontFamily x:Key="AppFontFamily">Segoe UI</FontFamily>
+    <FontFamily x:Key="DisplayHeadingFontFamily">Segoe UI</FontFamily>
     <FontFamily x:Key="ThemeMonoFontFamily">Consolas</FontFamily>
     <FontFamily x:Key="ThemeTimerFontFamily">Consolas</FontFamily>
+    <Visibility x:Key="OrnamentVisibility">Collapsed</Visibility>
+    <Visibility x:Key="BrandIconVisibility">Visible</Visibility>
 
     <Thickness x:Key="ThemeControlBorderThickness">1</Thickness>
     <Thickness x:Key="ThemePanelBorderThickness">1</Thickness>

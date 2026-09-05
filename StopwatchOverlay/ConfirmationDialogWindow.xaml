@@ -1,0 +1,25 @@
+<Window x:Class="StopwatchOverlay.ConfirmationDialogWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Width="500" SizeToContent="Height" ResizeMode="NoResize"
+        WindowStartupLocation="CenterOwner" ShowInTaskbar="False">
+    <Border Style="{StaticResource DialogSurface}" Margin="18">
+        <StackPanel Margin="24">
+            <Path Width="28" Height="28" HorizontalAlignment="Center" Margin="0,0,0,8"
+                  Data="{StaticResource AcanthusCrestGeometry}"
+                  Fill="{DynamicResource OrnamentAccentBrush}"
+                  Stretch="Uniform" Visibility="{DynamicResource OrnamentVisibility}"/>
+            <TextBlock x:Name="HeadingText" Style="{StaticResource DisplayHeadingText}"
+                       HorizontalAlignment="Center" TextAlignment="Center"/>
+            <TextBlock x:Name="MessageText" Margin="0,9,0,22"
+                       Foreground="{DynamicResource SecondaryTextBrush}"
+                       TextWrapping="Wrap"/>
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                <Button Content="Cancel" IsCancel="True" MinWidth="88" Margin="0,0,8,0"
+                        Style="{StaticResource ModernButton}" Click="CancelButton_Click"/>
+                <Button x:Name="ConfirmButton" IsDefault="True" MinWidth="112"
+                        Style="{StaticResource StartButton}" Click="ConfirmButton_Click"/>
+            </StackPanel>
+        </StackPanel>
+    </Border>
+</Window>

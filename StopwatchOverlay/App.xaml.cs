@@ -1,5 +1,8 @@
 using System;
+using System.IO;
+using System.Security;
 using System.Threading;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Threading;
 
@@ -17,6 +20,10 @@ namespace StopwatchOverlay
 
         protected override void OnStartup(StartupEventArgs e)
         {
+            DispatcherUnhandledException += App_DispatcherUnhandledException;
+            AppDomain.CurrentDomain.UnhandledException += CurrentDomain_UnhandledException;
+            TaskScheduler.UnobservedTaskException += TaskScheduler_UnobservedTaskException;
+
             try
             {
                 _singleInstanceMutex = new Mutex(
@@ -24,8 +31,10 @@ namespace StopwatchOverlay
                     SingleInstanceMutexName,
                     out _ownsSingleInstanceMutex);
             }
-            catch
+            catch (Exception exception) when (
+                IsExpectedSingleInstanceBoundaryFailure(exception))
             {
+                CrashLogger.LogRecoverable(exception, "SingleInstanceMutexCreate");
                 // If the OS cannot create a named mutex, continue normally. The
                 // workspace store still protects each individual write atomically.
                 _singleInstanceMutex = null;
@@ -40,8 +49,6 @@ namespace StopwatchOverlay
 
             StartExistingInstanceListener();
             SessionEnding += App_SessionEnding;
-            DispatcherUnhandledException += App_DispatcherUnhandledException;
-            AppDomain.CurrentDomain.UnhandledException += CurrentDomain_UnhandledException;
             base.OnStartup(e);
         }
 
@@ -60,18 +67,27 @@ namespace StopwatchOverlay
                         if (timedOut || Dispatcher.HasShutdownStarted)
                             return;
 
-                        Dispatcher.BeginInvoke(new Action(() =>
+                        try
                         {
-                            if (MainWindow is ControllerWindow controller)
-                                controller.ShowController();
-                        }));
+                            Dispatcher.BeginInvoke(new Action(() =>
+                            {
+                                if (MainWindow is ControllerWindow controller)
+                                    controller.ShowController();
+                            }));
+                        }
+                        catch (InvalidOperationException) when (Dispatcher.HasShutdownStarted)
+                        {
+                            // Shutdown won the race with the single-instance signal.
+                        }
                     },
                     state: null,
                     millisecondsTimeOutInterval: Timeout.Infinite,
                     executeOnlyOnce: false);
             }
-            catch
+            catch (Exception exception) when (
+                IsExpectedSingleInstanceBoundaryFailure(exception))
             {
+                CrashLogger.LogRecoverable(exception, "SingleInstanceListenerStart");
                 _showExistingRegistration = null;
                 _showExistingEvent?.Dispose();
                 _showExistingEvent = null;
@@ -85,9 +101,14 @@ namespace StopwatchOverlay
                 using var showEvent = EventWaitHandle.OpenExisting(ShowExistingEventName);
                 showEvent.Set();
             }
-            catch
+            catch (WaitHandleCannotBeOpenedException)
             {
                 // The first process may still be between mutex and event creation.
+            }
+            catch (Exception exception) when (
+                IsExpectedSingleInstanceBoundaryFailure(exception))
+            {
+                CrashLogger.LogRecoverable(exception, "SingleInstanceSignal");
             }
         }
 
@@ -98,8 +119,9 @@ namespace StopwatchOverlay
                 if (MainWindow is ControllerWindow controller)
                     controller.PrepareForSystemExit();
             }
-            catch
+            catch (Exception exception)
             {
+                CrashLogger.LogRecoverable(exception, "SessionEndingCheckpoint");
                 // Shutdown must continue even if the final best-effort save fails.
             }
         }
@@ -108,6 +130,10 @@ namespace StopwatchOverlay
             object sender,
             DispatcherUnhandledExceptionEventArgs e)
         {
+            CrashLogger.LogFatal(
+                e.Exception,
+                "Application.DispatcherUnhandledException",
+                isTerminating: true);
             TryCheckpoint();
             // Deliberately leave e.Handled false: persistence must not hide a
             // real application failure.
@@ -116,12 +142,28 @@ namespace StopwatchOverlay
         private void CurrentDomain_UnhandledException(
             object sender,
             UnhandledExceptionEventArgs e)
-            => TryCheckpoint();
+            => CrashLogger.LogUnhandledObject(
+                e.ExceptionObject,
+                "AppDomain.CurrentDomain.UnhandledException",
+                e.IsTerminating);
+
+        private void TaskScheduler_UnobservedTaskException(
+            object? sender,
+            UnobservedTaskExceptionEventArgs e)
+        {
+            CrashLogger.LogFatal(
+                e.Exception,
+                "TaskScheduler.UnobservedTaskException",
+                isTerminating: false);
+            // Do not call SetObserved: logging must not change exception policy.
+        }
 
         protected override void OnExit(ExitEventArgs e)
         {
             TryCheckpoint();
+            DispatcherUnhandledException -= App_DispatcherUnhandledException;
             AppDomain.CurrentDomain.UnhandledException -= CurrentDomain_UnhandledException;
+            TaskScheduler.UnobservedTaskException -= TaskScheduler_UnobservedTaskException;
 
             _showExistingRegistration?.Unregister(null);
             _showExistingRegistration = null;
@@ -150,5 +192,13 @@ namespace StopwatchOverlay
                 // The periodic atomic checkpoint remains available for recovery.
             }
         }
+
+        private static bool IsExpectedSingleInstanceBoundaryFailure(
+            Exception exception)
+            => exception is IOException
+                or UnauthorizedAccessException
+                or SecurityException
+                or WaitHandleCannotBeOpenedException
+                or PlatformNotSupportedException;
     }
 }

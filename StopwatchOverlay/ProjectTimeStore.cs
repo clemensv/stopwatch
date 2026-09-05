@@ -79,6 +79,7 @@ namespace StopwatchOverlay
         public bool LoadedFromBackup { get; private set; }
         public bool NeedsPrimaryRepair { get; private set; }
         public DateTime? LastLoadedSavedAtUtc { get; private set; }
+        public bool LastSaveNewConflictDetected { get; private set; }
 
         public bool Save(ProjectTimeHistory history)
             => Save(history, DateTime.UtcNow);
@@ -91,13 +92,109 @@ namespace StopwatchOverlay
             {
                 document = history.CreateDocument(savedAtUtc);
             }
-            catch
+            catch (ArgumentException)
             {
                 return false;
             }
 
             return Save(document);
         }
+
+        /// <summary>
+        /// Atomically creates the first history generation without replacing a
+        /// primary or backup restored concurrently after first-run detection.
+        /// </summary>
+        public bool SaveNew(ProjectTimeHistory history, DateTime savedAtUtc)
+        {
+            ArgumentNullException.ThrowIfNull(history);
+            LastSaveNewConflictDetected = false;
+            ProjectHistoryDocument document;
+            try
+            {
+                document = history.CreateDocument(savedAtUtc);
+            }
+            catch (ArgumentException)
+            {
+                return false;
+            }
+
+            lock (_gate)
+            {
+                string? temporaryPath = null;
+                try
+                {
+                    Validate(document);
+                    string? directory = Path.GetDirectoryName(FilePath);
+                    if (!string.IsNullOrEmpty(directory))
+                        Directory.CreateDirectory(directory);
+
+                    if (RecoveryGenerationExists())
+                    {
+                        LastSaveNewConflictDetected = true;
+                        return false;
+                    }
+
+                    temporaryPath = FilePath + ".tmp." + Guid.NewGuid().ToString("N");
+                    byte[] json = JsonSerializer.SerializeToUtf8Bytes(document, JsonOptions);
+                    using (var stream = new FileStream(
+                        temporaryPath,
+                        FileMode.CreateNew,
+                        FileAccess.Write,
+                        FileShare.None,
+                        4096,
+                        FileOptions.WriteThrough))
+                    {
+                        stream.Write(json);
+                        stream.Flush(flushToDisk: true);
+                    }
+
+                    // Reserve the backup atomically before creating the primary,
+                    // preventing a backup-only restore from slipping into the
+                    // final-check-to-move window.
+                    File.Move(temporaryPath, BackupPath, overwrite: false);
+                    temporaryPath = null;
+
+                    try
+                    {
+                        File.Copy(BackupPath, FilePath, overwrite: false);
+                    }
+                    catch (Exception exception) when (IsExpectedSaveFailure(exception))
+                    {
+                        if (File.Exists(FilePath) || Directory.Exists(FilePath))
+                        {
+                            LastSaveNewConflictDetected = true;
+                            return false;
+                        }
+                    }
+
+                    if (File.Exists(FilePath))
+                    {
+                        CompleteSuccessfulSave();
+                    }
+                    else
+                    {
+                        LoadedFromBackup = true;
+                        NeedsPrimaryRepair = true;
+                    }
+                    return true;
+                }
+                catch (Exception exception) when (IsExpectedSaveFailure(exception))
+                {
+                    LastSaveNewConflictDetected = RecoveryGenerationExists();
+                    return false;
+                }
+                finally
+                {
+                    TryDelete(temporaryPath);
+                }
+            }
+        }
+
+        private bool RecoveryGenerationExists()
+            => File.Exists(FilePath)
+                || Directory.Exists(FilePath)
+                || File.Exists(BackupPath)
+                || Directory.Exists(BackupPath);
 
         public bool Save(ProjectHistoryDocument document)
         {
@@ -169,7 +266,7 @@ namespace StopwatchOverlay
                     CompleteSuccessfulSave();
                     return true;
                 }
-                catch
+                catch (Exception exception) when (IsExpectedSaveFailure(exception))
                 {
                     return false;
                 }
@@ -194,7 +291,8 @@ namespace StopwatchOverlay
                     history = ProjectTimeHistory.FromDocument(document!);
                     return true;
                 }
-                catch
+                catch (Exception exception) when (exception is
+                    InvalidDataException or ArgumentException or OverflowException)
                 {
                     history = null;
                     LastReadStatus = ProjectTimeReadStatus.Corrupt;
@@ -325,7 +423,9 @@ namespace StopwatchOverlay
                 document = null;
                 return ProjectTimeReadStatus.Unavailable;
             }
-            catch
+            catch (Exception exception) when (exception is
+                ArgumentException or OperationCanceledException
+                or System.Security.SecurityException)
             {
                 document = null;
                 return ProjectTimeReadStatus.Unavailable;
@@ -483,5 +583,12 @@ namespace StopwatchOverlay
                 // Best effort cleanup; a uniquely named temp file is harmless.
             }
         }
+
+        private static bool IsExpectedSaveFailure(Exception exception)
+            => exception is InvalidDataException or JsonException
+                or IOException or UnauthorizedAccessException
+                or NotSupportedException or ArgumentException
+                or OperationCanceledException
+                or System.Security.SecurityException;
     }
 }

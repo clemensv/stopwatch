@@ -9,7 +9,7 @@ This folder contains the editable vector source for the pixelized Stopwatch Over
 | `pixel-deck-foundations.svg` | 1280 × 960 | Night/Day palettes, typography, spacing, geometry, and interaction rules |
 | `pixel-deck-components.svg` | 1280 × 960 | Buttons, fields, toggles, tabs, badges, progress, timer card, and data marks |
 | `pixel-deck-settings.svg` | 1180 × 900 | Controller window, settings, appearance controls, lap table, and status footer |
-| `pixel-deck-dashboard.svg` | 1280 × 900 | Filters, KPI cards, project bars, daily totals, timeline, and session log |
+| `pixel-deck-dashboard.svg` | 1280 × 900 | Filters, KPI cards, project bars, daily totals, heatmap, timeline, and project records |
 | `pixel-deck-floating-clock.svg` | 1040 × 600 | Compact, click-through, and hover-toolbar overlay states |
 
 Open `preview.html` to review all boards together. Run `node generate-pixel-deck.mjs` to regenerate every SVG from the checked-in source.
@@ -64,5 +64,5 @@ Use Inter for interface text and Cascadia Mono for labels, timers, shortcuts, st
 ## Source alignment
 
 - `ControllerWindow.xaml`: mode tabs, timer display, actions, overlay settings, appearance, light ring, application/report access, lap table, and shortcut footer.
-- `ProjectDashboardWindow.xaml`: range controls, KPI summary, project allocation, daily totals, timeline, session details, and export affordance.
+- `ProjectDashboardWindow.xaml`: day/range controls, KPI summary, project allocation, daily totals, activity heatmap, timeline, and collapsed inline project records.
 - `OverlayWindow.xaml`: compact timer, REC status, click-through state, and hover actions for pause, reset, and close.

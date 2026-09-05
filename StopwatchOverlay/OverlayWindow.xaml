@@ -27,7 +27,7 @@
             <Setter Property="Cursor" Value="Hand"/>
             <Setter Property="Background" Value="Transparent"/>
             <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Foreground" Value="{DynamicResource OverlayActionForegroundBrush}"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
@@ -65,7 +65,7 @@
                     CornerRadius="{DynamicResource ThemeOverlayCornerRadius}"
                     Padding="{DynamicResource ThemeOverlayPadding}">
                 <StackPanel>
-                    <StackPanel Orientation="Horizontal">
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                         <!-- REC Indicator -->
                         <Ellipse x:Name="RecIndicator"
                                  Width="14"
@@ -143,11 +143,44 @@
                                TextAlignment="Center"
                                TextTrimming="CharacterEllipsis"
                                FontFamily="{DynamicResource AppFontFamily}"
-                               FontSize="10"
+                               FontSize="13"
                                FontWeight="SemiBold"
                                Opacity="0.78"/>
                 </StackPanel>
             </Border>
+
+            <Border Margin="5"
+                    BorderBrush="{DynamicResource OverlayInnerRuleBrush}"
+                    BorderThickness="1"
+                    CornerRadius="5"
+                    Visibility="{DynamicResource OrnamentVisibility}"
+                    IsHitTestVisible="False"/>
+
+            <Path Width="18" Height="16" Margin="8,7,0,0"
+                  HorizontalAlignment="Left" VerticalAlignment="Top"
+                  Data="{StaticResource AcanthusCornerGeometry}"
+                  Stroke="{DynamicResource OrnamentStrokeBrush}"
+                  StrokeThickness="1.2" Stretch="Uniform"
+                  Visibility="{DynamicResource OrnamentVisibility}"
+                  IsHitTestVisible="False"/>
+            <Path Width="18" Height="16" Margin="0,7,8,0"
+                  HorizontalAlignment="Right" VerticalAlignment="Top"
+                  Data="{StaticResource AcanthusCornerGeometry}"
+                  Stroke="{DynamicResource OrnamentStrokeBrush}"
+                  StrokeThickness="1.2" Stretch="Uniform"
+                  RenderTransformOrigin="0.5,0.5"
+                  Visibility="{DynamicResource OrnamentVisibility}"
+                  IsHitTestVisible="False">
+                <Path.RenderTransform><ScaleTransform ScaleX="-1"/></Path.RenderTransform>
+            </Path>
+
+            <Border x:Name="AcanthusActiveEdge"
+                    Width="4" Margin="0,8,0,8"
+                    HorizontalAlignment="Left"
+                    Background="{DynamicResource ActiveItemBorderBrush}"
+                    CornerRadius="2"
+                    Visibility="Collapsed"
+                    IsHitTestVisible="False"/>
 
             <!-- An overlay, rather than an outer border, prevents activation from
                  changing the measured window size or its anchored position. -->
@@ -174,7 +207,7 @@
                 <Border x:Name="ActionSurface"
                         Margin="0,8,0,0"
                         Padding="3"
-                        Background="{DynamicResource OverlayChromeBrush}"
+                        Background="{DynamicResource OverlayToolbarSurfaceBrush}"
                         BorderBrush="{DynamicResource OverlayChromeBorderBrush}"
                         BorderThickness="{DynamicResource ThemePanelBorderThickness}"
                         CornerRadius="{DynamicResource ThemeOverlayCornerRadius}"

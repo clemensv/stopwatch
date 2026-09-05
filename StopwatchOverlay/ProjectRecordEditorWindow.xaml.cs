@@ -24,7 +24,8 @@ public partial class ProjectRecordEditorWindow : Window
         IReadOnlyList<ProjectInfoView> projects,
         string? initialProjectKey,
         ProjectWorkIntervalView? record = null,
-        Func<string, DateTime, DateTime, ProjectRecordMutationResult>? commit = null)
+        Func<string, DateTime, DateTime, ProjectRecordMutationResult>? commit = null,
+        DateTime? initialLocalDate = null)
     {
         ArgumentNullException.ThrowIfNull(projects);
 
@@ -69,13 +70,19 @@ public partial class ProjectRecordEditorWindow : Window
         }
         else
         {
-            endLocal = DateTime.Now;
+            DateTime now = DateTime.Now;
+            DateTime preferredDate = initialLocalDate?.Date ?? now.Date;
+            if (preferredDate > now.Date)
+                preferredDate = now.Date;
+
+            bool useFirstHour = preferredDate < now.Date
+                                && now.TimeOfDay < TimeSpan.FromHours(1);
             endLocal = new DateTime(
-                endLocal.Year,
-                endLocal.Month,
-                endLocal.Day,
-                endLocal.Hour,
-                endLocal.Minute,
+                preferredDate.Year,
+                preferredDate.Month,
+                preferredDate.Day,
+                useFirstHour ? 1 : now.Hour,
+                useFirstHour ? 0 : now.Minute,
                 0,
                 DateTimeKind.Local);
             startLocal = endLocal.AddHours(-1);
@@ -167,9 +174,14 @@ public partial class ProjectRecordEditorWindow : Window
             {
                 result = _commit(projectName, startUtc, endUtc);
             }
-            catch (Exception exception)
+            catch (Exception exception) when (exception is
+                InvalidOperationException
+                or ArgumentException)
             {
-                ShowValidation(exception.Message);
+                CrashLogger.LogRecoverable(exception, "ProjectRecordCommit");
+                ShowValidation(exception is InvalidOperationException
+                    ? "Project records are temporarily read-only. Refresh the dashboard and try again."
+                    : "The record could not be saved because one or more values are invalid. Review the form and try again.");
                 return;
             }
 
@@ -178,7 +190,7 @@ public partial class ProjectRecordEditorWindow : Window
                 ShowValidation(result.Status switch
                 {
                     ProjectRecordMutationStatus.NotFound =>
-                        "This record no longer exists. Close this editor and refresh the records page.",
+                        "This record no longer exists. Close this editor and refresh the dashboard.",
                     ProjectRecordMutationStatus.OpenInterval =>
                         "This timer is currently running. Pause it before editing the record.",
                     ProjectRecordMutationStatus.Overlap =>
@@ -218,9 +230,9 @@ public partial class ProjectRecordEditorWindow : Window
         {
             projectName = ProjectTimeHistory.NormalizeProjectName(projectName);
         }
-        catch (ArgumentException exception)
+        catch (ArgumentException)
         {
-            error = exception.Message;
+            error = "Enter a valid project name using 200 or fewer printable characters.";
             return false;
         }
 

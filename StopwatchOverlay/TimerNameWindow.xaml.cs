@@ -75,6 +75,7 @@ namespace StopwatchOverlay
         }
 
         public string TimerName { get; private set; } = "";
+        public bool WasAccepted { get; private set; }
 
         private void SelectInitialProject()
         {
@@ -97,7 +98,9 @@ namespace StopwatchOverlay
 
         private void Window_Loaded(object sender, RoutedEventArgs e)
         {
+            Activate();
             ProjectSelector.Focus();
+            Keyboard.Focus(ProjectSelector);
         }
 
         private void ProjectSelector_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -178,12 +181,12 @@ namespace StopwatchOverlay
                 if (_isAddingProject)
                     ShowNewProjectEditor(false);
                 else
-                    DialogResult = false;
+                    Close();
             }
         }
 
         private void Cancel_Click(object sender, RoutedEventArgs e)
-            => DialogResult = false;
+            => Close();
 
         private void Save_Click(object sender, RoutedEventArgs e)
             => AcceptSelection();
@@ -219,7 +222,8 @@ namespace StopwatchOverlay
             }
 
             TimerName = selectedName;
-            DialogResult = true;
+            WasAccepted = true;
+            Close();
         }
     }
 }

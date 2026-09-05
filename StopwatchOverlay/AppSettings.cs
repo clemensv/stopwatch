@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text.Json;
 
 namespace StopwatchOverlay
@@ -78,6 +79,7 @@ namespace StopwatchOverlay
         public double TextSize { get; set; } = 48;
         public double BorderWidth { get; set; } = 2;
         public double BackgroundOpacity { get; set; } = 50;
+        public bool HideOverlayFromCapture { get; set; } = false;
 
         // Layout
         public string Position { get; set; } = "Top Center";
@@ -122,17 +124,79 @@ namespace StopwatchOverlay
         // Fill any missing action with its default so the rest of the app can assume all keys exist.
         public void EnsureAllActions()
         {
+            Shortcuts ??= new Dictionary<ShortcutAction, Shortcut>();
             foreach (var kv in DefaultShortcuts())
             {
                 if (!Shortcuts.ContainsKey(kv.Key))
                     Shortcuts[kv.Key] = kv.Value;
             }
         }
+
+        public void NormalizeForRuntime()
+        {
+            ThemeMode = AppThemeCatalog.Normalize(ThemeMode);
+            TextColor = NormalizeChoice(
+                TextColor,
+                "White",
+                "White", "Charcoal", "Yellow", "Cyan", "Lime", "Orange", "Red", "Magenta");
+            BorderColor = NormalizeChoice(
+                BorderColor,
+                "Black",
+                "Black", "White", "Dark Gray", "Red", "Blue");
+            FontFamily = NormalizeChoice(
+                FontFamily,
+                "Consolas",
+                "Consolas", "Cascadia Mono", "Segoe UI", "Arial", "Courier New", "Lucida Console");
+            Position = NormalizeChoice(
+                Position,
+                "Top Center",
+                "Top Left", "Top Center", "Top Right", "Bottom Left", "Bottom Center", "Bottom Right", "Custom");
+            TimeFormat = Math.Clamp(TimeFormat, 0, 4);
+            TextSize = NormalizeRange(TextSize, 16, 120, 48);
+            BorderWidth = NormalizeRange(BorderWidth, 1, 5, 2);
+            BackgroundOpacity = NormalizeRange(BackgroundOpacity, 0, 100, 50);
+            LightRingBrightness = NormalizeRange(LightRingBrightness, 10, 100, 100);
+            LightRingWidth = NormalizeRange(LightRingWidth, 5, 100, 20);
+            ScreenIndex = Math.Clamp(ScreenIndex, -1, 64);
+            if (!double.IsFinite(CustomLeft) || !double.IsFinite(CustomTop))
+            {
+                HasCustomPosition = false;
+                CustomLeft = 0;
+                CustomTop = 0;
+            }
+            Mode = Math.Clamp(Mode, 0, 3);
+        }
+
+        private static string NormalizeChoice(
+            string? value,
+            string fallback,
+            params string[] choices)
+            => choices.FirstOrDefault(choice =>
+                   choice.Equals(value?.Trim(), StringComparison.OrdinalIgnoreCase))
+               ?? fallback;
+
+        private static double NormalizeRange(
+            double value,
+            double minimum,
+            double maximum,
+            double fallback)
+            => double.IsFinite(value) ? Math.Clamp(value, minimum, maximum) : fallback;
     }
 
     public static class SettingsStore
     {
         private static readonly JsonSerializerOptions Options = new() { WriteIndented = true };
+        private static readonly object UnavailablePathsGate = new();
+        private static readonly HashSet<string> UnavailablePrimaryPaths =
+            new(StringComparer.OrdinalIgnoreCase);
+
+        private enum FileReadResult
+        {
+            Missing,
+            Success,
+            Corrupt,
+            Unavailable
+        }
 
         public static string SettingsPath => Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
@@ -143,39 +207,214 @@ namespace StopwatchOverlay
 
         public static AppSettings Load(string path)
         {
-            try
+            FileReadResult primaryResult = TryLoadFile(
+                path,
+                out AppSettings? primary,
+                out Exception? primaryError);
+            if (primaryResult == FileReadResult.Success)
             {
-                if (File.Exists(path))
-                {
-                    var json = File.ReadAllText(path);
-                    var settings = JsonSerializer.Deserialize<AppSettings>(json, Options);
-                    if (settings != null)
-                    {
-                        settings.EnsureAllActions();
-                        settings.ThemeMode = AppThemeCatalog.Normalize(settings.ThemeMode);
-                        AppBackgroundCatalog.NormalizeSettings(settings);
-                        return settings;
-                    }
-                }
-            }
-            catch
-            {
-                // Corrupt/unreadable file -> fall through to defaults.
+                ClearUnavailable(path);
+                return primary!;
             }
 
+            string backupPath = path + ".bak";
+            if (primaryError != null)
+                CrashLogger.LogRecoverable(primaryError, "SettingsLoadPrimary");
+
+            // A sharing violation, denied access, or other transient read problem
+            // is not evidence of corrupt data. A backup may keep this run usable,
+            // but never replace or later overwrite the potentially newer primary.
+            if (primaryResult == FileReadResult.Unavailable)
+            {
+                ProtectUnavailable(path);
+                if (TryLoadFile(backupPath, out AppSettings? unavailableBackup, out Exception? backupReadError)
+                    == FileReadResult.Success)
+                {
+                    return unavailableBackup!;
+                }
+
+                if (backupReadError != null)
+                    CrashLogger.LogRecoverable(backupReadError, "SettingsLoadBackup");
+                return CreateDefaults();
+            }
+
+            if (primaryResult == FileReadResult.Corrupt)
+                PreserveUnreadablePrimary(path);
+
+            FileReadResult backupResult = TryLoadFile(
+                backupPath,
+                out AppSettings? backup,
+                out Exception? backupError);
+            if (backupResult == FileReadResult.Success)
+            {
+                try
+                {
+                    File.Copy(backupPath, path, overwrite: true);
+                }
+                catch (Exception exception) when (exception is
+                    IOException or UnauthorizedAccessException or NotSupportedException)
+                {
+                    CrashLogger.LogRecoverable(exception, "SettingsPrimaryRepair");
+                }
+                ClearUnavailable(path);
+                return backup!;
+            }
+
+            if (backupError != null)
+                CrashLogger.LogRecoverable(backupError, "SettingsLoadBackup");
+            if (backupResult == FileReadResult.Unavailable)
+                ProtectUnavailable(path);
+
+            return CreateDefaults();
+        }
+
+        private static AppSettings CreateDefaults()
+        {
             var fresh = new AppSettings { Shortcuts = AppSettings.DefaultShortcuts() };
+            fresh.NormalizeForRuntime();
+            AppBackgroundCatalog.NormalizeSettings(fresh);
             return fresh;
+        }
+
+        private static FileReadResult TryLoadFile(
+            string path,
+            out AppSettings? settings,
+            out Exception? error)
+        {
+            settings = null;
+            error = null;
+            string json;
+            try
+            {
+                json = File.ReadAllText(path);
+            }
+            catch (Exception exception) when (exception is
+                FileNotFoundException or DirectoryNotFoundException)
+            {
+                return FileReadResult.Missing;
+            }
+            catch (Exception exception) when (exception is
+                IOException or UnauthorizedAccessException or NotSupportedException)
+            {
+                error = exception;
+                return FileReadResult.Unavailable;
+            }
+
+            try
+            {
+                settings = JsonSerializer.Deserialize<AppSettings>(json, Options);
+                if (settings == null)
+                    throw new JsonException("The settings document did not contain an object.");
+                settings.EnsureAllActions();
+                settings.NormalizeForRuntime();
+                AppBackgroundCatalog.NormalizeSettings(settings);
+                return FileReadResult.Success;
+            }
+            catch (Exception exception) when (exception is
+                JsonException or NotSupportedException or ArgumentException)
+            {
+                error = exception;
+                settings = null;
+                return FileReadResult.Corrupt;
+            }
+        }
+
+        private static void PreserveUnreadablePrimary(string path)
+        {
+            try
+            {
+                if (!File.Exists(path))
+                    return;
+
+                string preservedPath = path + ".corrupt-" +
+                    DateTime.UtcNow.ToString("yyyyMMdd-HHmmssfff");
+                File.Copy(path, preservedPath, overwrite: false);
+                RetainPreservedCorruptFiles(path, retainedCount: 3);
+            }
+            catch (Exception exception) when (exception is
+                IOException or UnauthorizedAccessException or NotSupportedException)
+            {
+                CrashLogger.LogRecoverable(exception, "SettingsCorruptPreservation");
+            }
+        }
+
+        private static void RetainPreservedCorruptFiles(string path, int retainedCount)
+        {
+            string? directory = Path.GetDirectoryName(path);
+            string leafName = Path.GetFileName(path);
+            if (string.IsNullOrEmpty(directory) || string.IsNullOrEmpty(leafName))
+                return;
+
+            foreach (FileInfo obsolete in new DirectoryInfo(directory)
+                         .GetFiles(leafName + ".corrupt-*", SearchOption.TopDirectoryOnly)
+                         .OrderByDescending(file => file.LastWriteTimeUtc)
+                         .ThenByDescending(file => file.Name, StringComparer.Ordinal)
+                         .Skip(Math.Max(1, retainedCount)))
+            {
+                try
+                {
+                    obsolete.Delete();
+                }
+                catch (Exception exception) when (exception is
+                    IOException or UnauthorizedAccessException or NotSupportedException)
+                {
+                    CrashLogger.LogRecoverable(exception, "SettingsCorruptRetention");
+                }
+            }
+        }
+
+        private static bool TryNormalizeStorePath(string path, out string normalizedPath)
+        {
+            try
+            {
+                normalizedPath = Path.GetFullPath(path);
+                return true;
+            }
+            catch (Exception exception) when (exception is
+                ArgumentException or NotSupportedException or PathTooLongException)
+            {
+                normalizedPath = string.Empty;
+                return false;
+            }
+        }
+
+        private static void ProtectUnavailable(string path)
+        {
+            if (!TryNormalizeStorePath(path, out string normalizedPath))
+                return;
+            lock (UnavailablePathsGate)
+                UnavailablePrimaryPaths.Add(normalizedPath);
+        }
+
+        private static void ClearUnavailable(string path)
+        {
+            if (!TryNormalizeStorePath(path, out string normalizedPath))
+                return;
+            lock (UnavailablePathsGate)
+                UnavailablePrimaryPaths.Remove(normalizedPath);
+        }
+
+        internal static bool IsWriteProtected(string path)
+        {
+            if (!TryNormalizeStorePath(path, out string normalizedPath))
+                return false;
+            lock (UnavailablePathsGate)
+                return UnavailablePrimaryPaths.Contains(normalizedPath);
         }
 
         public static bool Save(AppSettings settings) => Save(settings, SettingsPath);
 
         public static bool Save(AppSettings settings, string path)
         {
+            if (IsWriteProtected(path))
+                return false;
+
             string? temporaryPath = null;
             bool saved = false;
             try
             {
-                settings.ThemeMode = AppThemeCatalog.Normalize(settings.ThemeMode);
+                settings.EnsureAllActions();
+                settings.NormalizeForRuntime();
                 AppBackgroundCatalog.NormalizeSettings(settings);
 
                 var dir = Path.GetDirectoryName(path);
@@ -200,7 +439,11 @@ namespace StopwatchOverlay
                 {
                     try
                     {
-                        File.Replace(temporaryPath, path, null, ignoreMetadataErrors: true);
+                        File.Replace(
+                            temporaryPath,
+                            path,
+                            path + ".bak",
+                            ignoreMetadataErrors: true);
                     }
                     catch (PlatformNotSupportedException)
                     {
@@ -214,10 +457,13 @@ namespace StopwatchOverlay
 
                 temporaryPath = null;
                 saved = true;
+                ClearUnavailable(path);
             }
-            catch
+            catch (Exception exception) when (exception is
+                IOException or UnauthorizedAccessException or NotSupportedException
+                or ArgumentException or JsonException)
             {
-                // Best-effort persistence; ignore write failures (e.g. locked file).
+                CrashLogger.LogRecoverable(exception, "SettingsSave");
             }
             finally
             {

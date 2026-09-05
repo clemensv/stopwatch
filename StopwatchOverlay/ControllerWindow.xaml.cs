@@ -10,6 +10,7 @@ using System.Windows.Threading;
 using System.Windows.Forms;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 
 namespace StopwatchOverlay
 {
@@ -64,11 +65,17 @@ namespace StopwatchOverlay
         private readonly DispatcherTimer _blinkTimer;
         private readonly DispatcherTimer _stateSaveTimer;
         private readonly DispatcherTimer _backgroundApplyTimer;
+        private readonly DispatcherTimer _dedicatedSettingsApplyTimer;
         private sealed record OverlayInstance(TimerSession Session, Screen Screen, OverlayWindow Window);
         private sealed record CombinedOverlayInstance(Screen Screen, OverlayWindow Window);
+        private sealed record WorkspaceLoadRetryResult(
+            TimerWorkspaceStore Store,
+            TimerSessionManager Manager,
+            DateTime LoadedAtUtc,
+            bool Loaded);
 
         private readonly TimerSessionManager _timerManager = new();
-        private readonly TimerWorkspaceStore _workspaceStore = new();
+        private TimerWorkspaceStore _workspaceStore = new();
         private readonly ProjectTimeStore _projectTimeStore = new();
         private ProjectTimeHistory _projectHistory = new();
         private IReadOnlyList<TimerSession> _timers => _timerManager.Sessions;
@@ -85,7 +92,14 @@ namespace StopwatchOverlay
         private bool _freshWorkspaceTimerDefaultsPending;
         private bool _workspaceRecoveredFromBackup;
         private bool _workspacePersistenceDisabled;
+        private bool _workspaceRequiresCreateOnlySave;
+        private bool _workspaceCreateOnlySaveConflict;
         private bool _workspaceLoadUnavailable;
+        private bool _workspaceLoadRetryPending;
+        private bool _workspaceLoadRetryInProgress;
+        private DateTime _nextWorkspaceLoadRetryUtc;
+        private DateTime _workspaceStartupRetryDeadlineUtc;
+        private bool _workspaceRecoveryEvidenceObserved;
         private TimerWorkspaceSnapshot? _pendingWorkspaceSnapshot;
         private DateTime _pendingCheckpointUtc;
         private bool _pendingWorkspaceSaved;
@@ -94,17 +108,20 @@ namespace StopwatchOverlay
         private bool _stateDirty = true;
         private bool _projectHistoryDirty;
         private bool _projectHistoryPersistenceDisabled;
+        private bool _projectHistoryRequiresCreateOnlySave;
         private string? _projectHistoryWarning;
         private bool _projectHistoryLoadRetryPending;
         private DateTime _nextProjectHistoryLoadRetryUtc;
+        private DateTime? _projectHistoryNotFoundSinceUtc;
         private ProjectTimerState[] _projectHistoryRetryBaseline = Array.Empty<ProjectTimerState>();
         private DateTime _projectHistoryRetryBaselineUtc;
         private bool _projectHistoryRecoveredFromBackup;
         private bool _skipProjectHistoryReconciliation;
         private readonly List<LightRingWindow> _lightRingWindows = new();
         private ProjectDashboardWindow? _projectDashboardWindow;
-        private ProjectRecordsWindow? _projectRecordsWindow;
+        private SettingsWindow? _settingsWindow;
         private bool _projectWindowsRefreshPending;
+        private bool _updatingTimerRail;
         private Screen? _selectedScreen;
 
         // These compatibility properties keep the controller event handlers concise while
@@ -121,6 +138,7 @@ namespace StopwatchOverlay
         private bool _colonVisible { get => CurrentTimer.ColonVisible; set => CurrentTimer.ColonVisible = value; }
         private int _timeFormat = 0; // 0=HH:MM:SS.t, 1=HH:MM:SS, 2=MM:SS.t, 3=MM:SS, 4=HH:MM
         private int _frameRate = 30;
+        private int _timerRailRefreshTick;
 
         private ObservableCollection<string> _lapTimes => CurrentTimer.LapTimes;
         private int _lapCount { get => CurrentTimer.LapCount; set => CurrentTimer.LapCount = value; }
@@ -131,9 +149,16 @@ namespace StopwatchOverlay
         private ContextMenuStrip? _trayMenu;
         private bool _isExiting;
         private bool _changingStartWithWindows;
+        private bool _appliedStartWithWindows;
         private bool _isNamingTimer;
+        private TimerNameWindow? _projectChooserWindow;
         private bool _persistenceFailureNotified;
         private bool _updatingPanelBackgroundSelector;
+        private bool _syncingDedicatedSettings;
+        private bool _applyingDedicatedSettings;
+        private bool _settingsInteractionInProgress;
+        private bool _settingsCompletionQueued;
+        private SettingsChangeKind _pendingDedicatedSettingsChanges;
         private string? _backgroundWarning;
         private IReadOnlyList<AppBackgroundChoice> _backgroundChoices =
             Array.Empty<AppBackgroundChoice>();
@@ -146,10 +171,18 @@ namespace StopwatchOverlay
 
         public ControllerWindow()
         {
+            // Capture this before SettingsStore or the first checkpoint can create
+            // files of their own. A genuinely pristine first run may proceed after
+            // repeated NotFound reads; any timer/history generation already present
+            // at process start is recovery evidence and is never overwritten.
+            _workspaceRecoveryEvidenceObserved = DetectInitialWorkspaceRecoveryEvidence();
+
             // Load and apply the persisted app theme before the visual tree is
             // created so startup never flashes the other theme.
             _settings = SettingsStore.Load();
             AppThemeManager.Apply(_settings.ThemeMode);
+            _settings.ThemeMode = AppThemeManager.CurrentTheme;
+            _appliedStartWithWindows = _settings.StartWithWindows;
             AppBackgroundManager.Apply(_settings, out _backgroundWarning);
             if (_backgroundWarning != null)
                 SettingsStore.Save(_settings);
@@ -177,11 +210,24 @@ namespace StopwatchOverlay
                 foreach (var pair in _workspaceStore.LastLoadedCombinedPositionsByScreen)
                     _combinedPositionsByScreen[pair.Key] = (pair.Value.Left, pair.Value.Top);
             }
-            _workspaceLoadUnavailable = !_workspaceWasRestored
-                && _workspaceStore.LastReadStatus == TimerWorkspaceReadStatus.Unavailable;
-            _workspacePersistenceDisabled = !_workspaceWasRestored
-                && _workspaceStore.LastReadStatus is TimerWorkspaceReadStatus.UnsupportedVersion
-                    or TimerWorkspaceReadStatus.Unavailable;
+            // A startup read can briefly surface as NotFound or Corrupt while a
+            // recovery/copy operation swaps whole files, not only as a sharing
+            // violation. Protect and retry every non-terminal failure before an
+            // empty workspace is allowed to become writable.
+            _workspaceLoadRetryPending = !_workspaceWasRestored
+                && _workspaceStore.LastReadStatus != TimerWorkspaceReadStatus.UnsupportedVersion;
+            _workspaceLoadUnavailable = _workspaceLoadRetryPending;
+            _workspacePersistenceDisabled = !_workspaceWasRestored;
+            _nextWorkspaceLoadRetryUtc = startupUtc;
+            _workspaceStartupRetryDeadlineUtc = startupUtc.AddSeconds(5);
+            if (!_workspaceWasRestored
+                && _workspaceStore.LastReadStatus is
+                    TimerWorkspaceReadStatus.Corrupt
+                    or TimerWorkspaceReadStatus.UnsupportedVersion
+                    or TimerWorkspaceReadStatus.Unavailable)
+            {
+                LogWorkspaceStartupReadResult();
+            }
             InitializeProjectHistory(startupUtc);
 
             _timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(50) };
@@ -193,18 +239,26 @@ namespace StopwatchOverlay
             _stateSaveTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
             _stateSaveTimer.Tick += (_, _) =>
             {
+                RetryUnavailableWorkspace();
                 RetryUnavailableProjectHistory();
-                if (_stateDirty)
+                if (_stateDirty && !_settingsInteractionInProgress)
                     CheckpointState();
             };
 
             _backgroundApplyTimer = new DispatcherTimer
             {
-                Interval = TimeSpan.FromMilliseconds(90)
+                Interval = TimeSpan.FromMilliseconds(140)
             };
             _backgroundApplyTimer.Tick += (_, _) => ApplyPendingPanelBackgroundStrength();
 
+            _dedicatedSettingsApplyTimer = new DispatcherTimer
+            {
+                Interval = TimeSpan.FromMilliseconds(40)
+            };
+            _dedicatedSettingsApplyTimer.Tick += (_, _) => ApplyPendingDedicatedSettings();
+
             LapListBox.ItemsSource = CurrentTimer.LapTimes;
+            TimerRailList.ItemsSource = _timers;
 
             InitializeTrayIcon();
 
@@ -215,6 +269,16 @@ namespace StopwatchOverlay
             UpdateButtonStates();
             UpdateShortcutLabels();
             _initializationComplete = true;
+            if (_settings.LightRingEnabled)
+            {
+                Dispatcher.BeginInvoke(
+                    new Action(() =>
+                    {
+                        if (!_isExiting)
+                            ShowLightRing();
+                    }),
+                    DispatcherPriority.Loaded);
+            }
             _timer.Start();
             _blinkTimer.Start();
             _stateSaveTimer.Start();
@@ -245,8 +309,9 @@ namespace StopwatchOverlay
                 }
                 else if (_projectTimeStore.LastReadStatus == ProjectTimeReadStatus.Corrupt)
                 {
+                    _projectHistoryPersistenceDisabled = true;
                     _projectHistoryWarning =
-                        "Project history could not be read; a new history will be created";
+                        "Project history could not be read and was not overwritten";
                 }
                 else if (_projectTimeStore.LastReadStatus == ProjectTimeReadStatus.Unavailable)
                 {
@@ -255,6 +320,12 @@ namespace StopwatchOverlay
                     _nextProjectHistoryLoadRetryUtc = startupUtc.AddSeconds(5);
                     _projectHistoryWarning =
                         "Project history is temporarily unavailable and was not overwritten";
+                }
+                else if (_projectTimeStore.LastReadStatus == ProjectTimeReadStatus.NotFound)
+                {
+                    // A history restored between this observation and the first
+                    // checkpoint must win over a reconstructed empty generation.
+                    _projectHistoryRequiresCreateOnlySave = true;
                 }
             }
 
@@ -340,8 +411,9 @@ namespace StopwatchOverlay
                     _stateDirty = true;
                 }
             }
-            catch
+            catch (ArgumentException exception)
             {
+                CrashLogger.LogRecoverable(exception, "ProjectHistoryReconciliation");
                 _projectHistoryWarning = "Project tracking could not be reconciled";
             }
         }
@@ -404,6 +476,16 @@ namespace StopwatchOverlay
             TimerSession? timer,
             bool alwaysBlock = false)
         {
+            if (_workspaceLoadRetryPending || _workspacePersistenceDisabled)
+            {
+                UpdateStatus(
+                    _workspaceLoadRetryPending
+                        ? "Timer recovery is still checking the existing workspace"
+                        : "Timer recovery is read-only; restart after resolving access to the data file",
+                    Brushes.OrangeRed);
+                return true;
+            }
+
             bool historyLoadBlocksWorkspace = _projectHistoryLoadRetryPending;
             bool exactCheckpointPending = _pendingWorkspaceSnapshot != null;
             bool timerTracksProject = timer != null
@@ -418,6 +500,325 @@ namespace StopwatchOverlay
                 "Project recovery is finishing; try this command again in a moment",
                 Brushes.OrangeRed);
             return true;
+        }
+
+        private async void RetryUnavailableWorkspace()
+        {
+            if (!_workspaceLoadRetryPending
+                || _workspaceLoadRetryInProgress
+                || _isExiting
+                || DateTime.UtcNow < _nextWorkspaceLoadRetryUtc)
+            {
+                return;
+            }
+
+            _workspaceLoadRetryInProgress = true;
+            _nextWorkspaceLoadRetryUtc = DateTime.UtcNow.AddSeconds(2);
+            try
+            {
+                string workspacePath = _workspaceStore.FilePath;
+                WorkspaceLoadRetryResult result = await Task.Run(() =>
+                {
+                    DateTime loadedAtUtc = DateTime.UtcNow;
+                    var retryStore = new TimerWorkspaceStore(workspacePath);
+                    var retryManager = new TimerSessionManager();
+                    bool loaded = retryStore.TryLoad(
+                        retryManager,
+                        loadedAtUtc,
+                        loadedAtUtc.ToLocalTime());
+                    return new WorkspaceLoadRetryResult(
+                        retryStore,
+                        retryManager,
+                        loadedAtUtc,
+                        loaded);
+                });
+
+                if (_isExiting || !_workspaceLoadRetryPending)
+                    return;
+
+                if (!result.Loaded)
+                {
+                    TimerWorkspaceReadStatus retryStatus = result.Store.LastReadStatus;
+                    if (retryStatus != TimerWorkspaceReadStatus.NotFound)
+                        _workspaceRecoveryEvidenceObserved = true;
+                    if (retryStatus == TimerWorkspaceReadStatus.UnsupportedVersion)
+                    {
+                        _workspaceLoadRetryPending = false;
+                        _workspaceLoadUnavailable = false;
+                        UpdateStatus(
+                            "Timer recovery file is from a newer app version and was not overwritten",
+                            Brushes.OrangeRed);
+                    }
+                    else if (retryStatus == TimerWorkspaceReadStatus.Corrupt
+                        && DateTime.UtcNow >= _workspaceStartupRetryDeadlineUtc)
+                    {
+                        _workspaceLoadRetryPending = false;
+                        _workspaceLoadUnavailable = false;
+                        UpdateStatus(
+                            "Timer recovery file could not be read and was not overwritten",
+                            Brushes.OrangeRed);
+                    }
+                    else if (retryStatus == TimerWorkspaceReadStatus.NotFound
+                        && DateTime.UtcNow >= _workspaceStartupRetryDeadlineUtc
+                        && !WorkspaceRecoveryEvidenceExists())
+                    {
+                        CompleteConfirmedNewWorkspace(result.LoadedAtUtc);
+                    }
+                    else
+                    {
+                        UpdateStatus(
+                            "Timer recovery is checking the existing data files; nothing has been overwritten",
+                            Brushes.OrangeRed);
+                    }
+                    return;
+                }
+
+                // The unavailable startup path deliberately blocks timer creation,
+                // so applying the recovered manager cannot discard user work.
+                if (_timerManager.Count != 0
+                    || _pendingWorkspaceSnapshot != null
+                    || _projectChooserWindow != null
+                    || _overlayInstances.Count != 0
+                    || _combinedOverlayInstances.Count != 0)
+                {
+                    _workspaceLoadRetryPending = false;
+                    CrashLogger.LogRecoverable(
+                        new InvalidOperationException(
+                            "Automatic timer recovery was stopped because the in-memory workspace was no longer empty."),
+                        "TimerWorkspaceRetryConflict");
+                    UpdateStatus(
+                        "Timer recovery needs a restart because this workspace changed while recovery was pending",
+                        Brushes.OrangeRed);
+                    return;
+                }
+
+                CompleteUnavailableWorkspaceRetry(result);
+            }
+            finally
+            {
+                _workspaceLoadRetryInProgress = false;
+            }
+        }
+
+        private void CompleteConfirmedNewWorkspace(DateTime confirmedAtUtc)
+        {
+            // Only a stable NotFound result with no prior app-data evidence is
+            // treated as a genuine first run. An existing workspace/history file,
+            // backup, temporary generation, or directory at an expected file path
+            // keeps this process in protected recovery instead.
+            _workspaceLoadRetryPending = false;
+            _workspaceLoadUnavailable = false;
+            _workspacePersistenceDisabled = false;
+            _workspaceRequiresCreateOnlySave = true;
+            _freshWorkspaceTimerDefaultsPending = true;
+
+            _projectHistory = new ProjectTimeHistory();
+            _projectHistoryDirty = false;
+            _projectHistoryPersistenceDisabled = false;
+            _projectHistoryRequiresCreateOnlySave = true;
+            _projectHistoryWarning = null;
+            _projectHistoryLoadRetryPending = false;
+            _nextProjectHistoryLoadRetryUtc = default;
+            _projectHistoryNotFoundSinceUtc = null;
+            _projectHistoryRetryBaseline = Array.Empty<ProjectTimerState>();
+            _projectHistoryRetryBaselineUtc = default;
+            _projectHistoryRecoveredFromBackup = false;
+            InitializeProjectHistory(confirmedAtUtc);
+
+            UpdateButtonStates();
+            UpdateStatus("No existing timer workspace was found", Brushes.DeepSkyBlue);
+            CreateNewTimer();
+        }
+
+        private void ResumeProtectedWorkspaceRecoveryAfterFirstRunRace()
+        {
+            _workspaceLoadRetryPending = true;
+            _workspaceLoadUnavailable = true;
+            _workspacePersistenceDisabled = true;
+            _projectHistoryPersistenceDisabled = true;
+            _projectHistoryLoadRetryPending = false;
+            _nextWorkspaceLoadRetryUtc = DateTime.UtcNow;
+            UpdateButtonStates();
+            UpdateStatus(
+                "Existing recovery data appeared; the new timer was not created",
+                Brushes.OrangeRed);
+            RetryUnavailableWorkspace();
+        }
+
+        private bool WorkspaceRecoveryEvidenceExists()
+        {
+            if (_workspaceRecoveryEvidenceObserved)
+                return true;
+
+            string? dataDirectory = System.IO.Path.GetDirectoryName(_workspaceStore.FilePath);
+            string[] expectedPaths =
+            [
+                _workspaceStore.FilePath,
+                _workspaceStore.BackupPath,
+                _projectTimeStore.FilePath,
+                _projectTimeStore.BackupPath
+            ];
+            if (expectedPaths.Any(path =>
+                System.IO.File.Exists(path) || System.IO.Directory.Exists(path)))
+            {
+                _workspaceRecoveryEvidenceObserved = true;
+                return true;
+            }
+
+            if (string.IsNullOrWhiteSpace(dataDirectory)
+                || !System.IO.Directory.Exists(dataDirectory))
+            {
+                return false;
+            }
+
+            try
+            {
+                bool found = System.IO.Directory
+                    .EnumerateFileSystemEntries(dataDirectory, "workspace.json*")
+                    .Concat(System.IO.Directory.EnumerateFileSystemEntries(
+                        dataDirectory,
+                        "project-history.json*"))
+                    .Any();
+                _workspaceRecoveryEvidenceObserved |= found;
+                return found;
+            }
+            catch (Exception exception) when (exception is
+                System.IO.IOException
+                or UnauthorizedAccessException
+                or System.Security.SecurityException)
+            {
+                // An unreadable data directory is itself recovery evidence.
+                _workspaceRecoveryEvidenceObserved = true;
+                return true;
+            }
+        }
+
+        private bool DetectInitialWorkspaceRecoveryEvidence()
+        {
+            string? dataDirectory = System.IO.Path.GetDirectoryName(_workspaceStore.FilePath);
+            if (string.IsNullOrWhiteSpace(dataDirectory)
+                || !System.IO.Directory.Exists(dataDirectory))
+            {
+                return false;
+            }
+
+            try
+            {
+                return System.IO.Directory
+                    .EnumerateFileSystemEntries(dataDirectory, "workspace.json*")
+                    .Concat(System.IO.Directory.EnumerateFileSystemEntries(
+                        dataDirectory,
+                        "project-history.json*"))
+                    .Any();
+            }
+            catch (Exception exception) when (exception is
+                System.IO.IOException
+                or UnauthorizedAccessException
+                or System.Security.SecurityException)
+            {
+                return true;
+            }
+        }
+
+        private void LogWorkspaceStartupReadResult()
+        {
+            TimerWorkspaceReadStatus status = _workspaceStore.LastReadStatus;
+            string details = string.Join(
+                Environment.NewLine,
+                $"Loaded={_workspaceWasRestored}",
+                $"InitialStatus={status}",
+                $"PrimaryStatus={_workspaceStore.LastPrimaryReadStatus}",
+                $"BackupStatus={_workspaceStore.LastBackupReadStatus}",
+                $"ManagerCount={_timerManager.Count}",
+                $"ActiveTimerPresent={_timerManager.Active != null}",
+                $"PrimaryExists={System.IO.File.Exists(_workspaceStore.FilePath)}",
+                $"BackupExists={System.IO.File.Exists(_workspaceStore.BackupPath)}",
+                $"DataDirectoryExists={System.IO.Directory.Exists(System.IO.Path.GetDirectoryName(_workspaceStore.FilePath))}",
+                $"HistoryPrimaryExists={System.IO.File.Exists(_projectTimeStore.FilePath)}",
+                $"HistoryBackupExists={System.IO.File.Exists(_projectTimeStore.BackupPath)}",
+                $"PrimaryMetadata={DescribeStartupFile(_workspaceStore.FilePath)}",
+                $"BackupMetadata={DescribeStartupFile(_workspaceStore.BackupPath)}",
+                $"Theme={_settings.ThemeMode}",
+                $"Is64BitProcess={Environment.Is64BitProcess}",
+                $"ApplicationData={Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData)}",
+                $"WorkspacePath={_workspaceStore.FilePath}",
+                $"CurrentDirectory={Environment.CurrentDirectory}",
+                $"BaseDirectory={AppContext.BaseDirectory}");
+            CrashLogger.LogRecoverable(
+                new InvalidOperationException(details),
+                $"TimerWorkspaceStartup{status}Count{_timerManager.Count}");
+        }
+
+        private static string DescribeStartupFile(string path)
+        {
+            try
+            {
+                var info = new System.IO.FileInfo(path);
+                if (!info.Exists)
+                    return "Missing";
+                return $"Length={info.Length};LastWriteUtc={info.LastWriteTimeUtc:O}";
+            }
+            catch (Exception exception) when (exception is
+                System.IO.IOException
+                or UnauthorizedAccessException
+                or System.Security.SecurityException
+                or NotSupportedException
+                or ArgumentException)
+            {
+                return $"ReadError={exception.GetType().Name};HResult=0x{exception.HResult:X8}";
+            }
+        }
+
+        private void CompleteUnavailableWorkspaceRetry(WorkspaceLoadRetryResult result)
+        {
+            _workspaceStore = result.Store;
+            _timerManager.Restore(
+                result.Manager.Sessions,
+                result.Manager.Active?.Id,
+                result.Manager.NextNumber);
+
+            _workspaceWasRestored = true;
+            _freshWorkspaceTimerDefaultsPending = false;
+            _workspaceRecoveredFromBackup = result.Store.LastLoadUsedBackup;
+            _workspaceLoadUnavailable = false;
+            _workspaceLoadRetryPending = false;
+            _workspacePersistenceDisabled = false;
+            _workspaceRequiresCreateOnlySave = false;
+            _skipProjectHistoryReconciliation =
+                result.Store.LastLoadedSkipProjectHistoryReconciliation;
+            _combinedOverlayMode = result.Store.LastLoadedCombinedOverlayMode;
+            _combinedOverlayVisible = result.Store.LastLoadedCombinedOverlayVisible;
+            _combinedHasCustomPosition = result.Store.LastLoadedCombinedHasCustomPosition;
+            _combinedPositionsByScreen.Clear();
+            foreach (var pair in result.Store.LastLoadedCombinedPositionsByScreen)
+                _combinedPositionsByScreen[pair.Key] = (pair.Value.Left, pair.Value.Top);
+
+            // History may also have been inaccessible during the same short-lived
+            // file conflict. Reload it against the recovered workspace rather than
+            // reconciling an empty placeholder into the user's records.
+            _projectHistory = new ProjectTimeHistory();
+            _projectHistoryDirty = false;
+            _projectHistoryPersistenceDisabled = false;
+            _projectHistoryRequiresCreateOnlySave = false;
+            _projectHistoryWarning = null;
+            _projectHistoryLoadRetryPending = false;
+            _nextProjectHistoryLoadRetryUtc = default;
+            _projectHistoryRetryBaseline = Array.Empty<ProjectTimerState>();
+            _projectHistoryRetryBaselineUtc = default;
+            _projectHistoryRecoveredFromBackup = false;
+            InitializeProjectHistory(result.LoadedAtUtc);
+
+            RestoreActiveTimerEditorState();
+            UpdateButtonStates();
+            UpdateShortcutLabels();
+            RestorePersistedOverlays();
+            QueueProjectWindowsRefresh();
+            _stateDirty = true;
+            if (_projectHistoryWarning != null)
+                UpdateStatus(_projectHistoryWarning, Brushes.OrangeRed);
+            else
+                UpdateStatus("Timer workspace recovered", Brushes.DeepSkyBlue);
+            CheckpointState();
         }
 
         private void RetryUnavailableProjectHistory()
@@ -440,20 +841,34 @@ namespace StopwatchOverlay
                 switch (_projectTimeStore.LastReadStatus)
                 {
                     case ProjectTimeReadStatus.Unavailable:
+                        _projectHistoryNotFoundSinceUtc = null;
                         break;
                     case ProjectTimeReadStatus.NotFound:
-                        CompleteProjectHistoryRetry(
-                            new ProjectTimeHistory(),
-                            needsPrimaryRepair: false,
-                            "A new project history was created");
+                        DateTime observedAtUtc = DateTime.UtcNow;
+                        _projectHistoryNotFoundSinceUtc ??= observedAtUtc;
+                        if (observedAtUtc - _projectHistoryNotFoundSinceUtc.Value
+                            >= TimeSpan.FromSeconds(5))
+                        {
+                            CompleteProjectHistoryRetry(
+                                new ProjectTimeHistory(),
+                                needsPrimaryRepair: false,
+                                createOnly: true,
+                                "A new project history was created");
+                        }
+                        else
+                        {
+                            _nextProjectHistoryLoadRetryUtc = observedAtUtc.AddSeconds(1);
+                        }
                         break;
                     case ProjectTimeReadStatus.UnsupportedVersion:
+                        _projectHistoryNotFoundSinceUtc = null;
                         _projectHistoryLoadRetryPending = false;
                         _projectHistoryWarning =
                             "Project history is from a newer app version and was not overwritten";
                         UpdateStatus(_projectHistoryWarning, Brushes.OrangeRed);
                         break;
                     default:
+                        _projectHistoryNotFoundSinceUtc = null;
                         _projectHistoryLoadRetryPending = false;
                         _projectHistoryWarning =
                             "Project history could not be read and was not overwritten";
@@ -466,17 +881,21 @@ namespace StopwatchOverlay
             CompleteProjectHistoryRetry(
                 loaded,
                 _projectTimeStore.NeedsPrimaryRepair,
+                createOnly: false,
                 "Project history is available again");
         }
 
         private void CompleteProjectHistoryRetry(
             ProjectTimeHistory loaded,
             bool needsPrimaryRepair,
+            bool createOnly,
             string statusMessage)
         {
             _projectHistory = loaded;
             _projectHistoryPersistenceDisabled = false;
             _projectHistoryLoadRetryPending = false;
+            _projectHistoryNotFoundSinceUtc = null;
+            _projectHistoryRequiresCreateOnlySave = createOnly;
             _projectHistoryWarning = needsPrimaryRepair
                 ? "Project history was recovered from backup and will be repaired"
                 : null;
@@ -571,8 +990,9 @@ namespace StopwatchOverlay
 
                 TryClearProjectReconciliationGuard();
             }
-            catch
+            catch (ArgumentException exception)
             {
+                CrashLogger.LogRecoverable(exception, "ProjectTrackingSynchronization");
                 _projectHistoryWarning = "Project time could not be updated";
                 UpdateStatus(_projectHistoryWarning, Brushes.OrangeRed);
             }
@@ -588,8 +1008,7 @@ namespace StopwatchOverlay
         private void QueueProjectWindowsRefresh()
         {
             bool dashboardVisible = _projectDashboardWindow?.IsVisible == true;
-            bool recordsVisible = _projectRecordsWindow?.IsVisible == true;
-            if (_projectWindowsRefreshPending || (!dashboardVisible && !recordsVisible))
+            if (_projectWindowsRefreshPending || !dashboardVisible)
                 return;
 
             _projectWindowsRefreshPending = true;
@@ -598,8 +1017,6 @@ namespace StopwatchOverlay
                 _projectWindowsRefreshPending = false;
                 if (_projectDashboardWindow?.IsVisible == true)
                     _projectDashboardWindow.RefreshFromHistory();
-                if (_projectRecordsWindow?.IsVisible == true)
-                    _projectRecordsWindow.RefreshFromHistory();
             }), DispatcherPriority.Background);
         }
 
@@ -653,6 +1070,7 @@ namespace StopwatchOverlay
             _activeTimer.ClockTargetMinutesText = ClockTargetMinutes.Text;
             _activeTimer.ClockTargetSecondsText = ClockTargetSeconds.Text;
             _activeTimer.SmartInputText = SmartInputBox.Text;
+            ApplyResponsiveLayout(ActualWidth);
         }
 
         private void RestoreActiveTimerEditorState()
@@ -725,6 +1143,25 @@ namespace StopwatchOverlay
                 CheckpointState();
         }
 
+        private void TimerRailList_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (_updatingTimerRail || TimerRailList.SelectedItem is not TimerSession timer)
+                return;
+            ActivateTimer(timer);
+        }
+
+        private void Window_SizeChanged(object sender, SizeChangedEventArgs e)
+            => ApplyResponsiveLayout(e.NewSize.Width);
+
+        private void ApplyResponsiveLayout(double width)
+        {
+            if (TimerRailColumn == null || TimerRail == null)
+                return;
+            bool compact = ControllerLayoutPolicy.UseCompactLayout(width);
+            TimerRailColumn.Width = compact ? new GridLength(0) : new GridLength(260);
+            TimerRail.Visibility = compact ? Visibility.Collapsed : Visibility.Visible;
+        }
+
         private void RefreshOverlayActiveStates()
         {
             foreach (var instance in _overlayInstances)
@@ -737,26 +1174,40 @@ namespace StopwatchOverlay
             RefreshCombinedOverlayState();
         }
 
-        private void CreateNewTimer()
+        private async void CreateNewTimer()
         {
+            if (_workspaceLoadRetryPending || _workspacePersistenceDisabled)
+            {
+                UpdateStatus(
+                    _workspaceLoadRetryPending
+                        ? "Timer recovery is still checking the existing workspace"
+                        : "Timer recovery is read-only; restart after resolving access to the data file",
+                    Brushes.OrangeRed);
+                return;
+            }
+
             if (_isNamingTimer
                 || ProjectTransitionIsTemporarilyBlocked(null, alwaysBlock: true))
             {
                 return;
             }
 
-            if (!TryChooseProject(
-                    currentName: "",
-                    isCreatingTimer: true,
-                    out string projectName))
-            {
+            string? projectName = await ChooseProjectAsync(
+                currentName: "",
+                isCreatingTimer: true);
+            if (projectName == null || _isExiting)
                 return;
-            }
 
-            // ShowDialog runs a nested dispatcher frame. Recheck after it closes in
-            // case a save failure established an exact recovery checkpoint meanwhile.
+            // The chooser leaves overlays interactive. Recheck after it closes in case
+            // another shortcut established an exact recovery checkpoint meanwhile.
             if (ProjectTransitionIsTemporarilyBlocked(null, alwaysBlock: true))
                 return;
+
+            if (_workspaceRequiresCreateOnlySave && WorkspaceRecoveryEvidenceExists())
+            {
+                ResumeProtectedWorkspaceRecoveryAfterFirstRunRace();
+                return;
+            }
 
             SaveActiveTimerEditorState();
             var timer = CreateTimerModel();
@@ -786,46 +1237,63 @@ namespace StopwatchOverlay
             CheckpointState();
         }
 
-        private bool TryChooseProject(
+        private async Task<string?> ChooseProjectAsync(
             string currentName,
-            bool isCreatingTimer,
-            out string projectName)
+            bool isCreatingTimer)
         {
-            projectName = "";
             if (_isNamingTimer)
-                return false;
+                return null;
 
             var dialog = new TimerNameWindow(
                 currentName,
                 _projectHistory.ProjectNames,
                 isCreatingTimer,
                 ShortcutText(ShortcutAction.RenameTimer));
-            if (IsVisible)
+            if (IsActive && IsVisible && WindowState != WindowState.Minimized)
             {
                 dialog.Owner = this;
             }
             else
             {
                 dialog.WindowStartupLocation = WindowStartupLocation.CenterScreen;
-                dialog.Topmost = true;
             }
 
-            bool accepted;
+            // This dialog can be opened by a global shortcut while another app is
+            // in front of the controller. Ownership only keeps it above this window,
+            // so make the short-lived chooser topmost to keep the prompt visible.
+            dialog.Topmost = true;
+
+            var completion = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            void OnDialogClosed(object? sender, EventArgs args)
+                => completion.TrySetResult(dialog.WasAccepted);
+
+            dialog.Closed += OnDialogClosed;
             _isNamingTimer = true;
+            _projectChooserWindow = dialog;
             try
             {
-                accepted = dialog.ShowDialog() == true;
+                // ShowDialog disables all other WPF windows on this dispatcher,
+                // including the floating timers. A modeless window plus this awaited
+                // completion keeps the controller flow linear without blocking overlays.
+                dialog.Show();
+                bool accepted = await completion.Task;
+                return accepted ? dialog.TimerName : null;
             }
             finally
             {
+                dialog.Closed -= OnDialogClosed;
+                if (ReferenceEquals(_projectChooserWindow, dialog))
+                    _projectChooserWindow = null;
                 _isNamingTimer = false;
             }
+        }
 
-            if (!accepted)
-                return false;
-
-            projectName = dialog.TimerName;
-            return true;
+        private void CancelProjectChooser()
+        {
+            TimerNameWindow? dialog = _projectChooserWindow;
+            if (dialog?.IsVisible == true)
+                dialog.Close();
         }
 
         private void CycleActiveTimer()
@@ -866,23 +1334,22 @@ namespace StopwatchOverlay
             ActivateTimer(_activeTimer!);
         }
 
-        private void RenameActiveTimer()
+        private async void RenameActiveTimer()
         {
             if (_activeTimer == null || _isNamingTimer) return;
 
             var timer = _activeTimer;
             if (ProjectTransitionIsTemporarilyBlocked(timer, alwaysBlock: true)) return;
-            if (!TryChooseProject(
-                    timer.Name,
-                    isCreatingTimer: false,
-                    out string projectName)
-                || !_timers.Contains(timer))
+            string? projectName = await ChooseProjectAsync(
+                timer.Name,
+                isCreatingTimer: false);
+            if (projectName == null || _isExiting || !_timers.Contains(timer))
             {
                 return;
             }
 
-            // The modal runs a nested dispatcher frame, so persistence may have
-            // entered exact-checkpoint recovery while it was open.
+            // Persistence may have entered exact-checkpoint recovery while the
+            // non-blocking chooser was open.
             if (ProjectTransitionIsTemporarilyBlocked(timer, alwaysBlock: true))
                 return;
 
@@ -976,7 +1443,7 @@ namespace StopwatchOverlay
             // InitializeComponent selects the first ComboBox item before the saved
             // selection is pushed into the UI. The persisted theme was already
             // applied above, so this construction-time event must not overwrite it.
-            if (!_initializationComplete)
+            if (!_initializationComplete || _syncingDedicatedSettings)
                 return;
 
             string theme = AppThemeCatalog.Normalize(item.Content?.ToString());
@@ -1006,7 +1473,6 @@ namespace StopwatchOverlay
             ApplyAllOverlaySettings();
             UpdateButtonStates();
             _projectDashboardWindow?.RefreshFromHistory();
-            _projectRecordsWindow?.RefreshFromHistory();
 
             // The normal checkpoint remains as a retry and crash-recovery backstop
             // for the rest of the application state.
@@ -1079,6 +1545,7 @@ namespace StopwatchOverlay
         {
             if (_updatingPanelBackgroundSelector
                 || !_initializationComplete
+                || _syncingDedicatedSettings
                 || PanelBackgroundSelector.SelectedItem is not AppBackgroundChoice choice)
             {
                 return;
@@ -1140,7 +1607,7 @@ namespace StopwatchOverlay
                     $"{(int)Math.Round(PanelBackgroundStrengthSlider.Value)}%";
             }
 
-            if (!_initializationComplete)
+            if (!_initializationComplete || _syncingDedicatedSettings)
                 return;
 
             _settings.PanelBackgroundStrength = PanelBackgroundStrengthSlider.Value;
@@ -1152,6 +1619,9 @@ namespace StopwatchOverlay
         private void ApplyPendingPanelBackgroundStrength()
         {
             _backgroundApplyTimer.Stop();
+            if (_isExiting)
+                return;
+
             AppBackgroundManager.Apply(_settings, out string? warning);
             _backgroundWarning = warning;
             if (warning != null)
@@ -1161,6 +1631,7 @@ namespace StopwatchOverlay
             }
             UpdatePanelBackgroundPreview();
             RefreshOverlayBackgroundSurfaces();
+            _settingsWindow?.SchedulePreviewFromAppliedSettings();
             if (warning != null)
                 UpdateStatus(warning, Brushes.OrangeRed);
         }
@@ -1348,6 +1819,14 @@ namespace StopwatchOverlay
             if (msg == WM_HOTKEY)
             {
                 ShortcutAction action = (ShortcutAction)wParam.ToInt32();
+                if (action != ShortcutAction.OpenDashboard
+                    && (_workspaceLoadRetryPending || _workspacePersistenceDisabled))
+                {
+                    ProjectTransitionIsTemporarilyBlocked(null, alwaysBlock: true);
+                    handled = true;
+                    return IntPtr.Zero;
+                }
+
                 switch (action)
                 {
                     case ShortcutAction.StartStop:
@@ -1424,6 +1903,11 @@ namespace StopwatchOverlay
 
             AdvanceRunningCountdowns(utcNow, localNow, announceExpiry: true);
             UpdateTimeDisplay();
+            if (++_timerRailRefreshTick >= 10)
+            {
+                _timerRailRefreshTick = 0;
+                TimerRailList?.Items.Refresh();
+            }
         }
 
         private void AdvanceRunningCountdowns(
@@ -1482,6 +1966,17 @@ namespace StopwatchOverlay
             if (!_initializationComplete || _checkpointInProgress)
                 return;
 
+            if (_workspaceCreateOnlySaveConflict)
+            {
+                // The unsaved in-memory first-run state must never be written over
+                // recovery data that appeared concurrently. Preferences remain
+                // independent and may still be saved before the required restart.
+                PopulateSettingsFromUi();
+                bool settingsSaved = SettingsStore.Save(_settings);
+                _stateDirty = !settingsSaved;
+                return;
+            }
+
             _stateDirty = true;
             _checkpointInProgress = true;
             try
@@ -1536,30 +2031,57 @@ namespace StopwatchOverlay
 
                 PopulateSettingsFromUi();
                 bool settingsSaved = SettingsStore.Save(_settings);
+                bool attemptedWorkspaceCreateOnlySave = !_workspacePersistenceDisabled
+                    && !deferringForHistoryLoad
+                    && !_pendingWorkspaceSaved
+                    && _workspaceRequiresCreateOnlySave;
                 bool workspaceSaved = _workspacePersistenceDisabled
                     || deferringForHistoryLoad
                     || _pendingWorkspaceSaved
-                    || _workspaceStore.Save(workspaceSnapshot!);
+                    || (_workspaceRequiresCreateOnlySave
+                        ? _workspaceStore.SaveNew(workspaceSnapshot!)
+                        : _workspaceStore.Save(workspaceSnapshot!));
                 if (workspaceSaved
                     && !_workspacePersistenceDisabled
                     && !deferringForHistoryLoad)
                 {
                     _pendingWorkspaceSaved = true;
+                    _workspaceRequiresCreateOnlySave = false;
                 }
 
                 // Never let history advance beyond a failed workspace write. With
                 // workspace first and both files stamped with the same UTC value,
                 // startup reconciliation can safely repair a crash between them.
                 bool historyNeededRepair = _projectTimeStore.NeedsPrimaryRepair;
+                bool projectHistoryWasDirty = _projectHistoryDirty;
+                bool attemptedHistoryCreateOnlySave = !_projectHistoryPersistenceDisabled
+                    && _projectHistoryDirty
+                    && workspaceSaved
+                    && _projectHistoryRequiresCreateOnlySave;
                 bool projectHistorySaved = _projectHistoryPersistenceDisabled
                     || !_projectHistoryDirty
                     || (workspaceSaved
-                        && _projectTimeStore.Save(_projectHistory, checkpointUtc));
+                        && (_projectHistoryRequiresCreateOnlySave
+                            ? _projectTimeStore.SaveNew(_projectHistory, checkpointUtc)
+                            : _projectTimeStore.Save(_projectHistory, checkpointUtc)));
                 if (projectHistorySaved)
                 {
                     _projectHistoryDirty = false;
+                    if (projectHistoryWasDirty && !_projectHistoryPersistenceDisabled)
+                        _projectHistoryRequiresCreateOnlySave = false;
                     if (historyNeededRepair && !_projectTimeStore.NeedsPrimaryRepair)
                         _projectHistoryWarning = null;
+                }
+
+                if ((attemptedWorkspaceCreateOnlySave
+                        && !workspaceSaved
+                        && _workspaceStore.LastSaveNewConflictDetected)
+                    || (attemptedHistoryCreateOnlySave
+                        && !projectHistorySaved
+                        && _projectTimeStore.LastSaveNewConflictDetected))
+                {
+                    EnterCreateOnlySaveConflict();
+                    return;
                 }
 
                 bool recoveryPairSaved = workspaceSaved && projectHistorySaved;
@@ -1588,11 +2110,6 @@ namespace StopwatchOverlay
                         projectHistorySaved);
                 }
             }
-            catch
-            {
-                // Recovery is best-effort. The previous atomic generation stays
-                // valid and a pending edit will be retried by the save timer.
-            }
             finally
             {
                 _checkpointInProgress = false;
@@ -1609,7 +2126,11 @@ namespace StopwatchOverlay
             if (!workspaceSaved) failed.Add("timer recovery");
             if (!projectHistorySaved) failed.Add("project history");
 
-            string message = $"Could not save {string.Join(", ", failed)}; retrying";
+            bool settingsRequireRestart = !settingsSaved
+                && SettingsStore.IsWriteProtected(SettingsStore.SettingsPath);
+            string message = settingsRequireRestart
+                ? "Settings file was unavailable at startup; close any other instance and restart to reload it safely"
+                : $"Could not save {string.Join(", ", failed)}; retrying";
             UpdateStatus(message, Brushes.OrangeRed);
 
             if (_persistenceFailureNotified)
@@ -1837,8 +2358,14 @@ namespace StopwatchOverlay
             {
                 StartupRegistration.SetEnabled(_settings.StartWithWindows);
             }
-            catch
+            catch (Exception exception) when (exception is
+                UnauthorizedAccessException
+                or System.Security.SecurityException
+                or System.IO.IOException
+                or InvalidOperationException
+                or ArgumentException)
             {
+                CrashLogger.LogRecoverable(exception, "StartupRegistrationRefresh");
                 UpdateStatus("Could not update Windows startup", Brushes.OrangeRed);
             }
 
@@ -1846,24 +2373,20 @@ namespace StopwatchOverlay
             {
                 // Recreate exactly the overlays that were visible at the last valid
                 // checkpoint. Do not auto-start restored paused timers.
-                if (_combinedOverlayMode)
-                {
-                    if (_combinedOverlayVisible)
-                        ShowCombinedOverlay();
-                }
-                else
-                {
-                    foreach (var timer in _timers.Where(timer => timer.OverlayVisible))
-                        ShowTimerOverlays(timer);
-                }
-                RefreshOverlayActiveStates();
-                UpdateShortcutLabels();
+                RestorePersistedOverlays();
             }
             // A brand-new workspace asks for a project before it mutates the timer
             // manager. Cancel leaves the supported zero-timer state intact.
-            else
+            else if (!_workspaceLoadRetryPending)
             {
                 CreateNewTimer();
+            }
+            else
+            {
+                // Keep the manager pristine while the background retry reads the
+                // existing workspace. This lets recovery apply without replacing
+                // any timer the user created in the meantime.
+                RetryUnavailableWorkspace();
             }
 
             // Settings now participate in the controller's page-level scrolling. Reset
@@ -1881,7 +2404,7 @@ namespace StopwatchOverlay
             }
             else if (_workspaceLoadUnavailable)
                 UpdateStatus(
-                    "Timer recovery file is temporarily unavailable and was not overwritten; restart the app to retry",
+                    "Timer recovery is validating the existing data files; nothing has been overwritten",
                     Brushes.OrangeRed);
             else if (_workspacePersistenceDisabled)
                 UpdateStatus(
@@ -1897,34 +2420,131 @@ namespace StopwatchOverlay
                 UpdateStatus(_backgroundWarning, Brushes.OrangeRed);
         }
 
+        private void RestorePersistedOverlays()
+        {
+            if (_combinedOverlayMode)
+            {
+                if (_combinedOverlayVisible)
+                    ShowCombinedOverlay();
+            }
+            else
+            {
+                foreach (var timer in _timers.Where(timer => timer.OverlayVisible))
+                    ShowTimerOverlays(timer);
+            }
+
+            RefreshOverlayActiveStates();
+            UpdateShortcutLabels();
+        }
+
         private void StartWithWindowsCheckBox_Changed(object sender, RoutedEventArgs e)
         {
-            if (!IsLoaded || _changingStartWithWindows) return;
+            if (!IsLoaded || _changingStartWithWindows || _syncingDedicatedSettings) return;
 
-            bool previousValue = _settings.StartWithWindows;
             bool enabled = StartWithWindowsCheckBox.IsChecked == true;
+            if (ApplyStartWithWindowsSetting(enabled, showWarning: true))
+                CheckpointState();
+        }
 
+        private bool ApplyStartWithWindowsSetting(bool enabled, bool showWarning)
+        {
+            bool previousValue = _appliedStartWithWindows;
             try
             {
                 StartupRegistration.SetEnabled(enabled);
                 _settings.StartWithWindows = enabled;
-                SettingsStore.Save(_settings);
+                if (!SettingsStore.Save(_settings))
+                {
+                    try
+                    {
+                        StartupRegistration.SetEnabled(previousValue);
+                    }
+                    catch (Exception rollbackException) when (rollbackException is
+                        UnauthorizedAccessException
+                        or System.Security.SecurityException
+                        or System.IO.IOException
+                        or InvalidOperationException
+                        or ArgumentException)
+                    {
+                        CrashLogger.LogRecoverable(
+                            rollbackException,
+                            "StartupRegistrationRollback");
+                    }
+
+                    RestoreStartWithWindowsSetting(previousValue);
+                    if (showWarning)
+                    {
+                        System.Windows.MessageBox.Show(
+                            "Windows startup was changed, but the preference could not be saved. The change was rolled back.",
+                            "Start with Windows",
+                            MessageBoxButton.OK,
+                            MessageBoxImage.Warning);
+                    }
+                    return false;
+                }
+
+                _appliedStartWithWindows = enabled;
                 UpdateStatus(enabled ? "Starts with Windows" : "Windows startup disabled",
                     Brushes.DeepSkyBlue);
-                CheckpointState();
+                return true;
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is
+                UnauthorizedAccessException
+                or System.Security.SecurityException
+                or System.IO.IOException
+                or InvalidOperationException
+                or ArgumentException)
             {
-                _changingStartWithWindows = true;
-                StartWithWindowsCheckBox.IsChecked = previousValue;
-                _changingStartWithWindows = false;
+                CrashLogger.LogRecoverable(ex, "StartupRegistration");
+                RestoreStartWithWindowsSetting(previousValue);
 
-                System.Windows.MessageBox.Show(
-                    $"Windows startup could not be updated.\n\n{ex.Message}",
-                    "Start with Windows",
-                    MessageBoxButton.OK,
-                    MessageBoxImage.Warning);
+                if (showWarning)
+                {
+                    System.Windows.MessageBox.Show(
+                        "Windows startup could not be updated. Check access to your Windows startup settings and try again.",
+                        "Start with Windows",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Warning);
+                }
+                return false;
             }
+        }
+
+        private void EnterCreateOnlySaveConflict()
+        {
+            _workspaceCreateOnlySaveConflict = true;
+            _workspacePersistenceDisabled = true;
+            _projectHistoryPersistenceDisabled = true;
+            _workspaceLoadRetryPending = false;
+            _workspaceLoadUnavailable = false;
+            _workspaceRequiresCreateOnlySave = false;
+            _projectHistoryRequiresCreateOnlySave = false;
+            _pendingWorkspaceSnapshot = null;
+            _pendingWorkspaceSaved = false;
+            _stateDirty = false;
+            UpdateButtonStates();
+            UpdateStatus(
+                "Existing recovery data appeared; restart to load it safely. New unsaved timer changes were not written",
+                Brushes.OrangeRed);
+            CrashLogger.LogRecoverable(
+                new System.IO.IOException(
+                    "A create-only first workspace checkpoint lost a race with restored recovery data; no existing file was replaced."),
+                "FirstWorkspaceCreateConflict");
+        }
+
+        private void RestoreStartWithWindowsSetting(bool enabled)
+        {
+            _settings.StartWithWindows = enabled;
+            _changingStartWithWindows = true;
+            try
+            {
+                StartWithWindowsCheckBox.IsChecked = enabled;
+            }
+            finally
+            {
+                _changingStartWithWindows = false;
+            }
+            _settingsWindow?.ReloadFromSettings();
         }
 
         private void InitializeTrayIcon()
@@ -1963,7 +2583,7 @@ namespace StopwatchOverlay
         private static System.Drawing.Icon LoadTrayIcon()
         {
             var resource = System.Windows.Application.GetResourceStream(
-                new Uri("pack://application:,,,/project-logo.ico"));
+                new Uri("pack://application:,,,/StopwatchOverlay;component/project-logo.ico"));
             if (resource?.Stream == null)
                 return (System.Drawing.Icon)System.Drawing.SystemIcons.Application.Clone();
 
@@ -1974,6 +2594,9 @@ namespace StopwatchOverlay
 
         internal void ShowController()
         {
+            if (_isExiting || Dispatcher.HasShutdownStarted || Dispatcher.HasShutdownFinished)
+                return;
+
             Show();
             if (WindowState == WindowState.Minimized)
                 WindowState = WindowState.Normal;
@@ -1989,7 +2612,11 @@ namespace StopwatchOverlay
             {
                 _projectDashboardWindow = new ProjectDashboardWindow(
                     () => _projectHistory.CreateView(DateTime.UtcNow),
-                    ShowProjectRecords);
+                    AddManualProjectRecord,
+                    UpdateProjectRecord,
+                    DeleteProjectRecord,
+                    CanMutateProjectRecords,
+                    GetProjectRecordsWarning);
                 _projectDashboardWindow.Closed += (_, _) => _projectDashboardWindow = null;
             }
 
@@ -2002,34 +2629,6 @@ namespace StopwatchOverlay
 
             _projectDashboardWindow.Activate();
             _projectDashboardWindow.Focus();
-        }
-
-        private void ShowProjectRecords(string? projectKey)
-        {
-            CheckpointState();
-
-            if (_projectRecordsWindow == null)
-            {
-                _projectRecordsWindow = new ProjectRecordsWindow(
-                    () => _projectHistory.CreateView(DateTime.UtcNow),
-                    AddManualProjectRecord,
-                    UpdateProjectRecord,
-                    DeleteProjectRecord,
-                    CanMutateProjectRecords,
-                    GetProjectRecordsWarning);
-                _projectRecordsWindow.Closed += (_, _) => _projectRecordsWindow = null;
-            }
-
-            _projectRecordsWindow.SelectProject(projectKey);
-            _projectRecordsWindow.RefreshFromHistory();
-
-            if (!_projectRecordsWindow.IsVisible)
-                _projectRecordsWindow.Show();
-            if (_projectRecordsWindow.WindowState == WindowState.Minimized)
-                _projectRecordsWindow.WindowState = WindowState.Normal;
-
-            _projectRecordsWindow.Activate();
-            _projectRecordsWindow.Focus();
         }
 
         private bool CanMutateProjectRecords()
@@ -2146,14 +2745,34 @@ namespace StopwatchOverlay
 
         private void ExitApplication()
         {
+            FlushPendingSettingsBeforeExit(showWarnings: true);
             _isExiting = true;
             Close();
         }
 
         internal void PrepareForSystemExit()
         {
+            FlushPendingSettingsBeforeExit(showWarnings: false);
             _isExiting = true;
+            CancelProjectChooser();
             CheckpointStateNow();
+        }
+
+        private void FlushPendingSettingsBeforeExit(bool showWarnings)
+        {
+            // A tray exit can race the short Settings coalescing window. Finish the
+            // last discrete change (notably Start with Windows) before shutdown
+            // starts, otherwise its value could be saved without its side effect.
+            _settingsInteractionInProgress = false;
+            _settingsCompletionQueued = false;
+            if (_pendingDedicatedSettingsChanges != SettingsChangeKind.None
+                || _dedicatedSettingsApplyTimer.IsEnabled)
+            {
+                ApplyPendingDedicatedSettings(showWarnings);
+            }
+
+            if (_backgroundApplyTimer.IsEnabled)
+                ApplyPendingPanelBackgroundStrength();
         }
 
         // WPF's CenterScreen placement can put the title bar outside the desktop when
@@ -2231,7 +2850,12 @@ namespace StopwatchOverlay
             => MarkStateDirty();
 
         private void OptionCheckBox_Changed(object sender, RoutedEventArgs e)
-            => MarkStateDirty();
+        {
+            if (!_initializationComplete || _syncingDedicatedSettings)
+                return;
+
+            MarkStateDirty();
+        }
 
         // Enter in the smart box starts the countdown (no effect while already running).
         private void SmartInputBox_KeyDown(object sender, System.Windows.Input.KeyEventArgs e)
@@ -2591,6 +3215,7 @@ namespace StopwatchOverlay
             overlay.PositionChangedByUser += () => OnCombinedOverlayMoved(overlay);
             overlay.ActivationRequested += () =>
             {
+                CancelProjectChooser();
                 if (_activeTimer != null)
                     ActivateTimer(_activeTimer, announce: false);
             };
@@ -2628,10 +3253,14 @@ namespace StopwatchOverlay
 
         private void RefreshCombinedOverlayState()
         {
-            if (!_combinedOverlayMode || _activeTimer == null)
+            if (!_combinedOverlayMode)
                 return;
 
-            var timer = _activeTimer;
+            TimerSession? timer = OverlayPresentationPolicy.SelectCombinedTimer(
+                _timers,
+                _activeTimer);
+            if (timer == null)
+                return;
             foreach (var instance in _combinedOverlayInstances)
             {
                 instance.Window.SetTimerName(timer.Name);
@@ -2706,7 +3335,11 @@ namespace StopwatchOverlay
         {
             var overlay = new OverlayWindow { Tag = screen };
             overlay.PositionChangedByUser += () => OnOverlayMoved(timer, overlay);
-            overlay.ActivationRequested += () => ActivateTimer(timer);
+            overlay.ActivationRequested += () =>
+            {
+                CancelProjectChooser();
+                ActivateTimer(timer);
+            };
             overlay.ClockToggleRequested += () =>
             {
                 ActivateTimer(timer, announce: false, checkpoint: false);
@@ -2753,6 +3386,9 @@ namespace StopwatchOverlay
             {
                 _selectedScreen = screen;
             }
+
+            if (!_initializationComplete || _syncingDedicatedSettings)
+                return;
             
             RebuildVisibleOverlays();
             CheckpointState();
@@ -2760,7 +3396,8 @@ namespace StopwatchOverlay
 
         private void PositionSelector_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            if (_suppressReposition) return; // selection flipped to "Custom" by a drag, overlay already placed
+            if (_suppressReposition || !_initializationComplete || _syncingDedicatedSettings)
+                return; // selection flipped to "Custom" by a drag, or a settings mirror update
 
             string selectedPosition = SelectedContent(PositionSelector, "Top Center");
             if (selectedPosition == "Custom")
@@ -2991,12 +3628,18 @@ namespace StopwatchOverlay
                 if (source?.CompositionTarget != null)
                     return source.CompositionTarget.TransformToDevice.M11;
             }
-            catch { }
+            catch (InvalidOperationException exception)
+            {
+                CrashLogger.LogRecoverable(exception, "OverlayDpiFallback");
+            }
             return 1.0;
         }
 
         private void AppearanceChanged(object sender, SelectionChangedEventArgs e)
         {
+            if (!_initializationComplete || _syncingDedicatedSettings)
+                return;
+
             ApplyAllOverlaySettings();
             CheckpointState();
         }
@@ -3006,6 +3649,9 @@ namespace StopwatchOverlay
             if (TextSizeLabel != null) TextSizeLabel.Text = ((int)TextSizeSlider.Value).ToString();
             if (BorderWidthLabel != null) BorderWidthLabel.Text = ((int)BorderWidthSlider.Value).ToString();
             if (BackgroundOpacityLabel != null) BackgroundOpacityLabel.Text = $"{(int)BackgroundOpacitySlider.Value}%";
+
+            if (!_initializationComplete || _syncingDedicatedSettings)
+                return;
             
             ApplyAllOverlaySettings();
             MarkStateDirty();
@@ -3014,6 +3660,10 @@ namespace StopwatchOverlay
         private void TimeFormatSelector_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             _timeFormat = TimeFormatSelector?.SelectedIndex ?? 0;
+
+            if (!_initializationComplete || _syncingDedicatedSettings)
+                return;
+
             UpdateTimeDisplay();
             RepositionAllOverlays();
             CheckpointState();
@@ -3021,9 +3671,19 @@ namespace StopwatchOverlay
 
         private void ShowRecIndicatorCheckBox_Changed(object sender, RoutedEventArgs e)
         {
+            if (!_initializationComplete || _syncingDedicatedSettings)
+                return;
+
+            _settings.ShowRecIndicator = ShowRecIndicatorCheckBox?.IsChecked == true;
+            UpdateRecIndicatorVisibility();
+            CheckpointState();
+        }
+
+        private void UpdateRecIndicatorVisibility()
+        {
             foreach (var timer in _timers)
             {
-                timer.RecBlinkVisible = ShowRecIndicatorCheckBox?.IsChecked == true && timer.IsRunning;
+                timer.RecBlinkVisible = _settings.ShowRecIndicator && timer.IsRunning;
                 foreach (var instance in _overlayInstances.Where(item => ReferenceEquals(item.Session, timer)))
                     instance.Window.SetRecIndicatorVisible(timer.RecBlinkVisible);
             }
@@ -3034,23 +3694,40 @@ namespace StopwatchOverlay
             }
             RecIndicator.Visibility = _activeTimer?.RecBlinkVisible == true
                 ? Visibility.Visible : Visibility.Collapsed;
-            CheckpointState();
         }
 
         private void ClickThroughCheckBox_Changed(object sender, RoutedEventArgs e)
         {
-            bool clickThrough = ClickThroughCheckBox?.IsChecked == true;
-            foreach (var instance in _overlayInstances)
-                instance.Window.SetClickThrough(clickThrough);
-            foreach (var instance in _combinedOverlayInstances)
-                instance.Window.SetClickThrough(clickThrough);
+            if (!_initializationComplete || _syncingDedicatedSettings)
+                return;
+
+            _settings.ClickThrough = ClickThroughCheckBox?.IsChecked == true;
+            ApplyOverlayInteractionSettings();
             CheckpointState();
+        }
+
+        private void ApplyOverlayInteractionSettings()
+        {
+            foreach (var instance in _overlayInstances)
+            {
+                instance.Window.SetClickThrough(_settings.ClickThrough);
+                instance.Window.SetHideFromCapture(_settings.HideOverlayFromCapture);
+            }
+            foreach (var instance in _combinedOverlayInstances)
+            {
+                instance.Window.SetClickThrough(_settings.ClickThrough);
+                instance.Window.SetHideFromCapture(_settings.HideOverlayFromCapture);
+            }
         }
 
         #region Light Ring
 
         private void LightRingCheckBox_Changed(object sender, RoutedEventArgs e)
         {
+            if (!_initializationComplete || _syncingDedicatedSettings)
+                return;
+
+            _settings.LightRingEnabled = LightRingCheckBox?.IsChecked == true;
             if (LightRingCheckBox?.IsChecked == true)
             {
                 ShowLightRing();
@@ -3068,6 +3745,12 @@ namespace StopwatchOverlay
                 LightRingBrightnessLabel.Text = $"{(int)LightRingBrightnessSlider.Value}%";
             if (LightRingWidthLabel != null)
                 LightRingWidthLabel.Text = $"{(int)LightRingWidthSlider.Value}px";
+
+            if (!_initializationComplete || _syncingDedicatedSettings)
+                return;
+
+            _settings.LightRingBrightness = LightRingBrightnessSlider.Value;
+            _settings.LightRingWidth = LightRingWidthSlider.Value;
             
             UpdateLightRingSettings();
             MarkStateDirty();
@@ -3076,6 +3759,10 @@ namespace StopwatchOverlay
         private void LightRingSliderChanged(object sender, RoutedEventArgs e)
         {
             // Overload for checkbox events
+            if (!_initializationComplete || _syncingDedicatedSettings)
+                return;
+
+            _settings.LightRingHideFromCapture = LightRingHideFromCaptureCheckBox.IsChecked == true;
             UpdateLightRingSettings();
             CheckpointState();
         }
@@ -3083,6 +3770,9 @@ namespace StopwatchOverlay
         private void ShowLightRing()
         {
             HideLightRing();
+
+            if (_isExiting || !_settings.LightRingEnabled)
+                return;
 
             var selectedItem = ScreenSelector.SelectedItem as ComboBoxItem;
             
@@ -3102,9 +3792,9 @@ namespace StopwatchOverlay
         private void CreateLightRingForScreen(Screen screen)
         {
             var lightRing = new LightRingWindow();
-            var brightness = (LightRingBrightnessSlider?.Value ?? 100) / 100.0;
-            var width = (int)(LightRingWidthSlider?.Value ?? 20);
-            var hideFromCapture = LightRingHideFromCaptureCheckBox?.IsChecked == true;
+            double brightness = _settings.LightRingBrightness / 100.0;
+            int width = (int)Math.Round(_settings.LightRingWidth);
+            bool hideFromCapture = _settings.LightRingHideFromCapture;
             
             lightRing.Show();
             lightRing.PositionOnScreen(screen);
@@ -3124,11 +3814,13 @@ namespace StopwatchOverlay
 
         private void UpdateLightRingSettings()
         {
-            if (_lightRingWindows.Count == 0) return;
+            _lightRingWindows.RemoveAll(window => !window.IsLoaded);
+            if (_lightRingWindows.Count == 0)
+                return;
 
-            var brightness = (LightRingBrightnessSlider?.Value ?? 100) / 100.0;
-            var width = (int)(LightRingWidthSlider?.Value ?? 20);
-            var hideFromCapture = LightRingHideFromCaptureCheckBox?.IsChecked == true;
+            double brightness = _settings.LightRingBrightness / 100.0;
+            int width = (int)Math.Round(_settings.LightRingWidth);
+            bool hideFromCapture = _settings.LightRingHideFromCapture;
 
             foreach (var lightRing in _lightRingWindows)
             {
@@ -3167,6 +3859,7 @@ namespace StopwatchOverlay
             var bgOpacity = (BackgroundOpacitySlider?.Value ?? 50) / 100.0;
 
             overlay.ApplySettings(textColor, borderColor, fontSize, borderWidth, fontFamily, bgOpacity);
+            overlay.SetHideFromCapture(_settings.HideOverlayFromCapture);
         }
 
         private Color GetColorFromSelection(System.Windows.Controls.ComboBox comboBox)
@@ -3175,6 +3868,7 @@ namespace StopwatchOverlay
             return selection switch
             {
                 "White" => Colors.White,
+                "Charcoal" => Color.FromRgb(44, 41, 36),
                 "Yellow" => Colors.Yellow,
                 "Cyan" => Colors.Cyan,
                 "Lime" => Colors.Lime,
@@ -3191,24 +3885,49 @@ namespace StopwatchOverlay
         private void UpdateButtonStates()
         {
             bool hasTimer = _activeTimer != null;
+            bool workspaceMutable = !_workspaceLoadRetryPending
+                && !_workspacePersistenceDisabled;
             bool isClockMode = hasTimer && _currentMode == 1;
-            StartStopButton.IsEnabled = hasTimer && !isClockMode;
-            ResetButton.IsEnabled = hasTimer && !isClockMode;
-            LapButton.IsEnabled = hasTimer && !isClockMode;
-            ToggleOverlayButton.IsEnabled = hasTimer;
-            StopwatchModeRadio.IsEnabled = hasTimer;
-            ClockModeRadio.IsEnabled = hasTimer;
-            CountdownModeRadio.IsEnabled = hasTimer;
-            TimecodeModeRadio.IsEnabled = hasTimer;
-            NextTimerMenuItem.IsEnabled = _timers.Count > 1;
-            CloseTimerMenuItem.IsEnabled = hasTimer;
-            RenameTimerMenuItem.IsEnabled = hasTimer;
-            ToggleCombinedOverlayMenuItem.IsEnabled = _combinedOverlayMode || hasTimer;
+            NewTimerButton.IsEnabled = workspaceMutable;
+            RailNewTimerButton.IsEnabled = workspaceMutable;
+            NewTimerMenuItem.IsEnabled = workspaceMutable;
+            StartStopButton.IsEnabled = workspaceMutable && hasTimer && !isClockMode;
+            ResetButton.IsEnabled = workspaceMutable && hasTimer && !isClockMode;
+            LapButton.IsEnabled = workspaceMutable && hasTimer && !isClockMode;
+            ToggleOverlayButton.IsEnabled = workspaceMutable && hasTimer;
+            StopwatchModeRadio.IsEnabled = workspaceMutable && hasTimer;
+            ClockModeRadio.IsEnabled = workspaceMutable && hasTimer;
+            CountdownModeRadio.IsEnabled = workspaceMutable && hasTimer;
+            TimecodeModeRadio.IsEnabled = workspaceMutable && hasTimer;
+            NextTimerMenuItem.IsEnabled = workspaceMutable && _timers.Count > 1;
+            CloseTimerMenuItem.IsEnabled = workspaceMutable && hasTimer;
+            RenameTimerMenuItem.IsEnabled = workspaceMutable && hasTimer;
+            ToggleCombinedOverlayMenuItem.IsEnabled = workspaceMutable
+                && (_combinedOverlayMode || hasTimer);
             StartStopButton.Style = (Style)FindResource(
                 hasTimer && _isRunning ? "StopButton" : "StartButton");
             RecIndicator.Visibility = _activeTimer?.RecBlinkVisible == true
                 ? Visibility.Visible : Visibility.Collapsed;
             RefreshOverlayActiveStates();
+            if (TimerRailList != null)
+            {
+                _updatingTimerRail = true;
+                try
+                {
+                    TimerRailList.Items.Refresh();
+                    TimerRailList.SelectedItem = _activeTimer;
+                }
+                finally
+                {
+                    _updatingTimerRail = false;
+                }
+            }
+            if (CombinedRailStatus != null)
+                CombinedRailStatus.Text = _combinedOverlayMode
+                    ? "Combined overlay · active timer only"
+                    : "Separate overlays";
+            if (ActiveWorkspaceTitle != null)
+                ActiveWorkspaceTitle.Text = _activeTimer?.DisplayName ?? "No active timer";
         }
 
         private void UpdateStatus(string text, Brush color)
@@ -3293,6 +4012,7 @@ namespace StopwatchOverlay
         // side effect (labels update, theme applies); overlays don't exist yet so those calls are no-ops.
         private void ApplySettingsToUi()
         {
+            _timeFormat = _settings.TimeFormat;
             SelectByContent(ThemeModeSelector, _settings.ThemeMode);
             PopulatePanelBackgroundChoices(_settings.PanelBackgroundId);
             PanelBackgroundStrengthSlider.Value = _settings.PanelBackgroundStrength;
@@ -3305,6 +4025,7 @@ namespace StopwatchOverlay
             TextSizeSlider.Value = _settings.TextSize;
             BorderWidthSlider.Value = _settings.BorderWidth;
             BackgroundOpacitySlider.Value = _settings.BackgroundOpacity;
+            HideOverlayFromCaptureCheckBox.IsChecked = _settings.HideOverlayFromCapture;
 
             // Layout (screen before light ring, which reads the screen selection).
             // The legacy coordinates in settings.json seed only a brand-new
@@ -3328,8 +4049,9 @@ namespace StopwatchOverlay
                     _suppressReposition = false;
                 }
             }
-            if (_settings.ScreenIndex >= 0 && _settings.ScreenIndex < ScreenSelector.Items.Count)
-                ScreenSelector.SelectedIndex = _settings.ScreenIndex;
+            ScreenSelector.SelectedIndex = SettingsChangePolicy.ResolveScreenComboIndex(
+                _settings.ScreenIndex,
+                Screen.AllScreens.Length);
 
             LightRingBrightnessSlider.Value = _settings.LightRingBrightness;
             LightRingWidthSlider.Value = _settings.LightRingWidth;
@@ -3379,6 +4101,7 @@ namespace StopwatchOverlay
             _settings.TextSize = TextSizeSlider.Value;
             _settings.BorderWidth = BorderWidthSlider.Value;
             _settings.BackgroundOpacity = BackgroundOpacitySlider.Value;
+            _settings.HideOverlayFromCapture = HideOverlayFromCaptureCheckBox.IsChecked == true;
 
             _settings.Position = SelectedContent(PositionSelector, "Top Center");
             _settings.ScreenIndex = ScreenSelector.SelectedIndex;
@@ -3421,6 +4144,283 @@ namespace StopwatchOverlay
                 CommitPendingShortcuts(dlg.Result);
         }
 
+        private void OpenSettings_Click(object sender, RoutedEventArgs e)
+        {
+            if (_settingsWindow is { IsLoaded: true })
+            {
+                _settingsWindow.Activate();
+                return;
+            }
+
+            _settingsWindow = new SettingsWindow(_settings) { Owner = this };
+            _settingsWindow.SettingsChanged += QueueDedicatedSettingsChange;
+            _settingsWindow.SettingsInteractionStarted += SettingsInteractionStarted;
+            _settingsWindow.SettingsInteractionCompleted += SettingsInteractionCompleted;
+            _settingsWindow.ShowOverlayRequested += SettingsShowOverlayRequested;
+            _settingsWindow.Closed += SettingsWindowClosed;
+            _settingsWindow.Show();
+        }
+
+        private void QueueDedicatedSettingsChange(SettingsChangeKind change)
+        {
+            if (_isExiting || change == SettingsChangeKind.None)
+                return;
+
+            SyncDedicatedSettingsControls(change);
+            _pendingDedicatedSettingsChanges |= change;
+            MarkStateDirty();
+
+            if (!_dedicatedSettingsApplyTimer.IsEnabled)
+                _dedicatedSettingsApplyTimer.Start();
+            if (!_settingsInteractionInProgress)
+                QueueSettingsCompletion();
+        }
+
+        private void SyncDedicatedSettingsControls(SettingsChangeKind change)
+        {
+            _syncingDedicatedSettings = true;
+            try
+            {
+                if ((change & SettingsChangeKind.Theme) != 0)
+                    SelectByContent(ThemeModeSelector, _settings.ThemeMode);
+
+                if ((change & SettingsChangeKind.OverlayScreen) != 0)
+                {
+                    int screenIndex = SettingsChangePolicy.ResolveScreenComboIndex(
+                        _settings.ScreenIndex,
+                        Screen.AllScreens.Length);
+                    ScreenSelector.SelectedIndex = screenIndex;
+                    _selectedScreen = (ScreenSelector.SelectedItem as ComboBoxItem)?.Tag as Screen;
+                }
+
+                if ((change & SettingsChangeKind.OverlayPosition) != 0)
+                    SelectByContent(PositionSelector, _settings.Position);
+
+                if ((change & (SettingsChangeKind.OverlayAppearance
+                               | SettingsChangeKind.OverlayGeometry)) != 0)
+                {
+                    SelectByContent(TextColorSelector, _settings.TextColor);
+                    SelectByContent(BorderColorSelector, _settings.BorderColor);
+                    SelectByContent(FontSelector, _settings.FontFamily);
+                    TimeFormatSelector.SelectedIndex = _settings.TimeFormat;
+                    TextSizeSlider.Value = _settings.TextSize;
+                    BorderWidthSlider.Value = _settings.BorderWidth;
+                    BackgroundOpacitySlider.Value = _settings.BackgroundOpacity;
+                    _timeFormat = _settings.TimeFormat;
+                }
+
+                if ((change & SettingsChangeKind.BackgroundSelection) != 0)
+                    PopulatePanelBackgroundChoices(_settings.PanelBackgroundId);
+
+                if ((change & SettingsChangeKind.BackgroundStrength) != 0)
+                    PanelBackgroundStrengthSlider.Value = _settings.PanelBackgroundStrength;
+
+                if ((change & SettingsChangeKind.OverlayInteraction) != 0)
+                {
+                    ClickThroughCheckBox.IsChecked = _settings.ClickThrough;
+                    HideOverlayFromCaptureCheckBox.IsChecked = _settings.HideOverlayFromCapture;
+                }
+
+                if ((change & (SettingsChangeKind.LightRingVisibility
+                               | SettingsChangeKind.LightRingAppearance)) != 0)
+                {
+                    LightRingCheckBox.IsChecked = _settings.LightRingEnabled;
+                    LightRingBrightnessSlider.Value = _settings.LightRingBrightness;
+                    LightRingWidthSlider.Value = _settings.LightRingWidth;
+                    LightRingHideFromCaptureCheckBox.IsChecked = _settings.LightRingHideFromCapture;
+                }
+
+                if ((change & SettingsChangeKind.Behavior) != 0)
+                {
+                    AutoStartCheckBox.IsChecked = _settings.AutoStart;
+                    ShowRecIndicatorCheckBox.IsChecked = _settings.ShowRecIndicator;
+                    BlinkColonCheckBox.IsChecked = _settings.BlinkColon;
+                }
+
+                if ((change & SettingsChangeKind.Startup) != 0)
+                    StartWithWindowsCheckBox.IsChecked = _settings.StartWithWindows;
+            }
+            finally
+            {
+                _syncingDedicatedSettings = false;
+            }
+        }
+
+        private void ApplyPendingDedicatedSettings(bool showStartupWarning = true)
+        {
+            _dedicatedSettingsApplyTimer.Stop();
+            if (_isExiting || _applyingDedicatedSettings)
+                return;
+
+            SettingsChangeKind changes = _pendingDedicatedSettingsChanges;
+            if (_settingsInteractionInProgress)
+                changes &= ~SettingsChangeKind.BackgroundStrength;
+
+            if (changes == SettingsChangeKind.None)
+                return;
+
+            _pendingDedicatedSettingsChanges &= ~changes;
+            _applyingDedicatedSettings = true;
+            try
+            {
+                bool themeChanged = SettingsChangePolicy.RequiresThemeApply(changes);
+                bool backgroundChanged = SettingsChangePolicy.RequiresBackgroundApply(changes);
+                bool screenChanged = (changes & SettingsChangeKind.OverlayScreen) != 0;
+                bool geometryChanged = (changes & SettingsChangeKind.OverlayGeometry) != 0;
+                bool rebuildLightRing = SettingsChangePolicy.RequiresLightRingRebuild(changes);
+
+                if (themeChanged)
+                {
+                    AppThemeManager.Apply(_settings.ThemeMode);
+                    if (!_settings.ThemeMode.Equals(
+                            AppThemeManager.CurrentTheme,
+                            StringComparison.OrdinalIgnoreCase))
+                    {
+                        _settings.ThemeMode = AppThemeManager.CurrentTheme;
+                        SyncDedicatedSettingsControls(SettingsChangeKind.Theme);
+                        _settingsWindow?.ReloadFromSettings();
+                    }
+                }
+
+                if (backgroundChanged)
+                {
+                    _backgroundApplyTimer.Stop();
+                    AppBackgroundManager.Apply(_settings, out string? warning);
+                    _backgroundWarning = warning;
+                    if (warning != null)
+                    {
+                        PopulatePanelBackgroundChoices(_settings.PanelBackgroundId);
+                        _settingsWindow?.ReloadFromSettings();
+                    }
+                    UpdatePanelBackgroundPreview();
+                    UpdateStatus(
+                        warning ?? "Appearance updated",
+                        warning == null ? (Brush)FindResource("AccentBrush") : Brushes.OrangeRed);
+                }
+
+                if (screenChanged)
+                {
+                    RebuildVisibleOverlays();
+                }
+                else if ((changes & (SettingsChangeKind.Theme
+                                     | SettingsChangeKind.BackgroundSelection
+                                     | SettingsChangeKind.BackgroundStrength
+                                     | SettingsChangeKind.OverlayAppearance
+                                     | SettingsChangeKind.OverlayGeometry)) != 0)
+                {
+                    RefreshOverlayBackgroundSurfaces();
+                    if (geometryChanged)
+                        RepositionAllOverlays();
+                }
+
+                if ((changes & SettingsChangeKind.OverlayPosition) != 0)
+                    RepositionAllOverlays();
+
+                if ((changes & SettingsChangeKind.OverlayInteraction) != 0)
+                    ApplyOverlayInteractionSettings();
+
+                if (rebuildLightRing)
+                {
+                    if (_settings.LightRingEnabled)
+                        ShowLightRing();
+                    else
+                        HideLightRing();
+                }
+                else if ((changes & SettingsChangeKind.LightRingAppearance) != 0)
+                {
+                    UpdateLightRingSettings();
+                }
+
+                if ((changes & SettingsChangeKind.Behavior) != 0)
+                {
+                    ApplyCountdownInputMode();
+                    UpdateRecIndicatorVisibility();
+                }
+
+                if ((changes & SettingsChangeKind.Startup) != 0)
+                    ApplyStartWithWindowsSetting(
+                        _settings.StartWithWindows,
+                        showWarning: showStartupWarning);
+
+                if ((changes & (SettingsChangeKind.Theme
+                                | SettingsChangeKind.BackgroundSelection
+                                | SettingsChangeKind.BackgroundStrength)) != 0)
+                {
+                    _projectDashboardWindow?.RefreshFromHistory();
+                }
+
+                if ((changes & (SettingsChangeKind.Theme
+                                | SettingsChangeKind.OverlayScreen
+                                | SettingsChangeKind.Behavior)) != 0)
+                {
+                    UpdateButtonStates();
+                }
+
+                _settingsWindow?.SchedulePreviewFromAppliedSettings();
+            }
+            finally
+            {
+                _applyingDedicatedSettings = false;
+            }
+
+            if (_pendingDedicatedSettingsChanges != SettingsChangeKind.None
+                && !_settingsInteractionInProgress)
+            {
+                _dedicatedSettingsApplyTimer.Start();
+            }
+        }
+
+        private void SettingsInteractionStarted()
+        {
+            _settingsInteractionInProgress = true;
+        }
+
+        private void SettingsInteractionCompleted()
+        {
+            _settingsInteractionInProgress = false;
+            QueueSettingsCompletion();
+        }
+
+        private void QueueSettingsCompletion()
+        {
+            if (_settingsCompletionQueued || _isExiting)
+                return;
+
+            _settingsCompletionQueued = true;
+            Dispatcher.BeginInvoke(
+                new Action(() =>
+                {
+                    _settingsCompletionQueued = false;
+                    if (_isExiting)
+                        return;
+
+                    ApplyPendingDedicatedSettings();
+                    if (_backgroundApplyTimer.IsEnabled)
+                        ApplyPendingPanelBackgroundStrength();
+                    CheckpointStateNow();
+                }),
+                DispatcherPriority.ContextIdle);
+        }
+
+        private void SettingsShowOverlayRequested()
+            => ToggleOverlayButton_Click(this, new RoutedEventArgs());
+
+        private void SettingsWindowClosed(object? sender, EventArgs e)
+        {
+            if (sender is SettingsWindow window)
+            {
+                window.SettingsChanged -= QueueDedicatedSettingsChange;
+                window.SettingsInteractionStarted -= SettingsInteractionStarted;
+                window.SettingsInteractionCompleted -= SettingsInteractionCompleted;
+                window.ShowOverlayRequested -= SettingsShowOverlayRequested;
+                window.Closed -= SettingsWindowClosed;
+            }
+
+            _settingsWindow = null;
+            _settingsInteractionInProgress = false;
+            QueueSettingsCompletion();
+        }
+
         // Validates a candidate set, warns+confirms on conflicts, then registers, saves, and refreshes.
         private void CommitPendingShortcuts(Dictionary<ShortcutAction, Shortcut> candidate)
         {
@@ -3454,10 +4454,16 @@ namespace StopwatchOverlay
 
             if (problems.Count > 0)
             {
-                var msg = "Some shortcuts have conflicts:\n\n" + string.Join("\n", problems)
-                    + "\n\nKeep these assignments anyway?";
-                var result = System.Windows.MessageBox.Show(msg, "Shortcut conflicts", MessageBoxButton.YesNo, MessageBoxImage.Warning);
-                if (result != MessageBoxResult.Yes)
+                var msg = "Some shortcuts have conflicts:\n\n" + string.Join("\n", problems);
+                var confirmation = new ConfirmationDialogWindow(
+                    "Shortcut conflicts",
+                    "Keep conflicting shortcuts?",
+                    msg,
+                    "Keep assignments")
+                {
+                    Owner = this
+                };
+                if (confirmation.ShowDialog() != true)
                 {
                     // Revert registration to the last committed set; leave pending values in the boxes.
                     ApplyShortcuts(_shortcuts);
@@ -3477,6 +4483,11 @@ namespace StopwatchOverlay
 
         private void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e)
         {
+            _settingsWindow?.Close();
+            // The project chooser is modeless so floating timers stay clickable.
+            // Never strand that topmost window when hiding or exiting the controller.
+            CancelProjectChooser();
+
             // Save both global preferences and the complete timer workspace before
             // either hiding to the tray or performing a real application exit.
             CheckpointStateNow();
@@ -3497,14 +4508,20 @@ namespace StopwatchOverlay
 
             foreach (var instance in _overlayInstances.ToList()) instance.Window.Close();
             foreach (var instance in _combinedOverlayInstances.ToList()) instance.Window.Close();
-            foreach (var lightRing in _lightRingWindows) lightRing.Close();
+            HideLightRing();
             _projectDashboardWindow?.Close();
             _projectDashboardWindow = null;
-            _projectRecordsWindow?.Close();
-            _projectRecordsWindow = null;
             _timer.Stop();
             _blinkTimer.Stop();
             _stateSaveTimer.Stop();
+            _backgroundApplyTimer.Stop();
+            _dedicatedSettingsApplyTimer.Stop();
+
+            if (_hwndSource != null)
+            {
+                _hwndSource.RemoveHook(HwndHook);
+                _hwndSource = null;
+            }
 
             if (_trayIcon != null)
             {

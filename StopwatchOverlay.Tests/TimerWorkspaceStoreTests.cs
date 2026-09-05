@@ -2,6 +2,8 @@ using System;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
+using System.Threading;
+using System.Threading.Tasks;
 using Xunit;
 
 namespace StopwatchOverlay.Tests
@@ -586,6 +588,83 @@ namespace StopwatchOverlay.Tests
         }
 
         [Fact]
+        public async Task TryLoad_TransientExclusiveLockRetriesPrimaryBeforeReportingUnavailable()
+        {
+            using var directory = new TemporaryDirectory();
+            string path = Path.Combine(directory.Path, "workspace.json");
+            var writer = new TimerWorkspaceStore(path);
+            var expected = new TimerSessionManager();
+            expected.Create().Name = "must survive a transient sharing violation";
+            Assert.True(writer.Save(expected, SavedUtc));
+
+            var store = new TimerWorkspaceStore(path);
+            var restored = new TimerSessionManager();
+            using var locked = new FileStream(
+                path,
+                FileMode.Open,
+                FileAccess.ReadWrite,
+                FileShare.None);
+            using var loadStarted = new ManualResetEventSlim();
+            Task<bool> loadTask = Task.Run(() =>
+            {
+                loadStarted.Set();
+                return store.TryLoad(restored, RestoredUtc, RestoredLocal);
+            });
+
+            Assert.True(loadStarted.Wait(TimeSpan.FromSeconds(2)));
+            await Task.Delay(TimeSpan.FromMilliseconds(40));
+            Assert.False(loadTask.IsCompleted);
+            locked.Dispose();
+
+            Assert.True(await loadTask.WaitAsync(TimeSpan.FromSeconds(2)));
+            Assert.Equal(
+                "must survive a transient sharing violation",
+                Assert.Single(restored.Sessions).Name);
+            Assert.Equal(TimerWorkspaceReadStatus.Success, store.LastReadStatus);
+            Assert.Equal(TimerWorkspaceReadStatus.Success, store.LastPrimaryReadStatus);
+            Assert.Equal(TimerWorkspaceReadStatus.None, store.LastBackupReadStatus);
+            Assert.Equal(SavedUtc, store.LastLoadedSavedAtUtc);
+            Assert.False(store.LastLoadUsedBackup);
+        }
+
+        [Fact]
+        public void TryLoad_ExclusiveLockThatOutlivesRetriesPreservesPrimaryAndManager()
+        {
+            using var directory = new TemporaryDirectory();
+            string path = Path.Combine(directory.Path, "workspace.json");
+            var writer = new TimerWorkspaceStore(path);
+            var expected = new TimerSessionManager();
+            expected.Create().Name = "new primary";
+            Assert.True(writer.Save(expected, SavedUtc.AddMinutes(1)));
+
+            var staleManager = new TimerSessionManager();
+            staleManager.Create().Name = "stale backup";
+            var backupStore = new TimerWorkspaceStore(path + ".bak");
+            Assert.True(backupStore.Save(staleManager, SavedUtc));
+
+            string primaryBefore = File.ReadAllText(path);
+            var store = new TimerWorkspaceStore(path);
+            var target = ManagerWithExistingTimer(out var existing);
+            using var locked = new FileStream(
+                path,
+                FileMode.Open,
+                FileAccess.ReadWrite,
+                FileShare.None);
+
+            Assert.False(store.TryLoad(target, RestoredUtc, RestoredLocal));
+
+            Assert.Equal(TimerWorkspaceReadStatus.Unavailable, store.LastReadStatus);
+            Assert.Equal(TimerWorkspaceReadStatus.Unavailable, store.LastPrimaryReadStatus);
+            Assert.Equal(TimerWorkspaceReadStatus.None, store.LastBackupReadStatus);
+            Assert.Null(store.LastLoadedSavedAtUtc);
+            Assert.False(store.LastLoadUsedBackup);
+            Assert.Same(existing, target.Active);
+            Assert.Single(target.Sessions);
+            locked.Dispose();
+            Assert.Equal(primaryBefore, File.ReadAllText(path));
+        }
+
+        [Fact]
         public void TryLoad_UnavailableBackupTakesPrecedenceOverCorruptPrimary()
         {
             using var directory = new TemporaryDirectory();
@@ -625,6 +704,45 @@ namespace StopwatchOverlay.Tests
             Assert.Equal(TimerWorkspaceReadStatus.Success, store.LastBackupReadStatus);
             Assert.Equal(SavedUtc, store.LastLoadedSavedAtUtc);
             Assert.True(store.LastLoadUsedBackup);
+        }
+
+        [Fact]
+        public void SaveNew_CreatesPrimaryButNeverReplacesIt()
+        {
+            using var directory = new TemporaryDirectory();
+            string path = Path.Combine(directory.Path, "workspace.json");
+            var first = new TimerSessionManager();
+            first.Create().Name = "first";
+            var store = new TimerWorkspaceStore(path);
+
+            Assert.True(store.SaveNew(first, SavedUtc));
+            Assert.False(store.LastSaveNewConflictDetected);
+            string firstGeneration = File.ReadAllText(path);
+            Assert.Equal(firstGeneration, File.ReadAllText(path + ".bak"));
+
+            var second = new TimerSessionManager();
+            second.Create().Name = "second";
+            Assert.False(store.SaveNew(second, SavedUtc.AddMinutes(1)));
+            Assert.True(store.LastSaveNewConflictDetected);
+            Assert.Equal(firstGeneration, File.ReadAllText(path));
+        }
+
+        [Fact]
+        public void SaveNew_ExistingBackupWinsWithoutCreatingPrimary()
+        {
+            using var directory = new TemporaryDirectory();
+            string path = Path.Combine(directory.Path, "workspace.json");
+            byte[] backup = [1, 3, 3, 7];
+            File.WriteAllBytes(path + ".bak", backup);
+            var manager = new TimerSessionManager();
+            manager.Create().Name = "new";
+            var store = new TimerWorkspaceStore(path);
+
+            Assert.False(store.SaveNew(manager, SavedUtc));
+            Assert.True(store.LastSaveNewConflictDetected);
+
+            Assert.False(File.Exists(path));
+            Assert.Equal(backup, File.ReadAllBytes(path + ".bak"));
         }
 
         private static TimerWorkspaceSnapshot Snapshot(TimerSessionSnapshot timer)

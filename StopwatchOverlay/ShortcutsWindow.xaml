@@ -7,16 +7,23 @@
         WindowStartupLocation="CenterOwner"
         ShowInTaskbar="False">
 
-    <Grid Margin="16">
+    <Border Style="{StaticResource DialogSurface}" Margin="16">
+    <Grid Margin="20">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <TextBlock Grid.Row="0"
-                   Text="Click a box and press a key combination. Use Clear to unbind an action."
-                   TextWrapping="Wrap" Opacity="0.7" Margin="0,0,0,12"/>
+        <StackPanel Grid.Row="0" Margin="0,0,0,14">
+            <Path Width="24" Height="24" HorizontalAlignment="Center" Margin="0,0,0,6"
+                  Data="{StaticResource AcanthusCrestGeometry}" Fill="{DynamicResource OrnamentAccentBrush}"
+                  Stretch="Uniform" Visibility="{DynamicResource OrnamentVisibility}"/>
+            <TextBlock Text="Keyboard shortcuts" Style="{StaticResource DisplayHeadingText}"
+                       FontSize="23" HorizontalAlignment="Center"/>
+            <TextBlock Text="Click a box and press a key combination. Use Clear to unbind an action."
+                       TextWrapping="Wrap" Opacity="0.7" Margin="0,4,0,0"/>
+        </StackPanel>
 
         <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
             <Grid Margin="0,0,8,0">
@@ -102,4 +109,5 @@
             <Button Content="Save" Click="Save_Click" Style="{StaticResource StartButton}" MinWidth="80"/>
         </StackPanel>
     </Grid>
+    </Border>
 </Window>

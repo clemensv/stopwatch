@@ -79,6 +79,28 @@ namespace StopwatchOverlay
         public Guid Id { get; }
         public int Number { get; }
         public string Name { get; set; } = "";
+        public string DisplayName => string.IsNullOrWhiteSpace(Name)
+            ? $"Timer {Number}"
+            : Name.Trim();
+
+        public string DisplaySummary
+        {
+            get
+            {
+                string mode = Mode switch
+                {
+                    1 => "Clock",
+                    2 => "Countdown",
+                    3 => "Timecode",
+                    _ => "Stopwatch"
+                };
+                string state = Mode == 1 ? "Live" : IsRunning ? "Running" : "Paused";
+                TimeSpan value = Mode == 1 ? DateTime.Now.TimeOfDay
+                    : Mode == 2 ? CountdownRemaining
+                    : Elapsed;
+                return $"{value:hh\\:mm\\:ss}  ·  {state}  ·  {mode}";
+            }
+        }
         public ResumableStopwatch Stopwatch { get; } = new();
         public TimeSpan Elapsed => Stopwatch.Elapsed;
         public TimeSpan ElapsedOffset => Stopwatch.ElapsedOffset;

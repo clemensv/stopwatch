@@ -16,6 +16,8 @@ namespace StopwatchOverlay
         private const int WS_EX_TRANSPARENT = 0x00000020;
         private const int WS_EX_TOOLWINDOW = 0x00000080;
         private const int WS_EX_NOACTIVATE = 0x08000000;
+        private const uint WDA_NONE = 0x00000000;
+        private const uint WDA_EXCLUDEFROMCAPTURE = 0x00000011;
 
         [DllImport("user32.dll")]
         private static extern int GetWindowLong(IntPtr hwnd, int index);
@@ -23,11 +25,16 @@ namespace StopwatchOverlay
         [DllImport("user32.dll")]
         private static extern int SetWindowLong(IntPtr hwnd, int index, int newStyle);
 
+        [DllImport("user32.dll")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        private static extern bool SetWindowDisplayAffinity(IntPtr hwnd, uint affinity);
+
         private readonly DispatcherTimer _hideControlsTimer;
         private bool _isClickThrough;
         private bool _isActive;
         private Color _textColor = Colors.White;
         private double _backgroundOpacity = 0.5;
+        private bool _hideFromCapture;
 
         public event Action? PositionChangedByUser;
         public event Action? ActivationRequested;
@@ -62,6 +69,7 @@ namespace StopwatchOverlay
             int extendedStyle = GetWindowLong(hwnd, GWL_EXSTYLE);
             SetWindowLong(hwnd, GWL_EXSTYLE,
                 extendedStyle | WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE);
+            ApplyCaptureAffinity(hwnd);
         }
 
         protected override void OnClosed(EventArgs e)
@@ -99,8 +107,8 @@ namespace StopwatchOverlay
         {
             string name = timerName?.Trim() ?? string.Empty;
             TimerNameText.Text = name;
-            TimerNameText.Visibility = name.Length == 0
-                ? Visibility.Collapsed : Visibility.Visible;
+            TimerNameText.Visibility = OverlayPresentationPolicy.ShouldShowProjectName(name)
+                ? Visibility.Visible : Visibility.Collapsed;
         }
 
         public void SetActive(bool active)
@@ -110,6 +118,9 @@ namespace StopwatchOverlay
             ActiveIndicatorBorder.BorderBrush = active
                 ? new SolidColorBrush(Color.FromArgb(220, accent.R, accent.G, accent.B))
                 : Brushes.Transparent;
+            AcanthusActiveEdge.Visibility = active && AppThemeManager.IsAcanthus
+                ? Visibility.Visible
+                : Visibility.Collapsed;
         }
 
         public void SetRunning(bool running)
@@ -136,7 +147,7 @@ namespace StopwatchOverlay
             double backgroundOpacity)
         {
             _textColor = textColor;
-            _backgroundOpacity = Math.Clamp(backgroundOpacity, 0, 1);
+            _backgroundOpacity = OverlayPresentationPolicy.ClampBackgroundOpacity(backgroundOpacity);
 
             var font = new FontFamily(fontFamily);
             TimeText.FontFamily = font;
@@ -149,9 +160,6 @@ namespace StopwatchOverlay
             TimeText.Foreground = textBrush;
             TimeText.FontSize = fontSize;
             TimerNameText.Foreground = textBrush;
-            CloseActionButton.Foreground = textBrush;
-            PauseResumeActionButton.Foreground = textBrush;
-            ResetActionButton.Foreground = textBrush;
 
             var outlineBrush = new SolidColorBrush(borderColor);
             TimeTextShadow1.Foreground = outlineBrush;
@@ -175,17 +183,28 @@ namespace StopwatchOverlay
                 chrome,
                 _backgroundOpacity);
             OverlayBorder.Background = surface;
-            ActionSurface.Background = surface;
-            byte alpha = (byte)(_backgroundOpacity * 255);
             Color chromeBorder = AppThemeManager.UsesThemedOverlayChrome
                 ? GetThemeColor("OverlayChromeBorderBrush", textColor)
-                : Color.FromArgb(alpha, textColor.R, textColor.G, textColor.B);
+                : Color.FromArgb(255, textColor.R, textColor.G, textColor.B);
             var chromeBorderBrush = new SolidColorBrush(chromeBorder);
             OverlayBorder.BorderBrush = chromeBorderBrush;
             ActionSurface.BorderBrush = chromeBorderBrush;
 
             // Re-apply because appearance updates can occur after active selection.
             SetActive(_isActive);
+        }
+
+        public void SetHideFromCapture(bool hideFromCapture)
+        {
+            _hideFromCapture = hideFromCapture;
+            ApplyCaptureAffinity(new WindowInteropHelper(this).Handle);
+        }
+
+        private void ApplyCaptureAffinity(IntPtr hwnd)
+        {
+            if (hwnd != IntPtr.Zero)
+                SetWindowDisplayAffinity(hwnd,
+                    _hideFromCapture ? WDA_EXCLUDEFROMCAPTURE : WDA_NONE);
         }
 
         private static void UpdateShadowOffset(

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
+using System.Threading;
 
 namespace StopwatchOverlay
 {
@@ -87,6 +88,8 @@ namespace StopwatchOverlay
     public sealed class TimerWorkspaceStore
     {
         public const int CurrentVersion = 1;
+        private static readonly int[] ReadRetryDelaysMilliseconds =
+            [25, 50, 100, 150, 225, 300];
         private bool _loadedFromBackup;
 
         private static readonly JsonSerializerOptions JsonOptions = new()
@@ -110,6 +113,7 @@ namespace StopwatchOverlay
         public TimerWorkspaceReadStatus LastReadStatus { get; private set; }
         public TimerWorkspaceReadStatus LastPrimaryReadStatus { get; private set; }
         public TimerWorkspaceReadStatus LastBackupReadStatus { get; private set; }
+        public bool LastSaveNewConflictDetected { get; private set; }
 
         /// <summary>
         /// Save timestamp carried by the exact snapshot most recently restored
@@ -161,6 +165,89 @@ namespace StopwatchOverlay
 
         public bool Save(TimerSessionManager manager, DateTime savedAtUtc)
             => Save(Capture(manager, savedAtUtc));
+
+        /// <summary>
+        /// Atomically creates the first workspace generation without replacing
+        /// any primary or backup that may have appeared after startup recovery
+        /// decided the data directory was pristine.
+        /// </summary>
+        public bool SaveNew(TimerSessionManager manager, DateTime savedAtUtc)
+            => SaveNew(Capture(manager, savedAtUtc));
+
+        public bool SaveNew(TimerWorkspaceSnapshot snapshot)
+        {
+            ClearLastLoadMetadata();
+            LastSaveNewConflictDetected = false;
+            string? temporaryPath = null;
+            try
+            {
+                ArgumentNullException.ThrowIfNull(snapshot);
+                Validate(snapshot);
+                string? directory = Path.GetDirectoryName(FilePath);
+                if (!string.IsNullOrEmpty(directory))
+                    Directory.CreateDirectory(directory);
+
+                if (RecoveryGenerationExists())
+                {
+                    LastSaveNewConflictDetected = true;
+                    return false;
+                }
+
+                temporaryPath = FilePath + ".tmp." + Guid.NewGuid().ToString("N");
+                byte[] json = JsonSerializer.SerializeToUtf8Bytes(snapshot, JsonOptions);
+                using (var stream = new FileStream(
+                    temporaryPath,
+                    FileMode.CreateNew,
+                    FileAccess.Write,
+                    FileShare.None,
+                    4096,
+                    FileOptions.WriteThrough))
+                {
+                    stream.Write(json);
+                    stream.Flush(flushToDisk: true);
+                }
+
+                // Claim the backup name first. This closes the backup-only race:
+                // a recovery process cannot add a backup between a final check and
+                // primary creation without one side receiving an atomic collision.
+                File.Move(temporaryPath, BackupPath, overwrite: false);
+                temporaryPath = null;
+
+                try
+                {
+                    File.Copy(BackupPath, FilePath, overwrite: false);
+                }
+                catch (Exception exception) when (IsExpectedSaveFailure(exception))
+                {
+                    // The fully flushed backup is already a durable valid first
+                    // generation. A different primary is a recovery conflict; no
+                    // primary means a later normal checkpoint can repair it.
+                    if (File.Exists(FilePath) || Directory.Exists(FilePath))
+                    {
+                        LastSaveNewConflictDetected = true;
+                        return false;
+                    }
+                }
+
+                _loadedFromBackup = !File.Exists(FilePath);
+                return true;
+            }
+            catch (Exception exception) when (IsExpectedSaveFailure(exception))
+            {
+                LastSaveNewConflictDetected = RecoveryGenerationExists();
+                return false;
+            }
+            finally
+            {
+                TryDelete(temporaryPath);
+            }
+        }
+
+        private bool RecoveryGenerationExists()
+            => File.Exists(FilePath)
+                || Directory.Exists(FilePath)
+                || File.Exists(BackupPath)
+                || Directory.Exists(BackupPath);
 
         public bool Save(TimerWorkspaceSnapshot snapshot)
         {
@@ -228,7 +315,7 @@ namespace StopwatchOverlay
                 _loadedFromBackup = false;
                 return true;
             }
-            catch
+            catch (Exception exception) when (IsExpectedSaveFailure(exception))
             {
                 return false;
             }
@@ -274,7 +361,8 @@ namespace StopwatchOverlay
                     });
                 return true;
             }
-            catch
+            catch (Exception exception) when (exception is
+                InvalidDataException or ArgumentException or OverflowException)
             {
                 // A semantically corrupt snapshot must not replace the current
                 // in-memory workspace.
@@ -392,61 +480,84 @@ namespace StopwatchOverlay
             out TimerWorkspaceSnapshot? snapshot)
         {
             snapshot = null;
-            try
+            for (int attempt = 0; ; attempt++)
             {
-                using var stream = File.OpenRead(path);
-                snapshot = JsonSerializer.Deserialize<TimerWorkspaceSnapshot>(stream, JsonOptions);
-                if (snapshot == null)
-                    return TimerWorkspaceReadStatus.Corrupt;
-                if (snapshot.Version != CurrentVersion)
+                try
+                {
+                    // These files are replaced atomically rather than edited in place.
+                    // Sharing write/delete access therefore lets a reader finish from
+                    // one immutable generation while a checkpoint or backup tool swaps
+                    // in the next one.
+                    using var stream = new FileStream(
+                        path,
+                        FileMode.Open,
+                        FileAccess.Read,
+                        FileShare.ReadWrite | FileShare.Delete);
+                    snapshot = JsonSerializer.Deserialize<TimerWorkspaceSnapshot>(stream, JsonOptions);
+                    if (snapshot == null)
+                        return TimerWorkspaceReadStatus.Corrupt;
+                    if (snapshot.Version != CurrentVersion)
+                    {
+                        snapshot = null;
+                        return TimerWorkspaceReadStatus.UnsupportedVersion;
+                    }
+                    Validate(snapshot);
+                    return TimerWorkspaceReadStatus.Success;
+                }
+                catch (FileNotFoundException)
                 {
                     snapshot = null;
-                    return TimerWorkspaceReadStatus.UnsupportedVersion;
+                    return TimerWorkspaceReadStatus.NotFound;
                 }
-                Validate(snapshot);
-                return TimerWorkspaceReadStatus.Success;
-            }
-            catch (FileNotFoundException)
-            {
-                snapshot = null;
-                return TimerWorkspaceReadStatus.NotFound;
-            }
-            catch (DirectoryNotFoundException)
-            {
-                snapshot = null;
-                return TimerWorkspaceReadStatus.NotFound;
-            }
-            catch (JsonException)
-            {
-                snapshot = null;
-                return TimerWorkspaceReadStatus.Corrupt;
-            }
-            catch (InvalidDataException)
-            {
-                snapshot = null;
-                return TimerWorkspaceReadStatus.Corrupt;
-            }
-            catch (NotSupportedException)
-            {
-                snapshot = null;
-                return TimerWorkspaceReadStatus.Corrupt;
-            }
-            catch (UnauthorizedAccessException)
-            {
-                snapshot = null;
-                return TimerWorkspaceReadStatus.Unavailable;
-            }
-            catch (IOException)
-            {
-                snapshot = null;
-                return TimerWorkspaceReadStatus.Unavailable;
-            }
-            catch
-            {
-                snapshot = null;
-                return TimerWorkspaceReadStatus.Unavailable;
+                catch (DirectoryNotFoundException)
+                {
+                    snapshot = null;
+                    return TimerWorkspaceReadStatus.NotFound;
+                }
+                catch (JsonException)
+                {
+                    snapshot = null;
+                    return TimerWorkspaceReadStatus.Corrupt;
+                }
+                catch (InvalidDataException)
+                {
+                    snapshot = null;
+                    return TimerWorkspaceReadStatus.Corrupt;
+                }
+                catch (NotSupportedException)
+                {
+                    snapshot = null;
+                    return TimerWorkspaceReadStatus.Corrupt;
+                }
+                catch (UnauthorizedAccessException)
+                {
+                    snapshot = null;
+                    return TimerWorkspaceReadStatus.Unavailable;
+                }
+                catch (IOException exception) when (
+                    IsRetryableSharingViolation(exception)
+                    && attempt < ReadRetryDelaysMilliseconds.Length)
+                {
+                    snapshot = null;
+                    Thread.Sleep(ReadRetryDelaysMilliseconds[attempt]);
+                }
+                catch (IOException)
+                {
+                    snapshot = null;
+                    return TimerWorkspaceReadStatus.Unavailable;
+                }
+                catch (Exception exception) when (exception is
+                    ArgumentException or OperationCanceledException
+                    or System.Security.SecurityException)
+                {
+                    snapshot = null;
+                    return TimerWorkspaceReadStatus.Unavailable;
+                }
             }
         }
+
+        private static bool IsRetryableSharingViolation(IOException exception)
+            => (exception.HResult & 0xFFFF) is 32 or 33;
 
         private static TimerSessionSnapshot CaptureTimer(TimerSession timer)
         {
@@ -634,5 +745,12 @@ namespace StopwatchOverlay
             try { File.Delete(path); }
             catch { }
         }
+
+        private static bool IsExpectedSaveFailure(Exception exception)
+            => exception is InvalidDataException or JsonException
+                or IOException or UnauthorizedAccessException
+                or NotSupportedException or ArgumentException
+                or OperationCanceledException
+                or System.Security.SecurityException;
     }
 }

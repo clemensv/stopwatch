@@ -6,10 +6,11 @@
         MinWidth="760" MinHeight="560"
         WindowStartupLocation="CenterScreen"
         ResizeMode="CanResizeWithGrip"
+        Loaded="Window_Loaded"
         Closed="Window_Closed">
     <Window.Resources>
         <Style x:Key="DashboardCard" TargetType="Border">
-            <Setter Property="Background" Value="{DynamicResource SurfaceBrush}"/>
+            <Setter Property="Background" Value="{DynamicResource DialogSurfaceBrush}"/>
             <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
             <Setter Property="BorderThickness" Value="{DynamicResource ThemePanelBorderThickness}"/>
             <Setter Property="CornerRadius" Value="{DynamicResource ThemeDashboardCardCornerRadius}"/>
@@ -31,9 +32,59 @@
             <Setter Property="FontSize" Value="12"/>
         </Style>
 
+        <Style x:Key="DayNavigationButton" TargetType="Button" BasedOn="{StaticResource ModernButton}">
+            <Setter Property="Width" Value="34"/>
+            <Setter Property="Height" Value="34"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="Margin" Value="0,0,6,0"/>
+            <Setter Property="FontSize" Value="17"/>
+        </Style>
+
+        <Style x:Key="HeatmapCellFocusVisual" TargetType="Control">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate>
+                        <Border Margin="1"
+                                BorderBrush="{DynamicResource PrimaryTextBrush}"
+                                BorderThickness="1"
+                                CornerRadius="2"/>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="HeatmapCellButton" TargetType="Button">
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="FocusVisualStyle" Value="{StaticResource HeatmapCellFocusVisual}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="2"
+                                SnapsToDevicePixels="True">
+                            <ContentPresenter HorizontalAlignment="Center"
+                                              VerticalAlignment="Center"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="DashboardRecordRow" TargetType="Border">
+            <Setter Property="Background" Value="{DynamicResource SurfaceRaisedBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
+            <Setter Property="BorderThickness" Value="{DynamicResource ThemeControlBorderThickness}"/>
+            <Setter Property="CornerRadius" Value="{DynamicResource ThemeCardCornerRadius}"/>
+            <Setter Property="Padding" Value="12,10"/>
+            <Setter Property="Margin" Value="0,0,0,8"/>
+        </Style>
+
         <Style x:Key="ChartTitle" TargetType="TextBlock">
             <Setter Property="FontSize" Value="16"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="FontFamily" Value="{DynamicResource DisplayHeadingFontFamily}"/>
             <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
         </Style>
 
@@ -45,8 +96,8 @@
 
     <DockPanel>
         <Border DockPanel.Dock="Top"
-                Background="{DynamicResource SurfaceBrush}"
-                BorderBrush="{DynamicResource BorderBrush}"
+                Background="{DynamicResource ApplicationHeaderBrush}"
+                BorderBrush="{DynamicResource SubtleDividerBrush}"
                 BorderThickness="0,0,0,1"
                 Padding="22,15">
             <Grid>
@@ -58,14 +109,26 @@
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
-                <StackPanel>
-                    <TextBlock Text="Project time" FontSize="22" FontWeight="SemiBold"/>
-                    <TextBlock Text="A clear view of where your time went"
-                               Style="{StaticResource Caption}" Margin="0,3,0,0"/>
+                <StackPanel Orientation="Horizontal">
+                    <Path Width="28" Height="28" Margin="0,0,10,0" VerticalAlignment="Center"
+                          Data="{StaticResource AcanthusCrestGeometry}"
+                          Fill="{DynamicResource OrnamentAccentBrush}" Stretch="Uniform"
+                          Visibility="{DynamicResource OrnamentVisibility}"/>
+                    <StackPanel>
+                        <TextBlock Text="Project time" FontSize="22" FontWeight="SemiBold"
+                                   FontFamily="{DynamicResource DisplayHeadingFontFamily}"/>
+                        <TextBlock Text="Analytics and project records"
+                                   Style="{StaticResource Caption}" Margin="0,3,0,0"/>
+                    </StackPanel>
                 </StackPanel>
-                <Button Grid.Column="1" Content="Refresh" Style="{StaticResource ModernButton}" Height="34"
-                        Padding="13,5" FontSize="12" VerticalAlignment="Center"
-                        Click="RefreshButton_Click"/>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Button Content="Records" Style="{StaticResource ModernButton}" Height="34"
+                            Padding="13,5" FontSize="12" Margin="0,0,8,0"
+                            Click="RecordsButton_Click"/>
+                    <Button Content="Refresh" Style="{StaticResource ModernButton}" Height="34"
+                            Padding="13,5" FontSize="12"
+                            Click="RefreshButton_Click"/>
+                </StackPanel>
 
                 <StackPanel Grid.Row="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,14,16,0">
                     <TextBlock Text="Project" Style="{StaticResource Caption}"
@@ -77,8 +140,20 @@
 
                 <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal"
                             VerticalAlignment="Center" Margin="0,14,0,0">
-                    <Button x:Name="TodayButton" Content="Today" Style="{StaticResource RangeButton}"
-                            Tag="Today" Click="RangeButton_Click"/>
+                    <Button x:Name="PreviousDayButton" Content="&#x2039;"
+                            Style="{StaticResource DayNavigationButton}"
+                            ToolTip="Previous day"
+                            AutomationProperties.Name="Previous day"
+                            Click="PreviousDayButton_Click"/>
+                    <Button x:Name="DayButton" Content="Day" Style="{StaticResource RangeButton}"
+                            MinWidth="62" Tag="Day" ToolTip="Show today"
+                            Click="RangeButton_Click"/>
+                    <Button x:Name="NextDayButton" Content="&#x203A;"
+                            Style="{StaticResource DayNavigationButton}"
+                            Margin="0,0,12,0"
+                            ToolTip="Next day"
+                            AutomationProperties.Name="Next day"
+                            Click="NextDayButton_Click"/>
                     <Button x:Name="SevenDaysButton" Content="7 days" Style="{StaticResource RangeButton}"
                             Tag="SevenDays" Click="RangeButton_Click"/>
                     <Button x:Name="ThirtyDaysButton" Content="30 days" Style="{StaticResource RangeButton}"
@@ -89,7 +164,7 @@
             </Grid>
         </Border>
 
-        <ScrollViewer VerticalScrollBarVisibility="Auto"
+        <ScrollViewer x:Name="DashboardScrollViewer" VerticalScrollBarVisibility="Auto"
                       HorizontalScrollBarVisibility="Disabled"
                       CanContentScroll="False"
                       PanningMode="VerticalFirst">
@@ -109,7 +184,7 @@
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
-                    <TextBlock x:Name="RangeHeadingText" Text="Today" FontSize="26" FontWeight="SemiBold"/>
+                    <TextBlock x:Name="RangeHeadingText" Text="Today" Style="{StaticResource DisplayHeadingText}"/>
                     <TextBlock x:Name="UpdatedText" Grid.Column="1" Style="{StaticResource Caption}"
                                VerticalAlignment="Bottom" Margin="16,0,0,3"/>
                 </Grid>
@@ -151,62 +226,7 @@
                     </Border>
                 </UniformGrid>
 
-                <Border x:Name="ProjectRecordsCard"
-                        Grid.Row="2"
-                        Style="{StaticResource DashboardCard}"
-                        Background="{DynamicResource SurfaceRaisedBrush}"
-                        Margin="0,0,0,16"
-                        Cursor="Hand"
-                        ToolTip="Open the detailed project records page"
-                        MouseLeftButtonUp="ProjectRecordsCard_MouseLeftButtonUp">
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="Auto"/>
-                        </Grid.ColumnDefinitions>
-
-                        <StackPanel>
-                            <TextBlock Text="Project records" Style="{StaticResource ChartTitle}"/>
-                            <TextBlock x:Name="ProjectRecordsScopeText"
-                                       Text="All projects in the selected period"
-                                       Style="{StaticResource Caption}"
-                                       Margin="0,4,0,11"/>
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="Auto"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                    <ColumnDefinition Width="*"/>
-                                </Grid.ColumnDefinitions>
-                                <TextBlock x:Name="ProjectRecordsCountText"
-                                           Text="0 records"
-                                           FontSize="18"
-                                           FontWeight="SemiBold"
-                                           VerticalAlignment="Center"/>
-                                <TextBlock Grid.Column="1"
-                                           Text="  •  "
-                                           Style="{StaticResource Caption}"
-                                           VerticalAlignment="Center"/>
-                                <TextBlock x:Name="ProjectRecordsLatestText"
-                                           Grid.Column="2"
-                                           Text="No records here yet — open the records page to add one."
-                                           Style="{StaticResource Caption}"
-                                           TextTrimming="CharacterEllipsis"
-                                           VerticalAlignment="Center"/>
-                            </Grid>
-                        </StackPanel>
-
-                        <Button Grid.Column="1"
-                                Content="Open records"
-                                Style="{StaticResource ModernButton}"
-                                Height="36"
-                                Padding="15,6"
-                                Margin="20,0,0,0"
-                                VerticalAlignment="Center"
-                                Click="OpenRecordsButton_Click"/>
-                    </Grid>
-                </Border>
-
-                <Grid x:Name="ChartsGrid" Grid.Row="3" Margin="0,0,0,16">
+                <Grid x:Name="ChartsGrid" Grid.Row="2" Margin="0,0,0,16">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="3*"/>
                         <ColumnDefinition Width="2*"/>
@@ -227,6 +247,45 @@
                     </Border>
                 </Grid>
 
+                <Border x:Name="HeatmapCard" Grid.Row="3" Style="{StaticResource DashboardCard}" Margin="0,0,0,16">
+                    <StackPanel>
+                        <Grid Margin="0,0,0,14">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel>
+                                <TextBlock Text="Activity heatmap" Style="{StaticResource ChartTitle}"/>
+                                <TextBlock Text="Use the Project filter above; select a square to open that day's statistics"
+                                           Style="{StaticResource Caption}" Margin="0,4,0,0"/>
+                            </StackPanel>
+                            <TextBlock x:Name="HeatmapScopeText" Grid.Column="1"
+                                       Style="{StaticResource Caption}"
+                                       MaxWidth="300"
+                                       TextAlignment="Right"
+                                       TextTrimming="CharacterEllipsis"
+                                       VerticalAlignment="Bottom" Margin="18,0,0,1"/>
+                        </Grid>
+
+                        <ScrollViewer x:Name="HeatmapScrollViewer"
+                                      HorizontalScrollBarVisibility="Auto"
+                                      VerticalScrollBarVisibility="Disabled"
+                                      CanContentScroll="False"
+                                      PanningMode="HorizontalOnly">
+                            <Grid x:Name="HeatmapHost"/>
+                        </ScrollViewer>
+
+                        <Grid Margin="0,10,0,0">
+                            <TextBlock x:Name="HeatmapEmptyText"
+                                       Style="{StaticResource Caption}"
+                                       VerticalAlignment="Center"/>
+                            <StackPanel x:Name="HeatmapLegendPanel"
+                                        Orientation="Horizontal"
+                                        HorizontalAlignment="Right"/>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
                 <Border x:Name="TimelineCard" Grid.Row="4" Style="{StaticResource DashboardCard}" Margin="0,0,0,16">
                     <StackPanel>
                         <TextBlock Text="Daily timeline" Style="{StaticResource ChartTitle}"/>
@@ -236,14 +295,122 @@
                     </StackPanel>
                 </Border>
 
-                <Border x:Name="SessionsCard" Grid.Row="5" Style="{StaticResource DashboardCard}">
-                    <StackPanel>
-                        <TextBlock Text="Session details" Style="{StaticResource ChartTitle}"/>
-                        <TextBlock Text="Start and finish times are shown in your local time zone"
-                                   Style="{StaticResource Caption}" Margin="0,4,0,16"/>
-                        <StackPanel x:Name="SessionsPanel"/>
-                    </StackPanel>
-                </Border>
+                <Grid Grid.Row="5" Margin="0,0,0,16">
+                    <Expander x:Name="ProjectRecordsExpander"
+                              IsExpanded="False"
+                              Padding="18"
+                              Background="{DynamicResource SurfaceBrush}"
+                              BorderBrush="{DynamicResource BorderBrush}"
+                              Effect="{DynamicResource ThemePanelShadowEffect}"
+                              Expanded="ProjectRecordsExpander_Expanded">
+                        <Expander.Header>
+                            <StackPanel Margin="0,0,170,0">
+                                <TextBlock Text="Project records" Style="{StaticResource ChartTitle}"/>
+                                <TextBlock x:Name="ProjectRecordsSummaryText"
+                                           Text="No records in the selected period"
+                                           Style="{StaticResource Caption}"
+                                           Margin="0,4,0,0"
+                                           MaxWidth="650"
+                                           TextTrimming="CharacterEllipsis"/>
+                            </StackPanel>
+                        </Expander.Header>
+
+                        <StackPanel>
+                            <Border x:Name="RecordsPersistenceWarningPanel"
+                                    Background="{DynamicResource SurfaceRaisedBrush}"
+                                    BorderBrush="{DynamicResource WarningBrush}"
+                                    BorderThickness="1"
+                                    CornerRadius="{DynamicResource ThemeCardCornerRadius}"
+                                    Padding="12,9"
+                                    Margin="0,0,0,12"
+                                    Visibility="Collapsed">
+                                <TextBlock x:Name="RecordsPersistenceWarningText"
+                                           Foreground="{DynamicResource WarningBrush}"
+                                           TextWrapping="Wrap"/>
+                            </Border>
+
+                            <Grid Margin="0,0,0,12">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <StackPanel>
+                                    <TextBlock x:Name="RecordsHeadingText"
+                                               Text="Records in this period"
+                                               FontSize="15"
+                                               FontWeight="SemiBold"/>
+                                    <TextBlock Text="Rows show the selected-period portion; Edit opens the full saved record. Times use your local time zone."
+                                               Style="{StaticResource Caption}"
+                                               TextWrapping="Wrap"
+                                               Margin="0,3,0,0"/>
+                                </StackPanel>
+                                <StackPanel Grid.Column="1"
+                                            Orientation="Horizontal"
+                                            VerticalAlignment="Center">
+                                    <Button x:Name="PreviousRecordsPageButton"
+                                            Content="‹ Previous"
+                                            Style="{StaticResource ModernButton}"
+                                            Height="32"
+                                            Padding="11,4"
+                                            FontSize="12"
+                                            Click="PreviousRecordsPageButton_Click"/>
+                                    <TextBlock x:Name="RecordsPageStatusText"
+                                               Text="0 records"
+                                               Style="{StaticResource Caption}"
+                                               MinWidth="105"
+                                               TextAlignment="Center"
+                                               VerticalAlignment="Center"
+                                               Margin="8,0"/>
+                                    <Button x:Name="NextRecordsPageButton"
+                                            Content="Next ›"
+                                            Style="{StaticResource ModernButton}"
+                                            Height="32"
+                                            Padding="11,4"
+                                            FontSize="12"
+                                            Click="NextRecordsPageButton_Click"/>
+                                    <Button Content="Refresh"
+                                            Style="{StaticResource ModernButton}"
+                                            Height="32"
+                                            Padding="12,4"
+                                            Margin="8,0,0,0"
+                                            FontSize="12"
+                                            Click="RefreshButton_Click"/>
+                                </StackPanel>
+                            </Grid>
+
+                            <StackPanel x:Name="RecordsPanel"/>
+                            <StackPanel x:Name="RecordsEmptyState"
+                                        HorizontalAlignment="Center"
+                                        Margin="24,18"
+                                        Visibility="Collapsed">
+                                <TextBlock x:Name="RecordsEmptyHeadingText"
+                                           Text="No project records here"
+                                           FontSize="16"
+                                           FontWeight="SemiBold"
+                                           HorizontalAlignment="Center"/>
+                                <TextBlock x:Name="RecordsEmptyDetailText"
+                                           Text="Add a record manually or choose another date."
+                                           Style="{StaticResource Caption}"
+                                           TextAlignment="Center"
+                                           TextWrapping="Wrap"
+                                           Margin="0,6,0,0"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </Expander>
+
+                    <Button x:Name="AddRecordButton"
+                            Panel.ZIndex="2"
+                            Content="＋ Add record"
+                            Style="{StaticResource StartButton}"
+                            Height="34"
+                            Padding="13,5"
+                            FontSize="12"
+                            HorizontalAlignment="Right"
+                            VerticalAlignment="Top"
+                            Margin="0,9,46,0"
+                            ToolTipService.ShowOnDisabled="True"
+                            Click="AddRecordButton_Click"/>
+                </Grid>
 
                 <Border x:Name="EmptyState" Grid.Row="6" Style="{StaticResource DashboardCard}"
                         Padding="28" Margin="0,16,0,0" Visibility="Collapsed">
