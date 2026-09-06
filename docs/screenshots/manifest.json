@@ -1,0 +1,118 @@
+{
+  "sampleData": true,
+  "sampleLocalTime": "2026-09-04 16:42",
+  "projects": [
+    "Website refresh",
+    "Client portal",
+    "Design system",
+    "User research",
+    "Sprint planning",
+    "Documentation"
+  ],
+  "intervalCount": 846,
+  "sampleCustomization": "Overlay-toggle shortcut unbound; other controller shortcuts use defaults.",
+  "pixelDeckBackground": "Autumn Patchwork, 30% strength",
+  "totalBytes": 932160,
+  "captures": [
+    {
+      "file": "controller-midnight.png",
+      "theme": "Midnight",
+      "view": "Controller",
+      "width": 832,
+      "height": 599,
+      "bytes": 54594,
+      "sha256": "655D5155A33FB530C43072537A2FA893DBA2305511D0D7557BE14373A1F46148"
+    },
+    {
+      "file": "controller-daylight.png",
+      "theme": "Daylight",
+      "view": "Controller",
+      "width": 832,
+      "height": 599,
+      "bytes": 54150,
+      "sha256": "47E918A48DF16816D0FA8FD90BED615A3A370E1EC3CBA4D89CA23AFCF3BC394F"
+    },
+    {
+      "file": "controller-pixel-deck-night.jpg",
+      "theme": "Pixel Deck Night",
+      "view": "Controller",
+      "width": 960,
+      "height": 691,
+      "bytes": 120982,
+      "sha256": "4B59F7EC90093B6F7AC558666785FADA5CC729068DF907326593B3A05714C4EE"
+    },
+    {
+      "file": "controller-pixel-deck-day.jpg",
+      "theme": "Pixel Deck Day",
+      "view": "Controller",
+      "width": 832,
+      "height": 599,
+      "bytes": 98877,
+      "sha256": "BBC55BCD78BEBC34AC34064C6BC5E85514FD5A6CE002B4B1247E1A21859443BC"
+    },
+    {
+      "file": "controller-acanthus.png",
+      "theme": "Acanthus",
+      "view": "Controller",
+      "width": 832,
+      "height": 599,
+      "bytes": 67083,
+      "sha256": "C76930443A38AFBC34F395E289D4CEE8E909A4659EF6CC6FE2518811149535A0"
+    },
+    {
+      "file": "settings-acanthus.png",
+      "theme": "Acanthus",
+      "view": "Appearance and independent overlay theme",
+      "width": 960,
+      "height": 813,
+      "bytes": 84171,
+      "sha256": "7732416CB629D7784CE7F95F9AF7261CCF2C8C8AFC1DB38F573C9A8EB77FF097"
+    },
+    {
+      "file": "settings-light-ring.jpg",
+      "theme": "Pixel Deck Night",
+      "view": "Light ring controls",
+      "width": 880,
+      "height": 566,
+      "bytes": 100585,
+      "sha256": "2AC1928E0B718430BF11280AC35F243A80174A508A4F4B165C0F1081B4EB5215"
+    },
+    {
+      "file": "analytics-daylight.png",
+      "theme": "Daylight",
+      "view": "Seven-day summary, project totals and activity heatmap",
+      "width": 960,
+      "height": 755,
+      "bytes": 93291,
+      "sha256": "5BD0334EF46751DEF4F92AEF1221037C15879540B40B55903F7CD2A9CAF3F792"
+    },
+    {
+      "file": "analytics-timeline-records.png",
+      "theme": "Midnight",
+      "view": "Activity heatmap, daily timeline and sample project records",
+      "width": 960,
+      "height": 748,
+      "bytes": 95155,
+      "sha256": "1C9BCE8FF92205FBD69FF5ED30711E150930FA80EC6631B9F03EDF4B969E47EC"
+    },
+    {
+      "file": "floating-clock-themes.png",
+      "theme": "Eight independent overlay styles",
+      "view": "Theme comparison; hover controls shown",
+      "width": 960,
+      "height": 680,
+      "bytes": 85050,
+      "sha256": "A52078DDBE73EEF61F98B7999DB02805BE1E27415E2BEB623075C322EAC9C070"
+    },
+    {
+      "file": "floating-clock-transparency.png",
+      "theme": "Elegant Olive and Pixel Deck Night",
+      "view": "Actual WPF clock surfaces at 100%, 50% and 0% opacity over a sample backdrop",
+      "width": 960,
+      "height": 550,
+      "bytes": 78222,
+      "sha256": "4A966BAB5008AA7EE3D0FBA18890220D83FCCD0321C601007AF78F1F6ACB6618"
+    }
+  ],
+  "safety": "In-memory synthetic history; no production startup, user stores, or native windows."
+}

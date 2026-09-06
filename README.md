@@ -8,11 +8,11 @@ A transparent, always-on-top timer overlay and lightweight project time tracker 
 **🌐 [Project Website](https://clemensv.github.io/stopwatch/)**
 
 <p align="center">
-  <img src="promo.png" alt="Stopwatch Overlay running in Pixel Deck Night with a floating project timer" width="960">
+  <img src="docs/screenshots/controller-pixel-deck-night.jpg" alt="Pixel Deck Night controller with an Autumn Patchwork background, four sample project timers, and recorded laps" width="860">
 </p>
 
 <p align="center">
-  <em>A multi-timer desktop workspace with project tracking, global shortcuts, and persistent floating overlays.</em>
+  <em>Pixel Deck Night with the Autumn Patchwork background. All screenshots below use fictional projects and sample activity—not personal records.</em>
 </p>
 
 ---
@@ -25,11 +25,12 @@ Stopwatch Overlay places customizable timers on top of all your windows — incl
 
 - ⏱️ **Four timing modes** — Stopwatch, real-time clock, fixed or wall-clock countdown, and frame-accurate timecode
 - 🧩 **Independent multi-timer workspace** — Create several floating timers, run them simultaneously, name them, and choose which timer receives commands
-- 🗂️ **Combined timer view** — Merge every open timer into one compact overlay and cycle the active timer without stopping the others
+- 🗂️ **Combined timer view** — Share one compact overlay that shows only the active timer; cycle between timers without stopping the others
 - 🏷️ **Automatic project tracking** — Assign an existing or new project to a timer and record every running work session automatically
 - 📝 **Inline editable project records** — Expand records inside the dashboard, add past work manually, and correct completed records without changing active sessions
 - 📊 **Project time dashboard** — Step through individual days or review 7 days, 30 days, and All time; compare project totals, timelines, and a project-filtered 12-month heatmap
-- 🎨 **Four professional themes** — Midnight, Daylight, Pixel Deck Night, and Pixel Deck Day, all backed by the same consistent design tokens
+- 🎨 **Five application themes** — Midnight, Daylight, Pixel Deck Night, Pixel Deck Day, and Acanthus
+- 🕰️ **Independent floating-clock themes** — Follow the application theme or choose one of eight clock styles, including three dark Acanthus variants, without changing your panels
 - 🧵 **Tiled background library** — Choose from nine bundled seamless patterns or import a JPG, PNG, or BMP; the selection, strength, and managed custom copy survive restarts
 - 🖌️ **Deep overlay customization** — Choose display, position, text and outline colors, font, format, size, thickness, opacity, and optional light ring
 - 🖥️ **Multi-monitor and presentation tools** — Show timers on one or every display, keep them always on top, enable click-through, or hide overlays from screen capture
@@ -42,17 +43,75 @@ Stopwatch Overlay places customizable timers on top of all your windows — incl
 
 ## Interface previews
 
-### Pixel Deck controller and settings
+### Settings: your panels and clock, styled independently
 
 <p align="center">
-  <img src="controller-window.png" alt="Pixel Deck controller and settings interface" width="900">
+  <img src="docs/screenshots/settings-acanthus.png" alt="Acanthus Settings with a separate Elegant Olive floating clock theme, typography controls, and live preview" width="860" loading="lazy">
 </p>
 
-### Project time dashboard
+Choose the application and floating-clock themes separately, then adjust text, font, size, background opacity, and more. Your custom values stay yours when switching themes.
+
+<details>
+<summary>See the Pixel Deck Night light-ring settings</summary>
 
 <p align="center">
-  <img src="project-dashboard.png" alt="Project time dashboard with daily navigation, charts, timeline, heatmap, and project records" width="960">
+  <img src="docs/screenshots/settings-light-ring.jpg" alt="Pixel Deck Night Settings with Autumn Patchwork, light-ring brightness, width, capture protection, and a live clock preview" width="820" loading="lazy">
 </p>
+
+</details>
+
+### Analytics with a populated project history
+
+<p align="center">
+  <img src="docs/screenshots/analytics-daylight.png" alt="Daylight analytics dashboard with sample weekly totals, six project bars, daily activity, and a year-long heatmap" width="860" loading="lazy">
+</p>
+
+The examples use a fictional year of varied work sessions. Totals, charts, overlapping timer lanes, and the heatmap are calculated by the actual application.
+
+<details>
+<summary>See the Midnight timeline and project records</summary>
+
+<p align="center">
+  <img src="docs/screenshots/analytics-timeline-records.png" alt="Midnight dashboard showing an activity heatmap, daily project timeline, and editable sample records" width="860" loading="lazy">
+</p>
+
+</details>
+
+### Same workspace, different themes
+
+Pixel Deck Night is shown at the top of this page. Both Pixel Deck variants use Autumn Patchwork in these examples. Here are the other four panel themes; select an image to view it at full size.
+
+<table>
+  <tr>
+    <td align="center"><strong>Midnight</strong><br><a href="docs/screenshots/controller-midnight.png"><img src="docs/screenshots/controller-midnight.png" alt="Midnight controller with sample timers" width="420" loading="lazy"></a></td>
+    <td align="center"><strong>Daylight</strong><br><a href="docs/screenshots/controller-daylight.png"><img src="docs/screenshots/controller-daylight.png" alt="Daylight controller with the same sample timers" width="420" loading="lazy"></a></td>
+  </tr>
+  <tr>
+    <td align="center"><strong>Pixel Deck Day</strong><br><a href="docs/screenshots/controller-pixel-deck-day.jpg"><img src="docs/screenshots/controller-pixel-deck-day.jpg" alt="Pixel Deck Day controller with Autumn Patchwork and sample timers" width="420" loading="lazy"></a></td>
+    <td align="center"><strong>Acanthus</strong><br><a href="docs/screenshots/controller-acanthus.png"><img src="docs/screenshots/controller-acanthus.png" alt="Acanthus controller with botanical ornaments and sample timers" width="420" loading="lazy"></a></td>
+  </tr>
+</table>
+
+<details>
+<summary>Compare the eight floating-clock styles</summary>
+
+<p align="center">
+  <img src="docs/screenshots/floating-clock-themes.png" alt="Eight floating-clock styles: Elegant Olive, Gold Crest, Minimal Botanical, Midnight, Daylight, Acanthus Light, Pixel Deck Night, and Pixel Deck Day; separate hover controls shown" width="860" loading="lazy">
+</p>
+
+The timer stays above the project name. Close, pause/resume, and reset appear in a separate hover toolbar. Background opacity does not fade the text or controls.
+
+</details>
+
+### Transparent floating clocks
+
+<p align="center">
+  <img src="docs/screenshots/floating-clock-transparency.png" alt="Elegant Olive and Pixel Deck Night clocks at 100%, 50%, and 0% background opacity; the sample backdrop shows through while text, borders, and hover controls remain visible" width="860" loading="lazy">
+</p>
+
+Fade just the clock's background—or remove it completely—while keeping the timer, project name, and controls readable. The checkerboard is a sample backdrop, not part of the clock.
+
+These are compact renders of the real WPF interface with synthetic data. To regenerate them without touching your saved history, see the [screenshot renderer](tools/ReadmeScreenshots/README.md).
 
 ---
 
@@ -86,7 +145,7 @@ self-contained release includes the runtime and does not require a separate inst
 2. Click **▶ Start** (or press **Win+F5**) to start the timer
 3. The overlay is shown automatically; press **Win+F7** whenever you want to hide or show the active timer
 4. Choose your target **screen** and **position** from the dropdowns
-5. Choose a theme and tiled background, then customize clock colors, font, size, and opacity in the **Settings** panel
+5. Open **Settings → Appearance** to choose application and floating-clock themes independently, then customize the background, clock colors, font, size, and opacity
 6. **Drag** the overlay with your mouse for pixel-perfect placement
 
 Close the controller whenever you want it out of the way. The application continues running in the notification area and keeps every timer active; right-click its tray icon and choose **Exit** to close it completely.
