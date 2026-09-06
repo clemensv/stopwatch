@@ -1,0 +1,113 @@
+<Window x:Class="StopwatchOverlay.ShortcutsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Keyboard Shortcuts"
+        Width="520" Height="600" MinWidth="460" MinHeight="380"
+        ResizeMode="CanResize"
+        WindowStartupLocation="CenterOwner"
+        ShowInTaskbar="False">
+
+    <Border Style="{StaticResource DialogSurface}" Margin="16">
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <StackPanel Grid.Row="0" Margin="0,0,0,14">
+            <Path Width="24" Height="24" HorizontalAlignment="Center" Margin="0,0,0,6"
+                  Data="{StaticResource AcanthusCrestGeometry}" Fill="{DynamicResource OrnamentAccentBrush}"
+                  Stretch="Uniform" Visibility="{DynamicResource OrnamentVisibility}"/>
+            <TextBlock Text="Keyboard shortcuts" Style="{StaticResource DisplayHeadingText}"
+                       FontSize="23" HorizontalAlignment="Center"/>
+            <TextBlock Text="Click a box and press a key combination. Use Clear to unbind an action."
+                       TextWrapping="Wrap" Opacity="0.7" Margin="0,4,0,0"/>
+        </StackPanel>
+
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+            <Grid Margin="0,0,8,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <TextBlock Grid.Row="0" Grid.Column="0" Text="New timer:" VerticalAlignment="Center" Margin="0,0,10,8"/>
+                <TextBox Grid.Row="0" Grid.Column="1" x:Name="NewTimerShortcutBox" IsReadOnly="True" Margin="0,0,8,8"
+                         Tag="NewTimer" GotFocus="ShortcutBox_GotFocus" LostFocus="ShortcutBox_LostFocus" PreviewKeyDown="ShortcutBox_PreviewKeyDown"/>
+                <Button Grid.Row="0" Grid.Column="2" Content="Clear" Tag="NewTimer" Click="ClearShortcut_Click" Style="{StaticResource ModernButton}" Margin="0,0,0,8"/>
+
+                <TextBlock Grid.Row="1" Grid.Column="0" Text="Next active timer:" VerticalAlignment="Center" Margin="0,0,10,8"/>
+                <TextBox Grid.Row="1" Grid.Column="1" x:Name="NextTimerShortcutBox" IsReadOnly="True" Margin="0,0,8,8"
+                         Tag="NextTimer" GotFocus="ShortcutBox_GotFocus" LostFocus="ShortcutBox_LostFocus" PreviewKeyDown="ShortcutBox_PreviewKeyDown"/>
+                <Button Grid.Row="1" Grid.Column="2" Content="Clear" Tag="NextTimer" Click="ClearShortcut_Click" Style="{StaticResource ModernButton}" Margin="0,0,0,8"/>
+
+                <TextBlock Grid.Row="2" Grid.Column="0" Text="Close active timer:" VerticalAlignment="Center" Margin="0,0,10,8"/>
+                <TextBox Grid.Row="2" Grid.Column="1" x:Name="CloseTimerShortcutBox" IsReadOnly="True" Margin="0,0,8,8"
+                         Tag="CloseTimer" GotFocus="ShortcutBox_GotFocus" LostFocus="ShortcutBox_LostFocus" PreviewKeyDown="ShortcutBox_PreviewKeyDown"/>
+                <Button Grid.Row="2" Grid.Column="2" Content="Clear" Tag="CloseTimer" Click="ClearShortcut_Click" Style="{StaticResource ModernButton}" Margin="0,0,0,8"/>
+
+                <TextBlock Grid.Row="3" Grid.Column="0" Text="Start/Stop active:" VerticalAlignment="Center" Margin="0,0,10,8"/>
+                <TextBox Grid.Row="3" Grid.Column="1" x:Name="StartStopShortcutBox" IsReadOnly="True" Margin="0,0,8,8"
+                         Tag="StartStop" GotFocus="ShortcutBox_GotFocus" LostFocus="ShortcutBox_LostFocus" PreviewKeyDown="ShortcutBox_PreviewKeyDown"/>
+                <Button Grid.Row="3" Grid.Column="2" Content="Clear" Tag="StartStop" Click="ClearShortcut_Click" Style="{StaticResource ModernButton}" Margin="0,0,0,8"/>
+
+                <TextBlock Grid.Row="4" Grid.Column="0" Text="Reset active:" VerticalAlignment="Center" Margin="0,0,10,8"/>
+                <TextBox Grid.Row="4" Grid.Column="1" x:Name="ResetShortcutBox" IsReadOnly="True" Margin="0,0,8,8"
+                         Tag="Reset" GotFocus="ShortcutBox_GotFocus" LostFocus="ShortcutBox_LostFocus" PreviewKeyDown="ShortcutBox_PreviewKeyDown"/>
+                <Button Grid.Row="4" Grid.Column="2" Content="Clear" Tag="Reset" Click="ClearShortcut_Click" Style="{StaticResource ModernButton}" Margin="0,0,0,8"/>
+
+                <TextBlock Grid.Row="5" Grid.Column="0" Text="Show/Hide active:" VerticalAlignment="Center" Margin="0,0,10,8"/>
+                <TextBox Grid.Row="5" Grid.Column="1" x:Name="ToggleOverlayShortcutBox" IsReadOnly="True" Margin="0,0,8,8"
+                         Tag="ToggleOverlay" GotFocus="ShortcutBox_GotFocus" LostFocus="ShortcutBox_LostFocus" PreviewKeyDown="ShortcutBox_PreviewKeyDown"/>
+                <Button Grid.Row="5" Grid.Column="2" Content="Clear" Tag="ToggleOverlay" Click="ClearShortcut_Click" Style="{StaticResource ModernButton}" Margin="0,0,0,8"/>
+
+                <TextBlock Grid.Row="6" Grid.Column="0" Text="Add lap to active:" VerticalAlignment="Center" Margin="0,0,10,8"/>
+                <TextBox Grid.Row="6" Grid.Column="1" x:Name="LapShortcutBox" IsReadOnly="True" Margin="0,0,8,8"
+                         Tag="Lap" GotFocus="ShortcutBox_GotFocus" LostFocus="ShortcutBox_LostFocus" PreviewKeyDown="ShortcutBox_PreviewKeyDown"/>
+                <Button Grid.Row="6" Grid.Column="2" Content="Clear" Tag="Lap" Click="ClearShortcut_Click" Style="{StaticResource ModernButton}" Margin="0,0,0,8"/>
+
+                <TextBlock Grid.Row="7" Grid.Column="0" Text="Toggle active clock:" VerticalAlignment="Center" Margin="0,0,10,8"/>
+                <TextBox Grid.Row="7" Grid.Column="1" x:Name="ToggleClockShortcutBox" IsReadOnly="True" Margin="0,0,8,8"
+                         Tag="ToggleClock" GotFocus="ShortcutBox_GotFocus" LostFocus="ShortcutBox_LostFocus" PreviewKeyDown="ShortcutBox_PreviewKeyDown"/>
+                <Button Grid.Row="7" Grid.Column="2" Content="Clear" Tag="ToggleClock" Click="ClearShortcut_Click" Style="{StaticResource ModernButton}" Margin="0,0,0,8"/>
+
+                <TextBlock Grid.Row="8" Grid.Column="0" Text="Set active project:" VerticalAlignment="Center" Margin="0,0,10,8"/>
+                <TextBox Grid.Row="8" Grid.Column="1" x:Name="RenameTimerShortcutBox" IsReadOnly="True" Margin="0,0,8,8"
+                         Tag="RenameTimer" GotFocus="ShortcutBox_GotFocus" LostFocus="ShortcutBox_LostFocus" PreviewKeyDown="ShortcutBox_PreviewKeyDown"/>
+                <Button Grid.Row="8" Grid.Column="2" Content="Clear" Tag="RenameTimer" Click="ClearShortcut_Click" Style="{StaticResource ModernButton}" Margin="0,0,0,8"/>
+
+                <TextBlock Grid.Row="9" Grid.Column="0" Text="Project dashboard:" VerticalAlignment="Center" Margin="0,0,10,8"/>
+                <TextBox Grid.Row="9" Grid.Column="1" x:Name="OpenDashboardShortcutBox" IsReadOnly="True" Margin="0,0,8,8"
+                         Tag="OpenDashboard" GotFocus="ShortcutBox_GotFocus" LostFocus="ShortcutBox_LostFocus" PreviewKeyDown="ShortcutBox_PreviewKeyDown"/>
+                <Button Grid.Row="9" Grid.Column="2" Content="Clear" Tag="OpenDashboard" Click="ClearShortcut_Click" Style="{StaticResource ModernButton}" Margin="0,0,0,8"/>
+
+                <TextBlock Grid.Row="10" Grid.Column="0" Text="Combine/separate overlays:" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                <TextBox Grid.Row="10" Grid.Column="1" x:Name="ToggleCombinedOverlayShortcutBox" IsReadOnly="True" Margin="0,0,8,0"
+                         Tag="ToggleCombinedOverlay" GotFocus="ShortcutBox_GotFocus" LostFocus="ShortcutBox_LostFocus" PreviewKeyDown="ShortcutBox_PreviewKeyDown"/>
+                <Button Grid.Row="10" Grid.Column="2" Content="Clear" Tag="ToggleCombinedOverlay" Click="ClearShortcut_Click" Style="{StaticResource ModernButton}"/>
+            </Grid>
+        </ScrollViewer>
+
+        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,0,0">
+            <Button Content="Reset to defaults" Click="ResetDefaults_Click" Style="{StaticResource ModernButton}" Margin="0,0,8,0"/>
+            <Button Content="Cancel" Click="Cancel_Click" Style="{StaticResource ModernButton}" Margin="0,0,8,0" MinWidth="80"/>
+            <Button Content="Save" Click="Save_Click" Style="{StaticResource StartButton}" MinWidth="80"/>
+        </StackPanel>
+    </Grid>
+    </Border>
+</Window>

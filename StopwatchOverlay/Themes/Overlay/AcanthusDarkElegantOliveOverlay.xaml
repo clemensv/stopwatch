@@ -1,0 +1,57 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:sys="clr-namespace:System;assembly=System.Runtime">
+    <ResourceDictionary.MergedDictionaries>
+        <ResourceDictionary Source="OverlayDefaults.xaml"/>
+    </ResourceDictionary.MergedDictionaries>
+    <!-- Figma 156:131, Theme Study / Acanthus Dark / Floating Overlay. Surface alpha is supplied by the user's opacity setting, never baked into the theme. -->
+    <SolidColorBrush x:Key="OverlayChromeBrush" Color="#252A24"/>
+    <SolidColorBrush x:Key="OverlayChromeBorderBrush" Color="#D9B08A4D"/>
+    <SolidColorBrush x:Key="OverlayToolbarSurfaceBrush" Color="#252A24"/>
+    <SolidColorBrush x:Key="OverlayToolbarBorderBrush" Color="#A6B08A4D"/>
+    <SolidColorBrush x:Key="OverlayActionForegroundBrush" Color="#FBF8F1"/>
+    <SolidColorBrush x:Key="OverlayHoverBrush" Color="#44513F"/>
+    <SolidColorBrush x:Key="OverlayPressedBrush" Color="#58684F"/>
+    <SolidColorBrush x:Key="OverlayInnerRuleBrush" Color="#B08A4D"/>
+    <SolidColorBrush x:Key="AccentBrush" Color="#71806A"/>
+    <SolidColorBrush x:Key="RecBrush" Color="#8A3E45"/>
+    <SolidColorBrush x:Key="BorderSoftBrush" Color="#A6B08A4D"/>
+    <SolidColorBrush x:Key="ActiveItemBorderBrush" Color="#71806A"/>
+    <SolidColorBrush x:Key="OverlayTimerForegroundBrush" Color="#F3EFE5"/>
+    <SolidColorBrush x:Key="OverlayProjectForegroundBrush" Color="#D5DDCF"/>
+    <SolidColorBrush x:Key="OverlayActionBackgroundBrush" Color="#30372F"/>
+    <SolidColorBrush x:Key="OverlayActionBorderBrush" Color="Transparent"/>
+    <SolidColorBrush x:Key="OverlayCloseBackgroundBrush" Color="#30372F"/>
+    <SolidColorBrush x:Key="OverlayCloseBorderBrush" Color="Transparent"/>
+    <SolidColorBrush x:Key="OverlayCloseForegroundBrush" Color="#FBF8F1"/>
+    <SolidColorBrush x:Key="OverlayCloseHoverForegroundBrush" Color="#FFFFFF"/>
+    <SolidColorBrush x:Key="OverlayPauseBackgroundBrush" Color="#4D5D47"/>
+    <SolidColorBrush x:Key="OverlayPauseBorderBrush" Color="Transparent"/>
+    <SolidColorBrush x:Key="OverlayPauseForegroundBrush" Color="#FBF8F1"/>
+    <SolidColorBrush x:Key="OverlayPauseHoverForegroundBrush" Color="#FFFFFF"/>
+    <SolidColorBrush x:Key="OverlayActionHoverForegroundBrush" Color="#FFFFFF"/>
+    <SolidColorBrush x:Key="OverlayOrnamentBrush" Color="#B08A4D"/>
+    <SolidColorBrush x:Key="OverlayOrnamentAccentBrush" Color="#71806A"/>
+    <FontFamily x:Key="AppFontFamily">pack://application:,,,/StopwatchOverlay;component/Assets/Fonts/Acanthus/#Inter</FontFamily>
+    <FontFamily x:Key="ThemeTimerFontFamily">pack://application:,,,/StopwatchOverlay;component/Assets/Fonts/Acanthus/#Cascadia Mono</FontFamily>
+    <Thickness x:Key="ThemeOverlayPadding">24,16,24,32</Thickness>
+    <Thickness x:Key="ThemeOverlayFrameBorderThickness">1</Thickness>
+    <CornerRadius x:Key="ThemeOverlayCornerRadius">8</CornerRadius>
+    <CornerRadius x:Key="ThemeOverlayButtonCornerRadius">4</CornerRadius>
+    <sys:Double x:Key="OverlayActionSize">36</sys:Double>
+    <Thickness x:Key="OverlayToolbarPadding">4</Thickness>
+    <CornerRadius x:Key="OverlayToolbarCornerRadius">7</CornerRadius>
+    <sys:Double x:Key="OverlayToolbarGap">12</sys:Double>
+    <sys:Double x:Key="OverlayProjectFontSize">14</sys:Double>
+    <FontWeight x:Key="OverlayProjectFontWeight">Medium</FontWeight>
+    <FontWeight x:Key="OverlayTimerFontWeight">SemiBold</FontWeight>
+    <Thickness x:Key="OverlayProjectMargin">0,6,0,0</Thickness>
+    <sys:Double x:Key="OverlayProjectOpacity">1</sys:Double>
+    <sys:Boolean x:Key="OverlayUseThemedChrome">True</sys:Boolean>
+    <sys:Double x:Key="OverlayMinimumWidth">360</sys:Double>
+    <Visibility x:Key="OverlayCornerVisibility">Visible</Visibility>
+    <DropShadowEffect x:Key="OverlayShadowEffect" Color="#000000"
+                      BlurRadius="16" Direction="270" ShadowDepth="6" Opacity="0.2"/>
+    <DropShadowEffect x:Key="OverlayToolbarShadowEffect" Color="#000000"
+                      BlurRadius="10" Direction="270" ShadowDepth="4" Opacity="0.16"/>
+</ResourceDictionary>

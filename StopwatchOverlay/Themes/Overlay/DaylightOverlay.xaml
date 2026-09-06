@@ -1,0 +1,26 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:sys="clr-namespace:System;assembly=System.Runtime">
+    <ResourceDictionary.MergedDictionaries>
+        <ResourceDictionary Source="OverlayDefaults.xaml"/>
+    </ResourceDictionary.MergedDictionaries>
+    <!-- Preserves the existing Daylight floating-clock palette and measurements. -->
+    <SolidColorBrush x:Key="OverlayChromeBrush" Color="#F00F2733"/>
+    <SolidColorBrush x:Key="OverlayChromeBorderBrush" Color="#8BB7C6"/>
+    <SolidColorBrush x:Key="OverlayToolbarSurfaceBrush" Color="#0F2733"/>
+    <SolidColorBrush x:Key="OverlayToolbarBorderBrush" Color="#8BB7C6"/>
+    <SolidColorBrush x:Key="OverlayHoverBrush" Color="#2FFFFFFF"/>
+    <SolidColorBrush x:Key="OverlayPressedBrush" Color="#4AFFFFFF"/>
+    <SolidColorBrush x:Key="OverlayInnerRuleBrush" Color="#8BB7C6"/>
+    <SolidColorBrush x:Key="AccentBrush" Color="#117A9C"/>
+    <SolidColorBrush x:Key="RecBrush" Color="#D9363E"/>
+    <SolidColorBrush x:Key="BorderSoftBrush" Color="#9AAAB4"/>
+    <SolidColorBrush x:Key="ActiveItemBorderBrush" Color="#117A9C"/>
+    <SolidColorBrush x:Key="OverlayActionBorderBrush" Color="#9AAAB4"/>
+    <SolidColorBrush x:Key="OverlayCloseBorderBrush" Color="#9AAAB4"/>
+    <SolidColorBrush x:Key="OverlayPauseBorderBrush" Color="#9AAAB4"/>
+    <Thickness x:Key="ThemeOverlayFrameBorderThickness">1</Thickness>
+    <Thickness x:Key="ThemeOverlayButtonBorderThickness">1</Thickness>
+    <Thickness x:Key="OverlayActionBorderThickness">1</Thickness>
+    <sys:Boolean x:Key="OverlayUseThemedChrome">True</sys:Boolean>
+</ResourceDictionary>

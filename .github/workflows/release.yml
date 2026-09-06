@@ -4,9 +4,18 @@ on:
   push:
     tags:
       - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release tag, for example v1.1.0'
+        required: true
+        type: string
 
 permissions:
   contents: write
+
+env:
+  RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.version || github.ref_name }}
 
 jobs:
   build:
@@ -19,32 +28,76 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '8.0.x'
+          dotnet-version: '10.0.x'
 
       - name: Restore dependencies
-        run: dotnet restore
+        run: dotnet restore StopwatchOverlay.sln
 
-      - name: Publish
+      - name: Run tests
+        run: dotnet test StopwatchOverlay.Tests/StopwatchOverlay.Tests.csproj -c Release --no-restore
+
+      # Small single-file EXE. The user must have the .NET 10 Desktop Runtime.
+      - name: Publish Windows x64 standard
+        shell: pwsh
         run: |
+          $version = $env:RELEASE_TAG.TrimStart('v')
           dotnet publish StopwatchOverlay/StopwatchOverlay.csproj `
             -c Release `
-            -o publish
+            -r win-x64 `
+            --self-contained false `
+            -p:PublishSingleFile=true `
+            -p:DebugType=None `
+            -p:DebugSymbols=false `
+            -p:Version=$version `
+            -o publish-standard
 
-      - name: Create ZIP
-        run: Compress-Archive -Path publish/* -DestinationPath StopwatchOverlay-${{ github.ref_name }}.zip
+      # Self-contained folder. Keep every extracted file beside the launcher.
+      - name: Publish Windows x64 portable
+        shell: pwsh
+        run: |
+          $version = $env:RELEASE_TAG.TrimStart('v')
+          dotnet publish StopwatchOverlay/StopwatchOverlay.csproj `
+            -c Release `
+            -r win-x64 `
+            --self-contained true `
+            -p:PublishSingleFile=false `
+            -p:DebugType=None `
+            -p:DebugSymbols=false `
+            -p:Version=$version `
+            -o publish-portable
 
-      - name: Create Release
+      - name: Package release files
+        shell: pwsh
+        run: |
+          $standard = "StopwatchOverlay-$env:RELEASE_TAG-windows-x64.zip"
+          $portable = "StopwatchOverlay-$env:RELEASE_TAG-windows-x64-portable.zip"
+          Compress-Archive -Path publish-standard/* -DestinationPath $standard
+          Compress-Archive -Path publish-portable/* -DestinationPath $portable
+
+          Get-FileHash $standard, $portable -Algorithm SHA256 |
+            ForEach-Object { "$($_.Hash.ToLower()) *$(Split-Path $_.Path -Leaf)" } |
+            Set-Content SHA256SUMS.txt
+
+      - name: Create GitHub release
         uses: softprops/action-gh-release@v2
         with:
-          name: Stopwatch Overlay ${{ github.ref_name }}
+          tag_name: ${{ env.RELEASE_TAG }}
+          target_commitish: ${{ github.sha }}
+          name: Stopwatch Overlay ${{ env.RELEASE_TAG }}
+          generate_release_notes: true
           body: |
-            ## Stopwatch Overlay ${{ github.ref_name }}
+            ## Windows downloads
 
-            ### Download
+            - **Portable (Windows x64)** — `StopwatchOverlay-${{ env.RELEASE_TAG }}-windows-x64-portable.zip`
+              Extract the complete ZIP and run `StopwatchOverlay.exe`. No .NET installation is required; keep the extracted folder together.
+            - **Standard (Windows x64)** — `StopwatchOverlay-${{ env.RELEASE_TAG }}-windows-x64.zip`
+              Smaller download. Requires the [.NET 10 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/10.0/runtime).
 
-            Download `StopwatchOverlay-${{ github.ref_name }}.zip`, extract it, and run `StopwatchOverlay.exe`.
-
-            **Requires** the [.NET 8.0 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/8.0/runtime) (included in Windows 11 24H2+).
-          files: StopwatchOverlay-${{ github.ref_name }}.zip
+            Linux is not included because the current WPF/Windows Forms application is Windows-only.
+          files: |
+            StopwatchOverlay-${{ env.RELEASE_TAG }}-windows-x64.zip
+            StopwatchOverlay-${{ env.RELEASE_TAG }}-windows-x64-portable.zip
+            SHA256SUMS.txt
+          fail_on_unmatched_files: true
           draft: false
           prerelease: false

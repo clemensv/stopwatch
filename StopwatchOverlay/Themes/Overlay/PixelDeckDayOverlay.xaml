@@ -1,0 +1,33 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:sys="clr-namespace:System;assembly=System.Runtime">
+    <ResourceDictionary.MergedDictionaries>
+        <ResourceDictionary Source="OverlayDefaults.xaml"/>
+    </ResourceDictionary.MergedDictionaries>
+    <!-- Preserves Pixel Deck Day's existing floating-clock palette and measurements. -->
+    <SolidColorBrush x:Key="OverlayChromeBrush" Color="#F0075466"/>
+    <SolidColorBrush x:Key="OverlayChromeBorderBrush" Color="#F0D39A"/>
+    <SolidColorBrush x:Key="OverlayToolbarSurfaceBrush" Color="#075466"/>
+    <SolidColorBrush x:Key="OverlayToolbarBorderBrush" Color="#F0D39A"/>
+    <SolidColorBrush x:Key="OverlayHoverBrush" Color="#0A6F78"/>
+    <SolidColorBrush x:Key="OverlayPressedBrush" Color="#704022"/>
+    <SolidColorBrush x:Key="OverlayInnerRuleBrush" Color="#F0D39A"/>
+    <SolidColorBrush x:Key="AccentBrush" Color="#087A8D"/>
+    <SolidColorBrush x:Key="RecBrush" Color="#B62D3C"/>
+    <SolidColorBrush x:Key="BorderSoftBrush" Color="#9E7047"/>
+    <SolidColorBrush x:Key="ActiveItemBorderBrush" Color="#087A8D"/>
+    <SolidColorBrush x:Key="OverlayActionBorderBrush" Color="#9E7047"/>
+    <SolidColorBrush x:Key="OverlayCloseBorderBrush" Color="#9E7047"/>
+    <SolidColorBrush x:Key="OverlayPauseBorderBrush" Color="#9E7047"/>
+    <FontFamily x:Key="AppFontFamily">Inter</FontFamily>
+    <FontFamily x:Key="ThemeTimerFontFamily">Cascadia Mono</FontFamily>
+    <Thickness x:Key="ThemePanelBorderThickness">2</Thickness>
+    <Thickness x:Key="ThemeOverlayPadding">15,10</Thickness>
+    <Thickness x:Key="ThemeOverlayFrameBorderThickness">2</Thickness>
+    <Thickness x:Key="ThemeOverlayButtonBorderThickness">2</Thickness>
+    <CornerRadius x:Key="ThemeOverlayCornerRadius">3</CornerRadius>
+    <CornerRadius x:Key="ThemeOverlayButtonCornerRadius">2</CornerRadius>
+    <Thickness x:Key="OverlayActionBorderThickness">2</Thickness>
+    <CornerRadius x:Key="OverlayToolbarCornerRadius">3</CornerRadius>
+    <sys:Boolean x:Key="OverlayUseThemedChrome">True</sys:Boolean>
+</ResourceDictionary>

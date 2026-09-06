@@ -1,0 +1,309 @@
+<Window x:Class="StopwatchOverlay.SettingsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:ac="clr-namespace:StopwatchOverlay.Themes"
+        Title="Settings and Overlay Inspector"
+        Width="1040" Height="720" MinWidth="820" MinHeight="600"
+        WindowStartupLocation="CenterOwner" ResizeMode="CanResize">
+    <DockPanel>
+        <Border DockPanel.Dock="Top" Height="52"
+                Background="{DynamicResource ApplicationHeaderBrush}"
+                BorderBrush="{DynamicResource SubtleDividerBrush}" BorderThickness="0,0,0,1">
+            <Grid Margin="20,0">
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                    <Image Width="28" Height="28" Margin="0,0,10,0"
+                          Source="{StaticResource AcanthusCrestImage}"
+                          Stretch="Uniform" Visibility="{DynamicResource OrnamentVisibility}"/>
+                    <TextBlock Text="Settings &amp; Overlay Inspector" Style="{StaticResource AcanthusHeaderTitle}"/>
+                </StackPanel>
+                <Button Content="Done" HorizontalAlignment="Right" VerticalAlignment="Center"
+                        Height="34" Padding="16,4" Style="{StaticResource StartButton}"
+                        Click="DoneButton_Click"/>
+            </Grid>
+        </Border>
+
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="420"/>
+                <ColumnDefinition Width="156"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <Border Grid.Column="0" Style="{StaticResource AcanthusPreviewWorkspace}">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    <StackPanel>
+                        <TextBlock Text="Live overlay preview" Style="{StaticResource DisplayHeadingText}"/>
+                        <TextBlock Text="Only the timer surface responds to background opacity."
+                                   Margin="0,5,0,0" Foreground="{DynamicResource SecondaryTextBrush}"
+                                   TextWrapping="Wrap"/>
+                    </StackPanel>
+                    <Grid x:Name="PreviewThemeScope" Grid.Row="1" VerticalAlignment="Center" HorizontalAlignment="Center"
+                          ac:AcanthusVisual.Scope="Collapsed">
+                        <Border x:Name="PreviewSurface"
+                                MinWidth="324" Padding="{DynamicResource ThemeOverlayPadding}"
+                                BorderBrush="{DynamicResource OverlayChromeBorderBrush}"
+                                BorderThickness="{DynamicResource ThemeOverlayFrameBorderThickness}"
+                                CornerRadius="{DynamicResource ThemeOverlayCornerRadius}">
+                            <StackPanel>
+                                <TextBlock x:Name="PreviewTimeText" Text="00:05:10"
+                                           HorizontalAlignment="Center"
+                                           FontFamily="{DynamicResource ThemeTimerFontFamily}"
+                                           FontSize="48" FontWeight="{DynamicResource OverlayTimerFontWeight}"/>
+                                <TextBlock x:Name="PreviewProjectText" Text="Programming"
+                                           HorizontalAlignment="Center" Margin="{DynamicResource OverlayProjectMargin}"
+                                           FontFamily="{DynamicResource AppFontFamily}"
+                                           FontWeight="{DynamicResource OverlayProjectFontWeight}"
+                                           FontSize="{DynamicResource OverlayProjectFontSize}"
+                                           Opacity="{DynamicResource OverlayProjectOpacity}"/>
+                            </StackPanel>
+                        </Border>
+                        <!-- Stretch decorations over the content-sized surface. Binding
+                             their size back to ActualHeight prevents shrinking after
+                             switching away from a taller overlay palette. -->
+                        <Grid IsHitTestVisible="False">
+                            <Border Margin="8" BorderBrush="{DynamicResource OverlayInnerRuleBrush}"
+                                    BorderThickness="1" CornerRadius="8"
+                                    Visibility="{DynamicResource OverlayInnerRuleVisibility}"/>
+                            <Image Source="{DynamicResource OverlayCornerImage}" Width="18" Height="16"
+                                   Visibility="{DynamicResource OverlayCornerVisibility}"
+                                   Margin="8,7,0,0" HorizontalAlignment="Left" VerticalAlignment="Top"/>
+                            <Image Source="{DynamicResource OverlayRightCornerImage}" Width="18" Height="16"
+                                   Visibility="{DynamicResource OverlayCornerVisibility}"
+                                   Margin="0,7,8,0" HorizontalAlignment="Right" VerticalAlignment="Top"
+                                   RenderTransformOrigin="0.5,0.5">
+                                <Image.RenderTransform><ScaleTransform x:Name="PreviewRightCornerTransform" ScaleX="1"/></Image.RenderTransform>
+                            </Image>
+                            <Grid Margin="24,0,24,8" Height="18" VerticalAlignment="Bottom"
+                                  Visibility="{DynamicResource OverlayCrestVisibility}">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/><ColumnDefinition Width="32"/><ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <Border Height="0.75" VerticalAlignment="Center" Background="{DynamicResource OverlayOrnamentBrush}" Opacity="0.7"/>
+                                <Image Grid.Column="1" Width="18" Height="18" Source="{DynamicResource OverlayCrestImage}"/>
+                                <Border Grid.Column="2" Height="0.75" VerticalAlignment="Center" Background="{DynamicResource OverlayOrnamentBrush}" Opacity="0.7"/>
+                            </Grid>
+                            <Image Source="{DynamicResource OverlayLeafImage}" Width="14" Height="3"
+                                   Visibility="{DynamicResource OverlayLeafVisibility}"
+                                   Margin="0,0,16,9" HorizontalAlignment="Right" VerticalAlignment="Bottom"/>
+                        </Grid>
+                    </Grid>
+                    <StackPanel Grid.Row="2">
+                        <Border x:Name="PreviewToolbarSurface" HorizontalAlignment="Center"
+                                ac:AcanthusVisual.Scope="Collapsed"
+                                Padding="{DynamicResource OverlayToolbarPadding}"
+                                Background="{DynamicResource OverlayToolbarSurfaceBrush}"
+                                BorderBrush="{DynamicResource OverlayToolbarBorderBrush}"
+                                BorderThickness="{DynamicResource ThemePanelBorderThickness}"
+                                CornerRadius="{DynamicResource OverlayToolbarCornerRadius}" Margin="0,0,0,14">
+                            <Border.Resources>
+                                <ResourceDictionary>
+                                    <ResourceDictionary.MergedDictionaries>
+                                        <ResourceDictionary Source="Themes/Overlay/OverlayStyles.xaml"/>
+                                    </ResourceDictionary.MergedDictionaries>
+                                </ResourceDictionary>
+                            </Border.Resources>
+                            <StackPanel Orientation="Horizontal">
+                                <Button x:Name="PreviewCloseButton" Style="{StaticResource OverlayCloseButtonStyle}"
+                                        IsTabStop="False" ToolTip="Close timer (preview)">
+                                    <Path Width="13" Height="13" Data="M 2,2 L 11,11 M 11,2 L 2,11" Stretch="Fill"
+                                          Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType={x:Type Button}}}"
+                                          StrokeThickness="1.8" StrokeStartLineCap="Round" StrokeEndLineCap="Round"/>
+                                </Button>
+                                <Button x:Name="PreviewPauseButton" Style="{StaticResource OverlayPauseButtonStyle}"
+                                        IsTabStop="False" ToolTip="Pause or resume timer (preview)">
+                                    <Grid Width="14" Height="14">
+                                        <Rectangle Width="3" Height="12" HorizontalAlignment="Left" Margin="2,1,0,1"
+                                                   RadiusX="1" RadiusY="1"
+                                                   Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType={x:Type Button}}}"/>
+                                        <Rectangle Width="3" Height="12" HorizontalAlignment="Right" Margin="0,1,2,1"
+                                                   RadiusX="1" RadiusY="1"
+                                                   Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType={x:Type Button}}}"/>
+                                    </Grid>
+                                </Button>
+                                <Button x:Name="PreviewResetButton" Style="{StaticResource OverlayActionButtonStyle}"
+                                        IsTabStop="False" ToolTip="Reset timer (preview)">
+                                    <Path Width="15" Height="15" Data="M 12.5,4.5 A 5.5,5.5 0 1 0 13,10 M 12.5,4.5 L 8.5,4.5 M 12.5,4.5 L 12.5,0.5"
+                                          Stretch="Uniform"
+                                          Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType={x:Type Button}}}"
+                                          StrokeThickness="1.7" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"/>
+                                </Button>
+                            </StackPanel>
+                        </Border>
+                        <Button Content="Show or hide active overlay" Style="{StaticResource ModernButton}"
+                                Click="ShowOverlayButton_Click"/>
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <Border Grid.Column="1" Background="{DynamicResource NavigationRailBrush}"
+                    BorderBrush="{DynamicResource SubtleDividerBrush}" BorderThickness="0,0,1,0"
+                    Padding="10,20">
+                <ListBox x:Name="NavigationList" SelectedIndex="0"
+                         SelectionChanged="NavigationList_SelectionChanged"
+                         Background="Transparent" BorderThickness="0">
+                    <ListBoxItem Content="Overlay &amp; position" Tag="Overlay" Padding="10" ac:AcanthusVisual.OverrideStyle="{StaticResource AcanthusNavigationItem}"/>
+                    <ListBoxItem Content="Appearance" Tag="Appearance" Padding="10" ac:AcanthusVisual.OverrideStyle="{StaticResource AcanthusNavigationItem}"/>
+                    <ListBoxItem Content="Light ring" Tag="LightRing" Padding="10" ac:AcanthusVisual.OverrideStyle="{StaticResource AcanthusNavigationItem}"/>
+                    <ListBoxItem Content="Behavior" Tag="Behavior" Padding="10" ac:AcanthusVisual.OverrideStyle="{StaticResource AcanthusNavigationItem}"/>
+                    <ListBoxItem Content="Application" Tag="Application" Padding="10" ac:AcanthusVisual.OverrideStyle="{StaticResource AcanthusNavigationItem}"/>
+                </ListBox>
+            </Border>
+
+            <ScrollViewer x:Name="SettingsScrollViewer"
+                          ac:AcanthusVisual.OverrideStyle="{StaticResource AcanthusInspectorContent}"
+                          Grid.Column="2"
+                          VerticalScrollBarVisibility="Auto"
+                          HorizontalScrollBarVisibility="Disabled"
+                          CanContentScroll="False"
+                          Focusable="True">
+                <Grid Margin="28,24">
+                    <StackPanel x:Name="OverlayPanel">
+                        <TextBlock Text="Overlay &amp; Position" Style="{StaticResource DisplayHeadingText}"/>
+                        <TextBlock Text="Choose where the floating timer appears and how it interacts with capture."
+                                   Foreground="{DynamicResource SecondaryTextBrush}" Margin="0,4,0,22" TextWrapping="Wrap"/>
+                        <Border Style="{StaticResource SettingsCard}">
+                            <StackPanel>
+                                <TextBlock Text="Display" Style="{StaticResource SectionHeaderText}"/>
+                                <ComboBox x:Name="ScreenCombo" Margin="0,6,0,14"/>
+                                <TextBlock Text="Position" Style="{StaticResource SectionHeaderText}"/>
+                                <ComboBox x:Name="PositionCombo" Margin="0,6,0,14"/>
+                                <CheckBox x:Name="ClickThroughCheck" Content="Click-through" Margin="0,4,0,12" Style="{StaticResource AcanthusSettingsSwitch}"/>
+                                <CheckBox x:Name="HideOverlayCaptureCheck"
+                                          Style="{StaticResource AcanthusSettingsSwitch}"
+                                          Content="Hide floating timer from screen capture"/>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+
+                    <StackPanel x:Name="AppearancePanel" Visibility="Collapsed">
+                        <TextBlock Text="Appearance &amp; Background" Style="{StaticResource DisplayHeadingText}"/>
+                        <TextBlock Text="Choose application and floating clock themes independently."
+                                   Style="{StaticResource AcanthusWrapText}"
+                                   Foreground="{DynamicResource SecondaryTextBrush}" Margin="0,4,0,22"/>
+                        <Border Style="{StaticResource SettingsCard}">
+                            <StackPanel>
+                                <TextBlock Text="Application theme" Style="{StaticResource SectionHeaderText}"/>
+                                <ComboBox x:Name="ThemeCombo" Margin="0,6,0,14"/>
+                                <TextBlock Text="Floating clock theme" Style="{StaticResource SectionHeaderText}"/>
+                                <ComboBox x:Name="OverlayThemeCombo" Margin="0,6,0,14"
+                                          AutomationProperties.Name="Floating clock theme"
+                                          ToolTip="Styles the floating clock and hover toolbar only. Your text color, font, size and opacity are preserved. Choose Theme default under Text color to use the clock palette's text colors."/>
+                                <UniformGrid Columns="2">
+                                    <StackPanel Margin="0,0,8,12"><TextBlock Text="Text color" Style="{StaticResource SectionHeaderText}"/><ComboBox x:Name="TextColorCombo" Margin="0,6,0,0"/></StackPanel>
+                                    <StackPanel Margin="8,0,0,12"><TextBlock Text="Outline color" Style="{StaticResource SectionHeaderText}"/><ComboBox x:Name="BorderColorCombo" Margin="0,6,0,0"/></StackPanel>
+                                    <StackPanel Margin="0,0,8,12"><TextBlock Text="Timer font" Style="{StaticResource SectionHeaderText}"/><ComboBox x:Name="FontCombo" Margin="0,6,0,0"/></StackPanel>
+                                    <StackPanel Margin="8,0,0,12"><TextBlock Text="Time format" Style="{StaticResource SectionHeaderText}"/><ComboBox x:Name="FormatCombo" Margin="0,6,0,0"/></StackPanel>
+                                </UniformGrid>
+                                <Grid>
+                                    <TextBlock Text="Text size" Style="{StaticResource SectionHeaderText}"/>
+                                    <TextBlock x:Name="TextSizeValueText" HorizontalAlignment="Right"
+                                               Foreground="{DynamicResource SecondaryTextBrush}"/>
+                                </Grid>
+                                <Slider x:Name="TextSizeSlider" Minimum="16" Maximum="120"
+                                        ac:AcanthusVisual.OverrideStyle="{StaticResource AcanthusSettingsSlider}"
+                                        SmallChange="1" LargeChange="10" TickFrequency="1"
+                                        IsSnapToTickEnabled="True" Margin="0,6,0,12"
+                                        AutomationProperties.Name="Timer text size"/>
+                                <Grid>
+                                    <TextBlock Text="Outline thickness" Style="{StaticResource SectionHeaderText}"/>
+                                    <TextBlock x:Name="BorderWidthValueText" HorizontalAlignment="Right"
+                                               Foreground="{DynamicResource SecondaryTextBrush}"/>
+                                </Grid>
+                                <Slider x:Name="BorderWidthSlider" Minimum="1" Maximum="5"
+                                        ac:AcanthusVisual.OverrideStyle="{StaticResource AcanthusSettingsSlider}"
+                                        SmallChange="1" LargeChange="1" TickFrequency="1"
+                                        IsSnapToTickEnabled="True" Margin="0,6,0,12"
+                                        AutomationProperties.Name="Timer outline thickness"/>
+                                <Grid>
+                                    <TextBlock Text="Timer surface opacity" Style="{StaticResource SectionHeaderText}"/>
+                                    <TextBlock x:Name="BackgroundOpacityValueText" HorizontalAlignment="Right"
+                                               Foreground="{DynamicResource SecondaryTextBrush}"/>
+                                </Grid>
+                                <Slider x:Name="BackgroundOpacitySlider" Minimum="0" Maximum="100"
+                                        ac:AcanthusVisual.OverrideStyle="{StaticResource AcanthusSettingsSlider}"
+                                        SmallChange="1" LargeChange="10" TickFrequency="1"
+                                        IsSnapToTickEnabled="True" Margin="0,6,0,14"
+                                        AutomationProperties.Name="Timer surface opacity"/>
+                                <TextBlock Text="Application background" Style="{StaticResource SectionHeaderText}"/>
+                                <Grid Margin="0,6,0,12">
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                    <ComboBox x:Name="BackgroundCombo" DisplayMemberPath="DisplayLabel"/>
+                                    <Button Grid.Column="1" Content="Add" Height="40" Margin="8,0,0,0" Style="{StaticResource ModernButton}" Click="AddBackgroundButton_Click"/>
+                                    <Button x:Name="RemoveBackgroundButton" Grid.Column="2" Content="Remove" Height="40" Margin="8,0,0,0" Style="{StaticResource ModernButton}" Click="RemoveBackgroundButton_Click"/>
+                                </Grid>
+                                <Grid>
+                                    <TextBlock Text="Background strength" Style="{StaticResource SectionHeaderText}"/>
+                                    <TextBlock x:Name="BackgroundStrengthValueText" HorizontalAlignment="Right"
+                                               Foreground="{DynamicResource SecondaryTextBrush}"/>
+                                </Grid>
+                                <Slider x:Name="BackgroundStrengthSlider" Minimum="10" Maximum="45"
+                                        ac:AcanthusVisual.OverrideStyle="{StaticResource AcanthusSettingsSlider}"
+                                        SmallChange="1" LargeChange="5" TickFrequency="1"
+                                        IsSnapToTickEnabled="True" Margin="0,6,0,0"
+                                        AutomationProperties.Name="Application background strength"/>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+
+                    <StackPanel x:Name="LightRingPanel" Visibility="Collapsed">
+                        <TextBlock Text="Light Ring" Style="{StaticResource DisplayHeadingText}"/>
+                        <TextBlock Text="A capture-aware guide around the selected display."
+                                   Foreground="{DynamicResource SecondaryTextBrush}" Margin="0,4,0,22"/>
+                        <Border Style="{StaticResource SettingsCard}"><StackPanel>
+                            <CheckBox x:Name="LightRingEnabledCheck" Content="Enable light ring" Margin="0,0,0,16" Style="{StaticResource AcanthusSettingsSwitch}"/>
+                            <Grid>
+                                <TextBlock Text="Brightness" Style="{StaticResource SectionHeaderText}"/>
+                                <TextBlock x:Name="LightRingBrightnessValueText" HorizontalAlignment="Right"
+                                           Foreground="{DynamicResource SecondaryTextBrush}"/>
+                            </Grid>
+                            <Slider x:Name="LightRingBrightnessSlider" Minimum="10" Maximum="100"
+                                    ac:AcanthusVisual.OverrideStyle="{StaticResource AcanthusSettingsSlider}"
+                                    SmallChange="1" LargeChange="10" TickFrequency="1"
+                                    IsSnapToTickEnabled="True" Margin="0,6,0,16"
+                                    AutomationProperties.Name="Light ring brightness"/>
+                            <Grid>
+                                <TextBlock Text="Ring width" Style="{StaticResource SectionHeaderText}"/>
+                                <TextBlock x:Name="LightRingWidthValueText" HorizontalAlignment="Right"
+                                           Foreground="{DynamicResource SecondaryTextBrush}"/>
+                            </Grid>
+                            <Slider x:Name="LightRingWidthSlider" Minimum="5" Maximum="100"
+                                    ac:AcanthusVisual.OverrideStyle="{StaticResource AcanthusSettingsSlider}"
+                                    SmallChange="1" LargeChange="10" TickFrequency="1"
+                                    IsSnapToTickEnabled="True" Margin="0,6,0,16"
+                                    AutomationProperties.Name="Light ring width"/>
+                            <CheckBox x:Name="LightRingCaptureCheck" Content="Hide ring from screen capture" Style="{StaticResource AcanthusSettingsSwitch}"/>
+                        </StackPanel></Border>
+                    </StackPanel>
+
+                    <StackPanel x:Name="BehaviorPanel" Visibility="Collapsed">
+                        <TextBlock Text="Behavior" Style="{StaticResource DisplayHeadingText}"/>
+                        <TextBlock Text="Keep recording and presentation workflows predictable."
+                                   Foreground="{DynamicResource SecondaryTextBrush}" Margin="0,4,0,22"/>
+                        <Border Style="{StaticResource SettingsCard}"><StackPanel>
+                            <CheckBox x:Name="AutoStartCheck" Content="Auto-start when the overlay is shown" Margin="0,0,0,14" Style="{StaticResource AcanthusSettingsSwitch}"/>
+                            <CheckBox x:Name="RecCheck" Content="Show REC indicator" Margin="0,0,0,14" Style="{StaticResource AcanthusSettingsSwitch}"/>
+                            <CheckBox x:Name="BlinkCheck" Content="Blink timer colon" Margin="0,0,0,14" Style="{StaticResource AcanthusSettingsSwitch}"/>
+                            <CheckBox x:Name="SmartInputCheck" Content="Use smart countdown input" Style="{StaticResource AcanthusSettingsSwitch}"/>
+                        </StackPanel></Border>
+                    </StackPanel>
+
+                    <StackPanel x:Name="ApplicationPanel" Visibility="Collapsed">
+                        <TextBlock Text="Application" Style="{StaticResource DisplayHeadingText}"/>
+                        <TextBlock Text="Startup and persistence preferences."
+                                   Foreground="{DynamicResource SecondaryTextBrush}" Margin="0,4,0,22"/>
+                        <Border Style="{StaticResource SettingsCard}"><StackPanel>
+                            <CheckBox x:Name="StartWithWindowsCheck" Content="Start with Windows" Style="{StaticResource AcanthusSettingsSwitch}"/>
+                            <TextBlock Text="Your theme, backgrounds, timers, project history, positions, and shortcuts remain stored by the existing recovery system."
+                                       Foreground="{DynamicResource SecondaryTextBrush}" TextWrapping="Wrap" Margin="0,16,0,0"/>
+                        </StackPanel></Border>
+                    </StackPanel>
+                </Grid>
+            </ScrollViewer>
+        </Grid>
+    </DockPanel>
+</Window>

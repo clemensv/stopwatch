@@ -23,6 +23,7 @@ bld/
 
 ## Build results
 [Dd]ebugPublic/
+release*/
 *.appx
 *.appxbundle
 *.appxupload
@@ -43,3 +44,6 @@ Desktop.ini
 .idea/
 *.sln.iml
 .playwright-mcp/
+
+## Local Codex repair evidence and user-data snapshots
+.codex-stability-repair/

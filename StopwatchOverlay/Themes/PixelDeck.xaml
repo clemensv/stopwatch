@@ -1,0 +1,98 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:sys="clr-namespace:System;assembly=System.Runtime">
+    <DrawingBrush x:Key="AppBackgroundBrush" TileMode="Tile"
+                  ViewportUnits="Absolute" Viewport="0,0,16,16"
+                  ViewboxUnits="Absolute" Viewbox="0,0,16,16">
+        <DrawingBrush.Drawing>
+            <DrawingGroup>
+                <GeometryDrawing Brush="#112C3E">
+                    <GeometryDrawing.Geometry><RectangleGeometry Rect="0,0,16,16"/></GeometryDrawing.Geometry>
+                </GeometryDrawing>
+                <GeometryDrawing Brush="#241D3F55">
+                    <GeometryDrawing.Geometry><RectangleGeometry Rect="0,0,8,8"/></GeometryDrawing.Geometry>
+                </GeometryDrawing>
+                <GeometryDrawing Brush="#380D5260">
+                    <GeometryDrawing.Geometry><RectangleGeometry Rect="8,8,8,8"/></GeometryDrawing.Geometry>
+                </GeometryDrawing>
+            </DrawingGroup>
+        </DrawingBrush.Drawing>
+    </DrawingBrush>
+    <SolidColorBrush x:Key="MenuBackgroundBrush" Color="#3C2419"/>
+    <SolidColorBrush x:Key="MenuForegroundBrush" Color="#FFD46C"/>
+    <SolidColorBrush x:Key="SurfaceBrush" Color="#232334"/>
+    <SolidColorBrush x:Key="SurfaceRaisedBrush" Color="#2C2B3E"/>
+    <SolidColorBrush x:Key="SurfaceHoverBrush" Color="#473957"/>
+    <SolidColorBrush x:Key="SelectionBrush" Color="#473957"/>
+    <SolidColorBrush x:Key="BorderBrush" Color="#D7A24B"/>
+    <SolidColorBrush x:Key="BorderSoftBrush" Color="#796146"/>
+    <SolidColorBrush x:Key="PrimaryTextBrush" Color="#FFF8E8"/>
+    <SolidColorBrush x:Key="SecondaryTextBrush" Color="#C7C3C3"/>
+    <SolidColorBrush x:Key="AccentBrush" Color="#37AEB0"/>
+    <SolidColorBrush x:Key="TimerTextBrush" Color="#FFF8E8"/>
+    <SolidColorBrush x:Key="PrimaryActionBrush" Color="#FFD46C"/>
+    <SolidColorBrush x:Key="OnActionTextBrush" Color="#071C21"/>
+    <SolidColorBrush x:Key="DangerActionBrush" Color="#FF8291"/>
+    <SolidColorBrush x:Key="DangerTextBrush" Color="#FF8291"/>
+    <SolidColorBrush x:Key="SuccessBrush" Color="#70D6A2"/>
+    <SolidColorBrush x:Key="WarningBrush" Color="#F4C64D"/>
+    <SolidColorBrush x:Key="MutedStatusBrush" Color="#C7C3C3"/>
+    <SolidColorBrush x:Key="RecBrush" Color="#EF6471"/>
+    <SolidColorBrush x:Key="ThemeShadowBrush" Color="#3C2419"/>
+    <SolidColorBrush x:Key="OverlayChromeBrush" Color="#F0191A28"/>
+    <SolidColorBrush x:Key="OverlayChromeBorderBrush" Color="#D7A24B"/>
+    <SolidColorBrush x:Key="OverlayHoverBrush" Color="#473957"/>
+    <SolidColorBrush x:Key="OverlayPressedBrush" Color="#754426"/>
+    <SolidColorBrush x:Key="OverlayActionForegroundBrush" Color="#FFFFFF"/>
+    <SolidColorBrush x:Key="NeutralButtonHoverBackgroundBrush" Color="#473957"/>
+    <SolidColorBrush x:Key="NeutralButtonHoverBorderBrush" Color="#796146"/>
+    <SolidColorBrush x:Key="NeutralButtonHoverForegroundBrush" Color="#FFFFFF"/>
+    <SolidColorBrush x:Key="NeutralButtonPressedBackgroundBrush" Color="#754426"/>
+    <SolidColorBrush x:Key="NeutralButtonPressedBorderBrush" Color="#796146"/>
+    <SolidColorBrush x:Key="NeutralButtonPressedForegroundBrush" Color="#FFFFFF"/>
+    <sys:Double x:Key="NeutralButtonHoverOpacity">1</sys:Double>
+    <sys:Double x:Key="NeutralButtonPressedOpacity">1</sys:Double>
+    <SolidColorBrush x:Key="ApplicationHeaderBrush" Color="#3C2419"/>
+    <SolidColorBrush x:Key="NavigationRailBrush" Color="#232334"/>
+    <SolidColorBrush x:Key="SelectedNavigationBrush" Color="#473957"/>
+    <SolidColorBrush x:Key="TableHeaderBrush" Color="#2C2B3E"/>
+    <SolidColorBrush x:Key="ChartSeries1Brush" Color="#37AEB0"/>
+    <SolidColorBrush x:Key="ChartSeries2Brush" Color="#70D6A2"/>
+    <SolidColorBrush x:Key="ChartSeries3Brush" Color="#FFD46C"/>
+    <SolidColorBrush x:Key="ChartSeries4Brush" Color="#FF8291"/>
+    <SolidColorBrush x:Key="DialogSurfaceBrush" Color="#232334"/>
+    <SolidColorBrush x:Key="OverlayInnerRuleBrush" Color="#D7A24B"/>
+    <SolidColorBrush x:Key="OverlayToolbarSurfaceBrush" Color="#191A28"/>
+    <SolidColorBrush x:Key="OrnamentStrokeBrush" Color="Transparent"/>
+    <SolidColorBrush x:Key="OrnamentAccentBrush" Color="Transparent"/>
+    <SolidColorBrush x:Key="ActiveItemBorderBrush" Color="#37AEB0"/>
+    <SolidColorBrush x:Key="SubtleDividerBrush" Color="#796146"/>
+    <SolidColorBrush x:Key="FocusBorderBrush" Color="#37AEB0"/>
+
+    <FontFamily x:Key="AppFontFamily">Inter</FontFamily>
+    <FontFamily x:Key="DisplayHeadingFontFamily">Inter</FontFamily>
+    <FontFamily x:Key="ThemeMonoFontFamily">Cascadia Mono</FontFamily>
+    <FontFamily x:Key="ThemeTimerFontFamily">Cascadia Mono</FontFamily>
+    <Visibility x:Key="OrnamentVisibility">Collapsed</Visibility>
+    <Visibility x:Key="BrandIconVisibility">Visible</Visibility>
+
+    <Thickness x:Key="ThemeControlBorderThickness">2</Thickness>
+    <Thickness x:Key="ThemePanelBorderThickness">2</Thickness>
+    <Thickness x:Key="ThemeButtonShadowMargin">3,4,0,0</Thickness>
+    <Thickness x:Key="ThemeOverlayPadding">15,10</Thickness>
+    <Thickness x:Key="ThemeOverlayFrameBorderThickness">2</Thickness>
+    <Thickness x:Key="ThemeOverlayButtonBorderThickness">2</Thickness>
+    <CornerRadius x:Key="ThemeControlCornerRadius">3</CornerRadius>
+    <CornerRadius x:Key="ThemeItemCornerRadius">2</CornerRadius>
+    <CornerRadius x:Key="ThemePopupCornerRadius">3</CornerRadius>
+    <CornerRadius x:Key="ThemePanelCornerRadius">3</CornerRadius>
+    <CornerRadius x:Key="ThemeCardCornerRadius">3</CornerRadius>
+    <CornerRadius x:Key="ThemeCheckCornerRadius">1</CornerRadius>
+    <CornerRadius x:Key="ThemeOverlayCornerRadius">3</CornerRadius>
+    <CornerRadius x:Key="ThemeOverlayButtonCornerRadius">2</CornerRadius>
+    <CornerRadius x:Key="ThemeTimerPanelCornerRadius">3</CornerRadius>
+    <CornerRadius x:Key="ThemeDashboardCardCornerRadius">3</CornerRadius>
+    <DropShadowEffect x:Key="ThemePanelShadowEffect"
+                      Color="#3C2419" BlurRadius="0" Direction="315"
+                      ShadowDepth="6" Opacity="0.9"/>
+</ResourceDictionary>

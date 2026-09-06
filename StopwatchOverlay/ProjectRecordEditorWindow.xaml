@@ -1,0 +1,160 @@
+<Window x:Class="StopwatchOverlay.ProjectRecordEditorWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Project record"
+        Width="640"
+        SizeToContent="Height"
+        MaxHeight="760"
+        ResizeMode="NoResize"
+        WindowStartupLocation="CenterOwner"
+        ShowInTaskbar="False"
+        Loaded="Window_Loaded"
+        PreviewKeyDown="Window_PreviewKeyDown">
+    <Window.Resources>
+        <Style x:Key="EditorLabel" TargetType="TextBlock"
+               BasedOn="{StaticResource SectionHeaderText}">
+            <Setter Property="Margin" Value="0,0,0,7"/>
+        </Style>
+
+        <Style x:Key="EditorDatePicker" TargetType="DatePicker">
+            <Setter Property="Height" Value="42"/>
+            <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
+            <Setter Property="Background" Value="{DynamicResource SurfaceRaisedBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
+            <Setter Property="BorderThickness" Value="{DynamicResource ThemeControlBorderThickness}"/>
+            <Setter Property="SelectedDateFormat" Value="Long"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+        </Style>
+    </Window.Resources>
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto"
+                  HorizontalScrollBarVisibility="Disabled"
+                  CanContentScroll="False">
+        <Border Style="{StaticResource DialogSurface}" Margin="18">
+        <StackPanel Margin="24">
+            <Image Width="28" Height="28" HorizontalAlignment="Center" Margin="0,0,0,8"
+                  Source="{StaticResource AcanthusCrestImage}"
+                  Stretch="Uniform" Visibility="{DynamicResource OrnamentVisibility}"/>
+            <TextBlock x:Name="HeadingText"
+                       Text="Add project record"
+                       Style="{StaticResource DisplayHeadingText}"
+                       HorizontalAlignment="Center"/>
+            <TextBlock x:Name="IntroText"
+                       Text="Enter the time you spent on a project. Times use your computer's local time zone."
+                       Foreground="{DynamicResource SecondaryTextBrush}"
+                       TextWrapping="Wrap"
+                       Margin="0,5,0,20"/>
+
+            <TextBlock Text="PROJECT" Style="{StaticResource EditorLabel}"/>
+            <ComboBox x:Name="ProjectSelector"
+                      MinHeight="42"
+                      SelectionChanged="ProjectSelector_SelectionChanged"/>
+
+            <Border x:Name="NewProjectPanel"
+                    Style="{StaticResource SettingsCard}"
+                    Margin="0,10,0,0"
+                    Visibility="Collapsed">
+                <StackPanel>
+                    <TextBlock Text="NEW PROJECT NAME" Style="{StaticResource EditorLabel}"/>
+                    <TextBox x:Name="NewProjectBox"
+                             MaxLength="200"
+                             MinHeight="42"
+                             VerticalContentAlignment="Center"
+                             Style="{StaticResource TimeInputBox}"
+                             TextChanged="Input_Changed"/>
+                </StackPanel>
+            </Border>
+
+            <Border Style="{StaticResource SettingsCard}" Margin="0,16,0,0" Padding="16">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="16"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <StackPanel Grid.Column="0">
+                        <TextBlock Text="START" Style="{StaticResource EditorLabel}"/>
+                        <DatePicker x:Name="StartDatePicker"
+                                    Style="{StaticResource EditorDatePicker}"
+                                    SelectedDateChanged="DatePicker_SelectedDateChanged"/>
+                        <TextBlock Text="TIME (24-HOUR)"
+                                   Style="{StaticResource EditorLabel}"
+                                   Margin="0,13,0,7"/>
+                        <TextBox x:Name="StartTimeBox"
+                                 MinHeight="42"
+                                 MaxLength="8"
+                                 VerticalContentAlignment="Center"
+                                 Style="{StaticResource TimeInputBox}"
+                                 ToolTip="Enter time as HH:mm or HH:mm:ss, for example 09:30:15"
+                                 TextChanged="Input_Changed"/>
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="2">
+                        <TextBlock Text="END" Style="{StaticResource EditorLabel}"/>
+                        <DatePicker x:Name="EndDatePicker"
+                                    Style="{StaticResource EditorDatePicker}"
+                                    SelectedDateChanged="DatePicker_SelectedDateChanged"/>
+                        <TextBlock Text="TIME (24-HOUR)"
+                                   Style="{StaticResource EditorLabel}"
+                                   Margin="0,13,0,7"/>
+                        <TextBox x:Name="EndTimeBox"
+                                 MinHeight="42"
+                                 MaxLength="8"
+                                 VerticalContentAlignment="Center"
+                                 Style="{StaticResource TimeInputBox}"
+                                 ToolTip="Enter time as HH:mm or HH:mm:ss, for example 17:45:30"
+                                 TextChanged="Input_Changed"/>
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <Border Background="{DynamicResource SurfaceRaisedBrush}"
+                    BorderBrush="{DynamicResource BorderBrush}"
+                    BorderThickness="{DynamicResource ThemeControlBorderThickness}"
+                    CornerRadius="{DynamicResource ThemeCardCornerRadius}"
+                    Padding="14,11"
+                    Margin="0,2,0,0">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Text="Duration"
+                               Foreground="{DynamicResource SecondaryTextBrush}"
+                               VerticalAlignment="Center"/>
+                    <TextBlock x:Name="DurationPreviewText"
+                               Grid.Column="1"
+                               Text="—"
+                               FontFamily="{DynamicResource ThemeMonoFontFamily}"
+                               FontWeight="SemiBold"
+                               VerticalAlignment="Center"/>
+                </Grid>
+            </Border>
+
+            <TextBlock x:Name="ValidationText"
+                       Foreground="{DynamicResource DangerTextBrush}"
+                       TextWrapping="Wrap"
+                       Margin="2,12,0,0"
+                       Visibility="Collapsed"/>
+
+            <StackPanel Orientation="Horizontal"
+                        HorizontalAlignment="Right"
+                        Margin="0,20,0,0">
+                <Button Content="Cancel"
+                        Style="{StaticResource ModernButton}"
+                        IsCancel="True"
+                        MinWidth="90"
+                        Margin="0,0,8,0"
+                        Click="Cancel_Click"/>
+                <Button x:Name="SaveButton"
+                        Content="Add record"
+                        Style="{StaticResource StartButton}"
+                        IsDefault="True"
+                        MinWidth="120"
+                        Click="Save_Click"/>
+            </StackPanel>
+        </StackPanel>
+        </Border>
+    </ScrollViewer>
+</Window>

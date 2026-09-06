@@ -1,0 +1,272 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:ac="clr-namespace:StopwatchOverlay.Themes">
+    <ac:AcanthusActionLabelConverter x:Key="AcanthusActionLabelConverter"/>
+    <DataTemplate x:Key="AcanthusActionLabelTemplate">
+        <TextBlock Text="{Binding Converter={StaticResource AcanthusActionLabelConverter}}"/>
+    </DataTemplate>
+    <Style x:Key="AcanthusKpiValue" TargetType="TextBlock">
+        <Style.Triggers>
+            <Trigger Property="ac:AcanthusVisual.Scope" Value="Visible">
+                <Setter Property="FontFamily" Value="{DynamicResource ThemeMonoFontFamily}"/>
+            </Trigger>
+        </Style.Triggers>
+    </Style>
+    <Style x:Key="AcanthusOverlayProject" TargetType="TextBlock">
+        <Setter Property="Opacity" Value="0.78"/>
+        <Style.Triggers>
+            <Trigger Property="ac:AcanthusVisual.Scope" Value="Visible">
+                <Setter Property="Opacity" Value="1"/>
+            </Trigger>
+        </Style.Triggers>
+    </Style>
+    <Style x:Key="AcanthusWrapText" TargetType="TextBlock">
+        <Style.Triggers>
+            <Trigger Property="ac:AcanthusVisual.Scope" Value="Visible">
+                <Setter Property="TextWrapping" Value="Wrap"/>
+            </Trigger>
+        </Style.Triggers>
+    </Style>
+    <!-- Native Slider/Track/Thumb and routed commands retain value, drag, wheel,
+         keyboard and capture behavior. This template is only for the horizontal
+         Acanthus inspector sliders; vertical/native controls are never replaced. -->
+    <Style x:Key="AcanthusSliderDecrease" TargetType="RepeatButton">
+        <Setter Property="Focusable" Value="False"/>
+        <Setter Property="Template">
+            <Setter.Value><ControlTemplate TargetType="RepeatButton">
+                <Grid Background="Transparent"><Border Height="3" VerticalAlignment="Center"
+                      Background="{DynamicResource PrimaryActionBrush}" CornerRadius="1.5"/></Grid>
+            </ControlTemplate></Setter.Value>
+        </Setter>
+    </Style>
+    <Style x:Key="AcanthusSliderIncrease" TargetType="RepeatButton">
+        <Setter Property="Focusable" Value="False"/>
+        <Setter Property="Template">
+            <Setter.Value><ControlTemplate TargetType="RepeatButton">
+                <Grid Background="Transparent"><Border Height="3" VerticalAlignment="Center"
+                      Background="{DynamicResource SubtleDividerBrush}" CornerRadius="1.5"/></Grid>
+            </ControlTemplate></Setter.Value>
+        </Setter>
+    </Style>
+    <Style x:Key="AcanthusSettingsSlider" TargetType="Slider">
+        <Style.Triggers>
+            <MultiTrigger>
+                <MultiTrigger.Conditions>
+                    <Condition Property="ac:AcanthusVisual.Scope" Value="Visible"/>
+                    <Condition Property="Orientation" Value="Horizontal"/>
+                </MultiTrigger.Conditions>
+                <Setter Property="MinHeight" Value="24"/>
+                <Setter Property="Template">
+                    <Setter.Value><ControlTemplate TargetType="Slider">
+                        <Grid x:Name="SliderSurface" Background="Transparent" MinHeight="24">
+                            <Track x:Name="PART_Track" Orientation="Horizontal" Height="24" VerticalAlignment="Center"
+                                   Minimum="{TemplateBinding Minimum}" Maximum="{TemplateBinding Maximum}"
+                                   IsDirectionReversed="{TemplateBinding IsDirectionReversed}"
+                                   Value="{Binding Value, RelativeSource={RelativeSource TemplatedParent}, Mode=TwoWay}">
+                                <Track.DecreaseRepeatButton><RepeatButton Command="{x:Static Slider.DecreaseLarge}" Style="{StaticResource AcanthusSliderDecrease}"/></Track.DecreaseRepeatButton>
+                                <Track.Thumb><Thumb Width="16" Height="24">
+                                    <Thumb.Template><ControlTemplate TargetType="Thumb">
+                                        <Grid Background="Transparent"><Ellipse Width="12" Height="12"
+                                            Fill="{DynamicResource SurfaceBrush}" Stroke="{DynamicResource PrimaryActionBrush}" StrokeThickness="2"/></Grid>
+                                    </ControlTemplate></Thumb.Template>
+                                </Thumb></Track.Thumb>
+                                <Track.IncreaseRepeatButton><RepeatButton Command="{x:Static Slider.IncreaseLarge}" Style="{StaticResource AcanthusSliderIncrease}"/></Track.IncreaseRepeatButton>
+                            </Track>
+                            <Border x:Name="Focus" BorderBrush="{DynamicResource FocusBorderBrush}" BorderThickness="1"
+                                    CornerRadius="4" IsHitTestVisible="False" Visibility="Collapsed"/>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="Focus" Property="Visibility" Value="Visible"/></Trigger>
+                            <Trigger Property="IsEnabled" Value="False"><Setter TargetName="SliderSurface" Property="Opacity" Value="0.4"/></Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate></Setter.Value>
+                </Setter>
+            </MultiTrigger>
+        </Style.Triggers>
+    </Style>
+    <Style x:Key="AcanthusSectionTitle" TargetType="TextBlock">
+        <Setter Property="FontWeight" Value="SemiBold"/>
+        <Style.Triggers>
+            <Trigger Property="ac:AcanthusVisual.Scope" Value="Visible">
+                <Setter Property="FontFamily" Value="{DynamicResource DisplayHeadingFontFamily}"/>
+                <Setter Property="FontSize" Value="20"/>
+                <Setter Property="Foreground" Value="{DynamicResource MenuForegroundBrush}"/>
+            </Trigger>
+        </Style.Triggers>
+    </Style>
+    <!-- Defaults below are the former local values, unchanged for all four
+         independent themes. Only the inherited Acanthus scope enables overrides.
+         All paint comes from the active palette, never from a shared literal. -->
+    <Style x:Key="AcanthusHeaderTitle" TargetType="TextBlock">
+        <Setter Property="FontSize" Value="17"/>
+        <Setter Property="FontWeight" Value="SemiBold"/>
+        <Style.Triggers>
+            <Trigger Property="ac:AcanthusVisual.Scope" Value="Visible">
+                <Setter Property="FontFamily" Value="{DynamicResource DisplayHeadingFontFamily}"/>
+                <Setter Property="FontSize" Value="18"/>
+            </Trigger>
+        </Style.Triggers>
+    </Style>
+    <Style x:Key="AcanthusTimerHero" TargetType="Border">
+        <Setter Property="Background" Value="{DynamicResource SurfaceRaisedBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
+        <Setter Property="BorderThickness" Value="{DynamicResource ThemePanelBorderThickness}"/>
+        <Setter Property="CornerRadius" Value="{DynamicResource ThemeTimerPanelCornerRadius}"/>
+        <Setter Property="Effect" Value="{DynamicResource ThemePanelShadowEffect}"/>
+        <Setter Property="Padding" Value="20,17"/>
+        <Setter Property="Margin" Value="0,0,0,14"/>
+        <Style.Triggers>
+            <Trigger Property="ac:AcanthusVisual.Scope" Value="Visible">
+                <Setter Property="Background" Value="{DynamicResource SurfaceBrush}"/>
+                <Setter Property="BorderBrush" Value="{DynamicResource PrimaryActionBrush}"/>
+                <Setter Property="Padding" Value="32,24"/>
+                <Setter Property="MinHeight" Value="178"/>
+            </Trigger>
+        </Style.Triggers>
+    </Style>
+    <Style x:Key="AcanthusControllerTime" TargetType="TextBlock">
+        <Setter Property="FontSize" Value="38"/>
+        <Setter Property="FontWeight" Value="Bold"/>
+        <Setter Property="FontFamily" Value="{DynamicResource ThemeTimerFontFamily}"/>
+        <Setter Property="Foreground" Value="{DynamicResource TimerTextBrush}"/>
+        <Setter Property="HorizontalAlignment" Value="Center"/>
+        <Style.Triggers>
+            <Trigger Property="ac:AcanthusVisual.Scope" Value="Visible">
+                <Setter Property="FontSize" Value="54"/>
+                <Setter Property="FontWeight" Value="SemiBold"/>
+                <Setter Property="HorizontalAlignment" Value="Left"/>
+                <Setter Property="VerticalAlignment" Value="Center"/>
+            </Trigger>
+        </Style.Triggers>
+    </Style>
+    <Style x:Key="AcanthusPreviewWorkspace" TargetType="Border">
+        <Setter Property="Background" Value="{DynamicResource AppBackgroundBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource SubtleDividerBrush}"/>
+        <Setter Property="BorderThickness" Value="0,0,1,0"/>
+        <Setter Property="Padding" Value="28"/>
+        <Style.Triggers>
+            <Trigger Property="ac:AcanthusVisual.Scope" Value="Visible">
+                <Setter Property="Background" Value="{DynamicResource SurfaceRaisedBrush}"/>
+            </Trigger>
+        </Style.Triggers>
+    </Style>
+    <Style x:Key="AcanthusInspectorContent" TargetType="ScrollViewer">
+        <Style.Triggers>
+            <Trigger Property="ac:AcanthusVisual.Scope" Value="Visible">
+                <Setter Property="Background" Value="{DynamicResource SurfaceBrush}"/>
+            </Trigger>
+        </Style.Triggers>
+    </Style>
+    <Style x:Key="AcanthusNavigationItem" TargetType="ListBoxItem">
+        <Style.Triggers>
+            <Trigger Property="ac:AcanthusVisual.Scope" Value="Visible">
+                <Setter Property="Foreground" Value="{DynamicResource SecondaryTextBrush}"/>
+                <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                <Setter Property="MinHeight" Value="40"/>
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="ListBoxItem">
+                            <Border x:Name="NavigationSurface" Background="Transparent" BorderBrush="Transparent"
+                                    BorderThickness="1" CornerRadius="6" Padding="8,9" Margin="1,2">
+                                <Grid>
+                                    <Border x:Name="Marker" Width="3" Height="18" HorizontalAlignment="Left"
+                                            Background="Transparent" CornerRadius="2"/>
+                                    <ContentPresenter Margin="10,0,0,0" VerticalAlignment="Center">
+                                        <ContentPresenter.ContentTemplate>
+                                            <DataTemplate><TextBlock Text="{Binding}" TextWrapping="Wrap" MaxWidth="98"/></DataTemplate>
+                                        </ContentPresenter.ContentTemplate>
+                                    </ContentPresenter>
+                                </Grid>
+                            </Border>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter TargetName="NavigationSurface" Property="Background" Value="{DynamicResource SurfaceRaisedBrush}"/>
+                                </Trigger>
+                                <Trigger Property="IsSelected" Value="True">
+                                    <Setter TargetName="NavigationSurface" Property="Background" Value="{DynamicResource SurfaceBrush}"/>
+                                    <Setter TargetName="NavigationSurface" Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
+                                    <Setter TargetName="Marker" Property="Background" Value="{DynamicResource PrimaryActionBrush}"/>
+                                    <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
+                                    <Setter Property="FontWeight" Value="SemiBold"/>
+                                </Trigger>
+                                <Trigger Property="IsKeyboardFocused" Value="True">
+                                    <Setter TargetName="NavigationSurface" Property="BorderBrush" Value="{DynamicResource FocusBorderBrush}"/>
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Trigger>
+            <MultiTrigger>
+                <MultiTrigger.Conditions>
+                    <Condition Property="ac:AcanthusVisual.Scope" Value="Visible"/>
+                    <Condition Property="IsSelected" Value="True"/>
+                </MultiTrigger.Conditions>
+                <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
+            </MultiTrigger>
+        </Style.Triggers>
+    </Style>
+    <ControlTemplate x:Key="AcanthusModeTemplate" TargetType="RadioButton">
+        <Border x:Name="Segment" Background="{DynamicResource SurfaceRaisedBrush}" CornerRadius="6"
+                BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1" Padding="12,10">
+            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+        </Border>
+        <ControlTemplate.Triggers>
+            <Trigger Property="IsMouseOver" Value="True">
+                <Setter TargetName="Segment" Property="Background" Value="{DynamicResource SurfaceHoverBrush}"/>
+            </Trigger>
+            <Trigger Property="IsChecked" Value="True">
+                <Setter TargetName="Segment" Property="Background" Value="{DynamicResource SelectionBrush}"/>
+                <Setter TargetName="Segment" Property="BorderThickness" Value="0,0,0,2"/>
+                <Setter Property="Foreground" Value="{DynamicResource MenuForegroundBrush}"/>
+            </Trigger>
+            <Trigger Property="IsKeyboardFocused" Value="True">
+                <Setter TargetName="Segment" Property="BorderBrush" Value="{DynamicResource FocusBorderBrush}"/>
+                <Setter TargetName="Segment" Property="BorderThickness" Value="1"/>
+            </Trigger>
+            <Trigger Property="IsEnabled" Value="False"><Setter Property="Opacity" Value="0.4"/></Trigger>
+        </ControlTemplate.Triggers>
+    </ControlTemplate>
+    <ControlTemplate x:Key="AcanthusOverlayActionTemplate" TargetType="Button">
+        <Border x:Name="ButtonSurface" Background="{TemplateBinding Background}"
+                BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="1"
+                CornerRadius="{DynamicResource ThemeOverlayButtonCornerRadius}">
+            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+        </Border>
+        <ControlTemplate.Triggers>
+            <Trigger Property="IsMouseOver" Value="True">
+                <Setter TargetName="ButtonSurface" Property="Background" Value="{DynamicResource OverlayHoverBrush}"/>
+                <Setter Property="Foreground" Value="{DynamicResource OverlayActionForegroundBrush}"/>
+            </Trigger>
+            <Trigger Property="IsPressed" Value="True">
+                <Setter TargetName="ButtonSurface" Property="Background" Value="{DynamicResource OverlayPressedBrush}"/>
+                <Setter Property="Foreground" Value="{DynamicResource OverlayActionForegroundBrush}"/>
+            </Trigger>
+            <Trigger Property="IsEnabled" Value="False"><Setter TargetName="ButtonSurface" Property="Opacity" Value="0.4"/></Trigger>
+        </ControlTemplate.Triggers>
+    </ControlTemplate>
+    <ControlTemplate x:Key="AcanthusSwitchTemplate" TargetType="CheckBox">
+        <Grid Background="Transparent">
+            <Grid.ColumnDefinitions><ColumnDefinition Width="40"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+            <Border x:Name="Rail" Width="40" Height="22" CornerRadius="11"
+                    Background="{DynamicResource SurfaceRaisedBrush}" BorderBrush="{DynamicResource BorderSoftBrush}" BorderThickness="1"/>
+            <Ellipse x:Name="Thumb" Width="18" Height="18" Margin="2,0" HorizontalAlignment="Left"
+                     Fill="{DynamicResource SurfaceBrush}"/>
+            <ContentPresenter Grid.Column="1" Margin="10,0,0,0" VerticalAlignment="Center" RecognizesAccessKey="True"/>
+        </Grid>
+        <ControlTemplate.Triggers>
+            <Trigger Property="IsChecked" Value="True">
+                <Setter TargetName="Rail" Property="Background" Value="{DynamicResource PrimaryActionBrush}"/>
+                <Setter TargetName="Rail" Property="BorderBrush" Value="{DynamicResource PrimaryActionBrush}"/>
+                <Setter TargetName="Thumb" Property="HorizontalAlignment" Value="Right"/>
+            </Trigger>
+            <Trigger Property="IsChecked" Value="{x:Null}"><Setter TargetName="Thumb" Property="HorizontalAlignment" Value="Center"/></Trigger>
+            <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Rail" Property="BorderBrush" Value="{DynamicResource BorderBrush}"/></Trigger>
+            <Trigger Property="IsKeyboardFocused" Value="True">
+                <Setter TargetName="Rail" Property="BorderBrush" Value="{DynamicResource FocusBorderBrush}"/>
+                <Setter TargetName="Rail" Property="BorderThickness" Value="2"/>
+            </Trigger>
+            <Trigger Property="IsEnabled" Value="False"><Setter Property="Opacity" Value="0.4"/></Trigger>
+        </ControlTemplate.Triggers>
+    </ControlTemplate>
+</ResourceDictionary>

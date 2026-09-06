@@ -1,0 +1,69 @@
+<Window x:Class="StopwatchOverlay.ProjectRecordDeleteWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Delete project record"
+        Width="470"
+        SizeToContent="Height"
+        ResizeMode="NoResize"
+        WindowStartupLocation="CenterOwner"
+        ShowInTaskbar="False">
+    <Border Style="{StaticResource DialogSurface}" Margin="18">
+    <StackPanel Margin="24">
+        <Path Width="28" Height="28" HorizontalAlignment="Center" Margin="0,0,0,8"
+              Data="{StaticResource AcanthusCrestGeometry}" Fill="{DynamicResource OrnamentAccentBrush}"
+              Stretch="Uniform" Visibility="{DynamicResource OrnamentVisibility}"/>
+        <TextBlock Text="Delete this saved record?"
+                   Style="{StaticResource DisplayHeadingText}"
+                   HorizontalAlignment="Center"/>
+        <TextBlock Text="Review the entry before permanently removing it from your reports."
+                   Foreground="{DynamicResource SecondaryTextBrush}"
+                   TextWrapping="Wrap"
+                   Margin="0,5,0,18"/>
+
+        <Border Style="{StaticResource SettingsCard}" Margin="0">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="90"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <TextBlock Grid.Row="0" Text="Project" Style="{StaticResource SectionHeaderText}" Margin="0,0,12,10"/>
+                <TextBlock x:Name="ProjectText" Grid.Row="0" Grid.Column="1" FontWeight="SemiBold" Margin="0,0,0,10" TextWrapping="Wrap"/>
+
+                <TextBlock Grid.Row="1" Text="Date" Style="{StaticResource SectionHeaderText}" Margin="0,0,12,10"/>
+                <TextBlock x:Name="DateText" Grid.Row="1" Grid.Column="1" Margin="0,0,0,10"/>
+
+                <TextBlock Grid.Row="2" Text="Time" Style="{StaticResource SectionHeaderText}" Margin="0,0,12,10"/>
+                <TextBlock x:Name="TimeText" Grid.Row="2" Grid.Column="1" Margin="0,0,0,10" TextWrapping="Wrap"/>
+
+                <TextBlock Grid.Row="3" Text="Duration" Style="{StaticResource SectionHeaderText}" Margin="0,0,12,0"/>
+                <TextBlock x:Name="DurationText" Grid.Row="3" Grid.Column="1" FontFamily="{DynamicResource ThemeMonoFontFamily}"/>
+            </Grid>
+        </Border>
+
+        <TextBlock Text="This action cannot be undone."
+                   Foreground="{DynamicResource DangerTextBrush}"
+                   FontWeight="SemiBold"
+                   Margin="2,13,0,0"/>
+
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,18,0,0">
+            <Button Content="Cancel"
+                    Click="Cancel_Click"
+                    Style="{StaticResource ModernButton}"
+                    IsCancel="True"
+                    MinWidth="86"
+                    Margin="0,0,8,0"/>
+            <Button Content="Delete record"
+                    Click="Delete_Click"
+                    Style="{StaticResource StopButton}"
+                    MinWidth="118"/>
+        </StackPanel>
+    </StackPanel>
+    </Border>
+</Window>

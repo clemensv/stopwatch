@@ -18,17 +18,26 @@
     <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
 
     <!-- Assembly metadata -->
-    <Version>1.0.0</Version>
+    <Version>1.6.2</Version>
     <Authors>Clemens Vasters</Authors>
     <Product>Stopwatch Overlay</Product>
     <Description>A transparent, always-on-top stopwatch overlay for video recordings and presentations.</Description>
     <Copyright>Copyright © Clemens Vasters</Copyright>
     <RepositoryUrl>https://github.com/clemensv/stopwatch</RepositoryUrl>
-    <ApplicationIcon>stopwatch.ico</ApplicationIcon>
+    <ApplicationIcon>project-logo.ico</ApplicationIcon>
   </PropertyGroup>
 
   <ItemGroup>
-    <Resource Include="stopwatch.ico" />
+    <Resource Include="project-logo.ico" />
+    <Resource Include="project-logo-24.png" />
+    <Resource Include="Assets\Backgrounds\*.jpg" />
+    <Resource Include="Assets\Ornaments\*.svg" />
+    <Resource Include="Assets\Ornaments\Overlay\*.svg" />
+    <Resource Include="Assets\Fonts\Acanthus\*.ttf" />
+    <!-- Keep the bundled Acanthus font license readable beside single-file publishes. -->
+    <None Update="Assets\Fonts\Acanthus\OFL.txt"
+          CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest"
+          ExcludeFromSingleFile="true" />
   </ItemGroup>
 
 </Project>

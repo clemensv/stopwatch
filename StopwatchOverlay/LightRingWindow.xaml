@@ -7,6 +7,9 @@
         Background="Transparent"
         Topmost="True"
         ShowInTaskbar="False"
+        ShowActivated="False"
+        Focusable="False"
+        IsHitTestVisible="False"
         ResizeMode="NoResize">
     
     <!-- Border around the entire screen - interior is transparent -->
